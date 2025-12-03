@@ -209,9 +209,67 @@ function parseXRPLMetaToken(item: XRPLMetaToken): XRPLToken | null {
   };
 }
 
+// Cache for OnTheDex tokens
+let onTheDexCache: XRPLToken[] | null = null;
+let onTheDexCacheTime = 0;
+const ONTHEDEX_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
+
 /**
- * Search tokens - uses OnTheDex API for comprehensive XRPL token search
- * This finds ALL traded tokens on XRPL, not just a limited subset
+ * Fetch ALL traded tokens from OnTheDex daily pairs
+ */
+async function fetchOnTheDexTokens(): Promise<XRPLToken[]> {
+  // Return cache if valid
+  if (onTheDexCache && Date.now() - onTheDexCacheTime < ONTHEDEX_CACHE_DURATION) {
+    return onTheDexCache;
+  }
+
+  const tokens: XRPLToken[] = [];
+  const seen = new Set<string>();
+
+  try {
+    const response = await fetch(`${ONTHEDEX_API}/daily/pairs`);
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    const pairs = data.pairs || [];
+
+    for (const pair of pairs) {
+      // Get the base token (the non-XRP side)
+      const base = pair.base;
+      if (!base || typeof base === 'string') continue; // Skip XRP base
+      if (!base.currency || !base.issuer) continue;
+
+      const key = `${base.currency}:${base.issuer}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const formattedCurrency = formatCurrencyCode(base.currency);
+      tokens.push({
+        currency: base.currency,
+        issuer: base.issuer,
+        name: formattedCurrency,
+        symbol: formattedCurrency,
+        icon: getTokenIconUrl(base.currency, base.issuer),
+        decimals: 15,
+        volume24h: pair.volume_quote || 0, // XRP volume
+        price: pair.last,
+        priceChange24h: pair.pc24,
+      });
+    }
+
+    // Cache the results
+    onTheDexCache = tokens;
+    onTheDexCacheTime = Date.now();
+
+    return tokens;
+  } catch (error) {
+    console.error('OnTheDex fetch error:', error);
+    return onTheDexCache || [];
+  }
+}
+
+/**
+ * Search tokens - fetches ALL traded tokens and filters locally
  */
 export async function searchTokens(query: string): Promise<XRPLToken[]> {
   if (!query || query.length < 2) {
@@ -233,7 +291,8 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
 
   // Helper to check if token matches query
   const matchesQuery = (token: XRPLToken): boolean => {
-    const matchesCurrency = token.currency.toLowerCase().includes(lowerQuery);
+    const formattedCurrency = formatCurrencyCode(token.currency).toLowerCase();
+    const matchesCurrency = token.currency.toLowerCase().includes(lowerQuery) || formattedCurrency.includes(lowerQuery);
     const matchesName = token.name?.toLowerCase().includes(lowerQuery) || false;
     const matchesSymbol = token.symbol?.toLowerCase().includes(lowerQuery) || false;
     const matchesIssuer = token.issuer?.toLowerCase().includes(lowerQuery) || false;
@@ -248,37 +307,12 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
     }
   }
 
-  // 2. Search OnTheDex API - this has ALL traded XRPL tokens
-  try {
-    const response = await fetch(
-      `${ONTHEDEX_API}/tokens?search=${encodeURIComponent(query)}`
-    );
-
-    if (response.ok) {
-      const data = await response.json();
-      const tokens = data.tokens || [];
-
-      for (const item of tokens) {
-        if (!item.currency || !item.issuer) continue;
-
-        const formattedCurrency = formatCurrencyCode(item.currency);
-        const token: XRPLToken = {
-          currency: item.currency,
-          issuer: item.issuer,
-          name: item.name || formattedCurrency,
-          symbol: formattedCurrency,
-          icon: getTokenIconUrl(item.currency, item.issuer),
-          decimals: 15,
-          volume24h: item.volume_24h,
-          price: item.price,
-          priceChange24h: item.change_24h,
-          verified: item.verified,
-        };
-        addToken(token);
-      }
+  // 2. Fetch and search ALL OnTheDex tokens
+  const onTheDexTokens = await fetchOnTheDexTokens();
+  for (const token of onTheDexTokens) {
+    if (matchesQuery(token)) {
+      addToken(token);
     }
-  } catch (error) {
-    console.error('OnTheDex search error:', error);
   }
 
   // 3. Also try XRPL Meta API for additional tokens
@@ -313,8 +347,8 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
 
   // Sort results: exact matches first, then by volume
   results.sort((a, b) => {
-    const aExact = a.symbol?.toLowerCase() === lowerQuery || a.currency.toLowerCase() === lowerQuery;
-    const bExact = b.symbol?.toLowerCase() === lowerQuery || b.currency.toLowerCase() === lowerQuery;
+    const aExact = a.symbol?.toLowerCase() === lowerQuery || formatCurrencyCode(a.currency).toLowerCase() === lowerQuery;
+    const bExact = b.symbol?.toLowerCase() === lowerQuery || formatCurrencyCode(b.currency).toLowerCase() === lowerQuery;
     if (aExact && !bExact) return -1;
     if (bExact && !aExact) return 1;
     // Sort by volume (more active tokens first)

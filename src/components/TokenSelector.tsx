@@ -14,6 +14,7 @@ import {
   searchTokens,
   getPopularTokens,
   getTokenIconUrl,
+  formatCurrencyCode,
   COMMON_TOKENS,
   type XRPLToken,
 } from '../services/tokenService';
@@ -154,13 +155,14 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
       issuer: '',
     });
 
-    // Add user's tokens
+    // Add user's tokens with decoded currency codes
     for (const tb of wallet.balance.tokens) {
+      const decodedCurrency = formatCurrencyCode(tb.token.currency);
       userTokens.push({
         currency: tb.token.currency,
         issuer: tb.token.issuer || '',
-        name: tb.token.name,
-        symbol: tb.token.symbol,
+        name: tb.token.name || decodedCurrency,
+        symbol: decodedCurrency,
         icon: tb.token.icon || getTokenIconUrl(tb.token.currency, tb.token.issuer),
         decimals: tb.token.decimals,
       });
