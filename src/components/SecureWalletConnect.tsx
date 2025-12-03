@@ -1,28 +1,24 @@
 /**
  * BEAR MARKET - Secure Wallet Connect
  *
- * FORTRESS-GRADE security with multiple login options:
- *
- * 1. CREATE NEW WALLET
- *    - Generate fresh XRPL wallet
- *    - Backup seed phrase flow
- *    - Password-protected encrypted storage
- *
- * 2. SOCIAL LOGIN (Google, X/Twitter)
- *    - Web3Auth derives non-custodial wallet from OAuth
- *    - No seed phrase needed
- *
- * 3. SECRET KEY (Import existing)
- *    - AES-256-GCM encryption
- *    - PBKDF2 600K iterations
- *
- * NO third-party wallet apps = YOU control the fees
+ * Security Model (same as MetaMask, First Ledger):
+ * - Password encrypts seed locally in browser using AES-256-GCM
+ * - PBKDF2 with 600,000 iterations for key derivation
+ * - Password NEVER leaves your device
+ * - BEAR MARKET cannot see, recover, or reset your password
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet } from 'xrpl';
-import { getKeyManager } from '../security/SecureKeyManager';
+import {
+  getKeyManager,
+  hasSavedVault,
+  getSavedAddress,
+  saveVaultToStorage,
+  loadVaultFromStorage,
+  deleteVaultFromStorage,
+} from '../security/SecureKeyManager';
 import {
   checkEnvironmentIntegrity,
   logSecurityEvent,
@@ -38,8 +34,10 @@ interface SecureWalletConnectProps {
 
 type ConnectionMode =
   | 'select'
-  | 'instant-wallet'  // Single-screen wallet creation - FAST!
-  | 'secret'
+  | 'unlock'           // Unlock saved wallet with password
+  | 'instant-wallet'   // Single-screen wallet creation
+  | 'secret'           // Import with secret key
+  | 'save-wallet'      // Create password to save wallet
   | 'social-loading';
 
 // Icons
@@ -65,6 +63,26 @@ const SecurityBadge = ({ secure }: { secure: boolean }) => (
   </div>
 );
 
+// Security warning component - shown when saving wallet
+const SecurityDisclosure = () => (
+  <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-xs text-blue-200 space-y-2">
+    <div className="flex items-start gap-2">
+      <span className="text-blue-400 mt-0.5">🔐</span>
+      <p>
+        <strong className="text-blue-300">How this works:</strong> Your password encrypts your wallet
+        locally in your browser using AES-256-GCM encryption. It never leaves your device.
+      </p>
+    </div>
+    <div className="flex items-start gap-2">
+      <span className="text-blue-400 mt-0.5">⚠️</span>
+      <p>
+        <strong className="text-blue-300">Important:</strong> BEAR MARKET cannot see, recover, or reset
+        your password. If you forget it, you'll need to re-import your wallet using your seed phrase.
+      </p>
+    </div>
+  </div>
+);
+
 export const SecureWalletConnect = ({
   isOpen,
   onClose,
@@ -77,7 +95,16 @@ export const SecureWalletConnect = ({
   const [showSecret, setShowSecret] = useState(false);
   const [securityCheck, setSecurityCheck] = useState<{ secure: boolean; warnings: string[] } | null>(null);
 
-  // Instant wallet creation states (FAST onboarding!)
+  // Vault states
+  const [savedAddress, setSavedAddress] = useState<string | null>(null);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [pendingSecret, setPendingSecret] = useState<string | null>(null);
+  const [pendingAddress, setPendingAddress] = useState<string | null>(null);
+
+  // Instant wallet creation states
   const [newWallet, setNewWallet] = useState<{ address: string; seed: string } | null>(null);
   const [seedAcknowledged, setSeedAcknowledged] = useState(false);
   const [seedCopied, setSeedCopied] = useState(false);
@@ -92,6 +119,14 @@ export const SecureWalletConnect = ({
   // Initialize Web3Auth on mount
   useEffect(() => {
     initWeb3Auth().catch(console.error);
+  }, []);
+
+  // Check for saved vault on mount
+  useEffect(() => {
+    if (hasSavedVault()) {
+      const addr = getSavedAddress();
+      setSavedAddress(addr);
+    }
   }, []);
 
   // Check security environment on mount
@@ -117,6 +152,12 @@ export const SecureWalletConnect = ({
       setAlgorithm('secp256k1');
       setMnemonicWords('');
       setXamanNumbers(Array(8).fill(''));
+      setUnlockPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPassword(false);
+      setPendingSecret(null);
+      setPendingAddress(null);
     }
   }, [isOpen]);
 
@@ -137,21 +178,66 @@ export const SecureWalletConnect = ({
     logSecurityEvent('secret_pasted', 'User pasted secret key');
   }, []);
 
-  // Generate new wallet - INSTANT! One-click creation
+  // Unlock saved wallet with password
+  const handleUnlockWallet = async () => {
+    if (!unlockPassword) {
+      setError('Please enter your password');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    logSecurityEvent('unlock_attempt', 'Attempting to unlock saved wallet');
+
+    try {
+      const vault = loadVaultFromStorage();
+      if (!vault) {
+        throw new Error('No saved wallet found');
+      }
+
+      const keyManager = getKeyManager();
+      const { address } = await keyManager.initializeFromVault(vault, unlockPassword);
+
+      setUnlockPassword('');
+      logSecurityEvent('unlock_success', `Unlocked: ${address.slice(0, 8)}...`);
+
+      onConnect(address);
+      onClose();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to unlock wallet';
+      if (message === 'Invalid password') {
+        setError('Incorrect password. Please try again.');
+      } else {
+        setError(message);
+      }
+      logSecurityEvent('unlock_error', message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete saved wallet
+  const handleDeleteSavedWallet = () => {
+    if (confirm('Are you sure you want to remove the saved wallet? You will need to re-import it.')) {
+      deleteVaultFromStorage();
+      setSavedAddress(null);
+      setMode('select');
+      logSecurityEvent('wallet_deleted', 'User deleted saved wallet');
+    }
+  };
+
+  // Generate new wallet
   const handleCreateWallet = async () => {
     setLoading(true);
     setError(null);
     logSecurityEvent('wallet_create_start', 'Generating new wallet');
 
     try {
-      // Generate a new XRPL wallet - INSTANT!
       const wallet = Wallet.generate();
-
       setNewWallet({
         address: wallet.classicAddress,
         seed: wallet.seed!,
       });
-
       setMode('instant-wallet');
       logSecurityEvent('wallet_created', `New wallet: ${wallet.classicAddress.slice(0, 8)}...`);
     } catch (err) {
@@ -170,12 +256,12 @@ export const SecureWalletConnect = ({
       await navigator.clipboard.writeText(newWallet.seed);
       setSeedCopied(true);
       setTimeout(() => setSeedCopied(false), 3000);
-    } catch (err) {
+    } catch {
       setError('Failed to copy. Please copy manually.');
     }
   };
 
-  // INSTANT wallet completion - just acknowledge and GO!
+  // Complete instant wallet and go to save step
   const handleInstantConnect = async () => {
     if (!newWallet) return;
 
@@ -184,29 +270,10 @@ export const SecureWalletConnect = ({
       return;
     }
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const keyManager = getKeyManager();
-      await keyManager.initializeSessionOnly(newWallet.seed);
-
-      logSecurityEvent('wallet_instant_complete', `Wallet ready: ${newWallet.address.slice(0, 8)}...`);
-
-      const address = newWallet.address;
-
-      // Clear sensitive data
-      setNewWallet(null);
-
-      onConnect(address);
-      onClose();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to setup wallet';
-      setError(message);
-      logSecurityEvent('wallet_setup_error', message);
-    } finally {
-      setLoading(false);
-    }
+    // Go to save wallet step
+    setPendingSecret(newWallet.seed);
+    setPendingAddress(newWallet.address);
+    setMode('save-wallet');
   };
 
   // Connect with social login
@@ -218,11 +285,10 @@ export const SecureWalletConnect = ({
 
     try {
       const { address, privateKey } = await loginWithSocial();
-      const keyManager = getKeyManager();
-      await keyManager.initializeSessionOnly(privateKey);
-      logSecurityEvent('social_login_success', `Connected: ${address.slice(0, 8)}...`);
-      onConnect(address);
-      onClose();
+      // Go to save wallet step
+      setPendingSecret(privateKey);
+      setPendingAddress(address);
+      setMode('save-wallet');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Social login failed';
       setError(message);
@@ -240,14 +306,11 @@ export const SecureWalletConnect = ({
         return secret.trim();
 
       case 'private-key':
-        // Private key is hex format, return as-is
         return secret.trim();
 
       case 'mnemonic':
-        // Convert mnemonic to wallet using xrpl.js
         try {
           const words = mnemonicWords.trim();
-          // xrpl.js Wallet.fromMnemonic expects space-separated words
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const opts: any = {};
           if (algorithm === 'ed25519') {
@@ -262,14 +325,12 @@ export const SecureWalletConnect = ({
         }
 
       case 'xaman-numbers':
-        // XAMAN Secret Numbers: 8 rows of 6 digits each
         const filledRows = xamanNumbers.filter(n => n.trim());
         if (filledRows.length !== 8) {
           throw new Error('Please enter all 8 rows of your Secret Numbers');
         }
 
         try {
-          // Validate each row is exactly 6 digits
           for (let i = 0; i < 8; i++) {
             const row = xamanNumbers[i].trim();
             if (!/^\d{6}$/.test(row)) {
@@ -277,29 +338,21 @@ export const SecureWalletConnect = ({
             }
           }
 
-          // Decode secret numbers to entropy bytes
-          // Format: each row is XXXXXC where XXXXX is value (0-65535) and C is checksum
-          // Note: We skip checksum validation as XAMAN's exact algorithm varies
           const entropyBytes = new Uint8Array(16);
           for (let i = 0; i < 8; i++) {
             const row = xamanNumbers[i].trim();
             const value = parseInt(row.slice(0, 5), 10);
-
-            // Store as 2 bytes (big-endian)
             entropyBytes[i * 2] = Math.floor(value / 256);
             entropyBytes[i * 2 + 1] = value % 256;
           }
 
-          // Convert to family seed with selected algorithm
           const { encodeSeed } = await import('xrpl');
           const algoType = algorithm === 'ed25519' ? 'ed25519' : 'secp256k1';
           const familySeed = encodeSeed(entropyBytes, algoType);
 
           return familySeed;
         } catch (err) {
-          if (err instanceof Error) {
-            throw err;
-          }
+          if (err instanceof Error) throw err;
           throw new Error('Invalid Secret Numbers format');
         }
 
@@ -308,14 +361,13 @@ export const SecureWalletConnect = ({
     }
   };
 
-  // Connect with secret key (supports multiple import methods)
+  // Connect with secret key - goes to save wallet step
   const handleSessionConnect = async () => {
     setLoading(true);
     setError(null);
     logSecurityEvent('session_connect_attempt', `Attempting ${importMethod} import`);
 
     try {
-      // Get the secret based on the selected import method
       const secretKey = await getSecretFromImportMethod();
 
       if (!secretKey) {
@@ -324,18 +376,21 @@ export const SecureWalletConnect = ({
         return;
       }
 
+      // Validate the secret by deriving the address
       const keyManager = getKeyManager();
       const { address } = await keyManager.initializeSessionOnly(secretKey);
 
-      // Clear sensitive data
+      // Clear input fields
       setSecret('');
       setMnemonicWords('');
       setXamanNumbers(Array(8).fill(''));
 
-      logSecurityEvent('session_connect_success', `Connected: ${address.slice(0, 8)}...`);
+      // Go to save wallet step
+      setPendingSecret(secretKey);
+      setPendingAddress(address);
+      setMode('save-wallet');
 
-      onConnect(address);
-      onClose();
+      logSecurityEvent('session_connect_validated', `Validated: ${address.slice(0, 8)}...`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Connection failed';
       setError(message);
@@ -343,6 +398,68 @@ export const SecureWalletConnect = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  // Save wallet with password
+  const handleSaveWallet = async () => {
+    if (!pendingSecret || !pendingAddress) {
+      setError('No wallet to save');
+      return;
+    }
+
+    if (newPassword.length < 12) {
+      setError('Password must be at least 12 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const keyManager = getKeyManager();
+
+      // Initialize the key manager if not already done
+      if (!keyManager.hasKey()) {
+        await keyManager.initializeSessionOnly(pendingSecret);
+      }
+
+      // Create encrypted vault
+      const vault = await keyManager.createVault(newPassword);
+
+      // Save to localStorage
+      saveVaultToStorage(vault, pendingAddress);
+      setSavedAddress(pendingAddress);
+
+      // Clear sensitive data
+      setNewPassword('');
+      setConfirmPassword('');
+      setPendingSecret(null);
+
+      logSecurityEvent('wallet_saved', `Saved wallet: ${pendingAddress.slice(0, 8)}...`);
+
+      onConnect(pendingAddress);
+      onClose();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save wallet';
+      setError(message);
+      logSecurityEvent('wallet_save_error', message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Skip saving and connect directly (session only)
+  const handleSkipSave = async () => {
+    if (!pendingAddress) return;
+
+    logSecurityEvent('skip_save', 'User skipped saving wallet');
+    onConnect(pendingAddress);
+    onClose();
   };
 
   // ==================== RENDER FUNCTIONS ====================
@@ -360,8 +477,37 @@ export const SecureWalletConnect = ({
         {securityCheck && <SecurityBadge secure={securityCheck.secure} />}
       </div>
 
+      {/* Saved Wallet - Show if exists */}
+      {savedAddress && (
+        <div className="mt-4">
+          <button
+            onClick={() => setMode('unlock')}
+            className="w-full p-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-xl text-left transition-all group shadow-lg shadow-green-500/25"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl">
+                🔓
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-white text-lg">Unlock Saved Wallet</h4>
+                <p className="text-sm text-green-200 font-mono">{savedAddress.slice(0, 8)}...{savedAddress.slice(-4)}</p>
+              </div>
+              <div className="text-white/70 group-hover:text-white transition-colors text-xl">→</div>
+            </div>
+          </button>
+          <div className="text-center mt-2">
+            <button
+              onClick={handleDeleteSavedWallet}
+              className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+            >
+              Remove saved wallet
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-3 mt-6">
-        {/* CREATE NEW WALLET - Primary CTA */}
+        {/* CREATE NEW WALLET */}
         <button
           onClick={handleCreateWallet}
           disabled={loading}
@@ -420,10 +566,171 @@ export const SecureWalletConnect = ({
     </div>
   );
 
-  // INSTANT WALLET - Single screen, fastest possible onboarding!
+  // Unlock saved wallet screen
+  const renderUnlockWallet = () => (
+    <div className="space-y-4">
+      <button onClick={() => setMode('select')} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm">
+        ← Back
+      </button>
+
+      <div className="text-center mb-4">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center text-3xl">
+          🔐
+        </div>
+        <h3 className="text-xl font-bold text-white">Unlock Wallet</h3>
+        <p className="text-sm text-gray-400 font-mono mt-1">
+          {savedAddress?.slice(0, 10)}...{savedAddress?.slice(-6)}
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Enter your password
+        </label>
+        <div className="relative">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            value={unlockPassword}
+            onChange={(e) => {
+              setUnlockPassword(e.target.value);
+              setError(null);
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleUnlockWallet()}
+            placeholder="••••••••••••"
+            className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-green-500 pr-12"
+            autoComplete="current-password"
+            autoFocus
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg"
+          >
+            {showPassword ? '🙈' : '👁️'}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300">
+          ⚠️ {error}
+        </div>
+      )}
+
+      <button
+        onClick={handleUnlockWallet}
+        disabled={loading || !unlockPassword}
+        className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all"
+      >
+        {loading ? 'Unlocking...' : 'Unlock Wallet'}
+      </button>
+
+      <p className="text-xs text-gray-500 text-center">
+        Forgot password? <button onClick={() => setMode('secret')} className="text-purple-400 hover:text-purple-300">Re-import your wallet</button>
+      </p>
+    </div>
+  );
+
+  // Save wallet with password screen
+  const renderSaveWallet = () => (
+    <div className="space-y-4">
+      <div className="text-center mb-4">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-3xl">
+          🔒
+        </div>
+        <h3 className="text-xl font-bold text-white">Secure Your Wallet</h3>
+        <p className="text-sm text-gray-400 mt-1">Create a password to stay logged in</p>
+        {pendingAddress && (
+          <p className="text-xs text-green-400 font-mono mt-2">
+            {pendingAddress.slice(0, 10)}...{pendingAddress.slice(-6)}
+          </p>
+        )}
+      </div>
+
+      <SecurityDisclosure />
+
+      <div className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Create password (12+ characters)
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={newPassword}
+              onChange={(e) => {
+                setNewPassword(e.target.value);
+                setError(null);
+              }}
+              placeholder="••••••••••••"
+              className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 pr-12"
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg"
+            >
+              {showPassword ? '🙈' : '👁️'}
+            </button>
+          </div>
+          {newPassword.length > 0 && newPassword.length < 12 && (
+            <p className="text-xs text-yellow-400 mt-1">Password too short ({newPassword.length}/12)</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Confirm password
+          </label>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            value={confirmPassword}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value);
+              setError(null);
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleSaveWallet()}
+            placeholder="••••••••••••"
+            className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500"
+            autoComplete="new-password"
+          />
+          {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+            <p className="text-xs text-red-400 mt-1">Passwords don't match</p>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300">
+          ⚠️ {error}
+        </div>
+      )}
+
+      <button
+        onClick={handleSaveWallet}
+        disabled={loading || newPassword.length < 12 || newPassword !== confirmPassword}
+        className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all"
+      >
+        {loading ? 'Saving...' : 'Save & Continue'}
+      </button>
+
+      <button
+        onClick={handleSkipSave}
+        className="w-full text-center text-sm text-gray-500 hover:text-gray-300 transition-colors py-2"
+      >
+        Skip (won't remember me)
+      </button>
+
+      <p className="text-xs text-gray-600 text-center">
+        Your password encrypts your wallet locally. We cannot recover it.
+      </p>
+    </div>
+  );
+
+  // INSTANT WALLET screen
   const renderInstantWallet = () => (
     <div className="space-y-4">
-      {/* Success header */}
       <div className="text-center">
         <motion.div
           initial={{ scale: 0 }}
@@ -433,19 +740,17 @@ export const SecureWalletConnect = ({
           🎉
         </motion.div>
         <h3 className="text-2xl font-bold text-white">Wallet Created!</h3>
-        <p className="text-sm text-gray-400 mt-1">Save your key below, then you're in!</p>
+        <p className="text-sm text-gray-400 mt-1">Save your key below, then create a password</p>
       </div>
 
-      {/* Address display */}
       <div className="p-3 bg-green-500/10 rounded-xl border border-green-500/20">
         <div className="text-xs text-green-400 mb-1">Your Wallet Address</div>
         <div className="font-mono text-sm text-white break-all">{newWallet?.address}</div>
       </div>
 
-      {/* Secret key display - CRITICAL */}
       <div className="p-4 bg-black/60 rounded-xl border-2 border-orange-500/40">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-orange-400 font-bold uppercase tracking-wide">Secret Key</span>
+          <span className="text-xs text-orange-400 font-bold uppercase tracking-wide">Secret Key (BACKUP!)</span>
           <button
             onClick={handleCopySeed}
             className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${seedCopied ? 'bg-green-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
@@ -457,11 +762,10 @@ export const SecureWalletConnect = ({
           {newWallet?.seed}
         </div>
         <p className="text-xs text-orange-300/80 mt-2">
-          Save this somewhere safe. It's the ONLY way to recover your wallet!
+          ⚠️ Write this down and store it safely. It's the ONLY way to recover your wallet!
         </p>
       </div>
 
-      {/* Self-custody acknowledgment */}
       <div className="p-4 bg-purple-500/10 rounded-xl border border-purple-500/20">
         <label className="flex items-start gap-3 cursor-pointer">
           <input
@@ -487,23 +791,14 @@ export const SecureWalletConnect = ({
         </div>
       )}
 
-      {/* GO button */}
       <button
         onClick={handleInstantConnect}
         disabled={loading || !seedAcknowledged}
         className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-white text-lg transition-all shadow-lg shadow-green-500/30"
       >
-        {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Setting up...
-          </span>
-        ) : (
-          "Let's Go! →"
-        )}
+        {loading ? 'Setting up...' : "I've Saved My Key →"}
       </button>
 
-      {/* Back link */}
       <button
         onClick={() => {
           setNewWallet(null);
@@ -537,9 +832,8 @@ export const SecureWalletConnect = ({
     </div>
   );
 
-  // Secret key input screen - Multiple import methods like First Ledger
+  // Secret key input screen
   const renderSecretInput = () => {
-    // Check if we can submit based on the import method
     const canSubmit = () => {
       switch (importMethod) {
         case 'family-seed':
@@ -571,7 +865,7 @@ export const SecureWalletConnect = ({
           </div>
         )}
 
-        {/* Import Method Selection - Radio buttons like First Ledger */}
+        {/* Import Method Selection */}
         <div className="space-y-2">
           {[
             { id: 'family-seed', label: 'Family Seed', desc: 'Starts with "s"' },
@@ -591,7 +885,7 @@ export const SecureWalletConnect = ({
                 type="radio"
                 name="importMethod"
                 checked={importMethod === method.id}
-                onChange={() => setImportMethod(method.id as typeof importMethod)}
+                onChange={() => setImportMethod(method.id as ImportMethod)}
                 className="w-4 h-4 text-purple-500 bg-black border-gray-600 focus:ring-purple-500"
               />
               <div>
@@ -649,9 +943,8 @@ export const SecureWalletConnect = ({
             </div>
           )}
 
-          {/* XAMAN Secret Numbers input - 8 rows of 6 digits, sequential entry */}
+          {/* XAMAN Secret Numbers input */}
           {importMethod === 'xaman-numbers' && (() => {
-            // Find the current active row (first incomplete row)
             const activeRow = xamanNumbers.findIndex(n => n.length < 6);
             const currentRow = activeRow === -1 ? 7 : activeRow;
 
@@ -689,7 +982,6 @@ export const SecureWalletConnect = ({
                               setXamanNumbers(newNums);
                             }}
                             onKeyDown={(e) => {
-                              // Allow backspace to go to previous row when current is empty
                               if (e.key === 'Backspace' && num.length === 0 && i > 0) {
                                 e.preventDefault();
                                 const newNums = [...xamanNumbers];
@@ -715,7 +1007,6 @@ export const SecureWalletConnect = ({
                             <button
                               type="button"
                               onClick={() => {
-                                // Clear this row and all after it
                                 const newNums = [...xamanNumbers];
                                 for (let j = i; j < 8; j++) {
                                   newNums[j] = '';
@@ -781,7 +1072,7 @@ export const SecureWalletConnect = ({
           disabled={loading || !canSubmit()}
           className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all"
         >
-          {loading ? 'Connecting...' : 'Confirm'}
+          {loading ? 'Validating...' : 'Continue'}
         </button>
       </div>
     );
@@ -804,9 +1095,11 @@ export const SecureWalletConnect = ({
             </button>
 
             {mode === 'select' && renderModeSelect()}
+            {mode === 'unlock' && renderUnlockWallet()}
             {mode === 'instant-wallet' && renderInstantWallet()}
             {mode === 'social-loading' && renderSocialLoading()}
             {mode === 'secret' && renderSecretInput()}
+            {mode === 'save-wallet' && renderSaveWallet()}
           </motion.div>
         </motion.div>
       )}

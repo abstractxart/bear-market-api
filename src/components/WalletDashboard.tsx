@@ -11,6 +11,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWallet } from '../context/WalletContext';
+import { getTokenIconUrl } from '../services/tokenService';
 
 interface WalletDashboardProps {
   isOpen: boolean;
@@ -162,18 +163,66 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
     !t.token.currency.startsWith('LP') && !t.token.currency.includes('_')
   );
 
-  // Format currency code for display
+  // Format currency code for display (browser-compatible)
   const formatCurrency = (currency: string): string => {
-    if (currency.length === 40) {
-      // Hex currency - decode it
+    if (currency.length === 40 && /^[0-9A-Fa-f]+$/.test(currency)) {
+      // Hex currency - decode it (browser-compatible)
       try {
-        const decoded = Buffer.from(currency, 'hex').toString('utf8').replace(/\0/g, '');
-        return decoded || currency.slice(0, 8);
+        let decoded = '';
+        for (let i = 0; i < currency.length; i += 2) {
+          const byte = parseInt(currency.substr(i, 2), 16);
+          if (byte !== 0) { // Skip null bytes
+            decoded += String.fromCharCode(byte);
+          }
+        }
+        return decoded.trim() || currency.slice(0, 8);
       } catch {
         return currency.slice(0, 8);
       }
     }
     return currency;
+  };
+
+  // Token Icon component with fallback
+  const TokenIconSmall = ({ currency, issuer, size = 40 }: { currency: string; issuer?: string; size?: number }) => {
+    const [imgError, setImgError] = useState(false);
+    const iconUrl = currency === 'XRP' ? 'https://cdn.bithomp.com/xrp.svg' : getTokenIconUrl(currency, issuer);
+
+    // Generate a color from the currency code for fallback
+    const generateColor = (str: string) => {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const hue = hash % 360;
+      return `hsl(${hue}, 60%, 50%)`;
+    };
+
+    if (imgError) {
+      return (
+        <div
+          className="rounded-full flex items-center justify-center text-white font-bold"
+          style={{
+            width: size,
+            height: size,
+            backgroundColor: generateColor(currency),
+            fontSize: size * 0.35,
+          }}
+        >
+          {formatCurrency(currency).slice(0, 2)}
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={iconUrl}
+        alt={formatCurrency(currency)}
+        className="rounded-full object-cover bg-gray-700"
+        style={{ width: size, height: size }}
+        onError={() => setImgError(true)}
+      />
+    );
   };
 
   if (!isOpen) return null;
@@ -318,17 +367,13 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
               <div className="p-2">
                 {/* XRP Balance */}
                 <div className="flex items-center gap-3 p-3 hover:bg-gray-800/50 rounded-xl transition-colors">
-                  <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-xl">
-                    ✕
-                  </div>
+                  <TokenIconSmall currency="XRP" size={40} />
                   <div className="flex-1">
                     <div className="font-semibold text-white">XRP</div>
-                    <div className="text-xs text-green-400">
-                      ${(parseFloat(wallet.balance.xrp) * 2.18).toFixed(2)} USD
-                    </div>
+                    <div className="text-xs text-gray-500">XRP Ledger</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-mono text-white">{parseFloat(wallet.balance.xrp).toFixed(2)}</div>
+                    <div className="font-mono text-white">{parseFloat(wallet.balance.xrp).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
                     <div className="text-xs text-gray-500">XRP</div>
                   </div>
                 </div>
@@ -336,10 +381,8 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                 {/* Token Balances */}
                 {regularTokens.map((token, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 hover:bg-gray-800/50 rounded-xl transition-colors">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center text-sm font-bold text-purple-400">
-                      {formatCurrency(token.token.currency).slice(0, 2)}
-                    </div>
-                    <div className="flex-1">
+                    <TokenIconSmall currency={token.token.currency} issuer={token.token.issuer} size={40} />
+                    <div className="flex-1 min-w-0">
                       <div className="font-semibold text-white">{formatCurrency(token.token.currency)}</div>
                       <div className="text-xs text-gray-500 truncate">
                         {token.token.issuer?.slice(0, 8)}...
@@ -347,7 +390,7 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                     </div>
                     <div className="text-right">
                       <div className="font-mono text-white">
-                        {parseFloat(token.balance).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        {parseFloat(token.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                       </div>
                     </div>
                   </div>
@@ -366,16 +409,16 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
               <div className="p-2">
                 {lpTokens.map((token, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 hover:bg-gray-800/50 rounded-xl transition-colors">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center border border-green-500/30">
                       <span className="text-lg">🌊</span>
                     </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-white">{formatCurrency(token.token.currency)}</div>
-                      <div className="text-xs text-gray-500">LP Token</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-white truncate">{formatCurrency(token.token.currency)}</div>
+                      <div className="text-xs text-green-400">LP Position</div>
                     </div>
                     <div className="text-right">
                       <div className="font-mono text-white">
-                        {parseFloat(token.balance).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        {parseFloat(token.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}
                       </div>
                     </div>
                   </div>

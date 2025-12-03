@@ -1,83 +1,200 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+/**
+ * BEAR MARKET - Token Selector
+ *
+ * Beautiful token selection modal with:
+ * - Search across all XRPL tokens
+ * - Token icons from Bithomp CDN
+ * - Popular tokens quick access
+ * - Price and volume data
+ */
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  searchTokens,
+  getPopularTokens,
+  getTokenIconUrl,
+  COMMON_TOKENS,
+  type XRPLToken,
+} from '../services/tokenService';
 import type { Token } from '../types';
-import { XRP_TOKEN } from '../types';
 import { useWallet } from '../context/WalletContext';
 
 interface TokenSelectorProps {
+  isOpen?: boolean;
   onSelect: (token: Token) => void;
   onClose: () => void;
+  selectedToken?: Token;
   excludeToken?: Token | null;
 }
 
-// Popular tokens on XRPL (will be fetched from API in production)
-const POPULAR_TOKENS: Token[] = [
-  XRP_TOKEN,
-  {
-    currency: 'BEAR',
-    issuer: 'rBEARTokenIssuerAddressHere', // UPDATE
-    name: 'BEAR Token',
-    symbol: 'BEAR',
-    icon: '/tokens/bear.svg',
-    decimals: 15,
-  },
-  {
-    currency: 'USD',
-    issuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B', // Bitstamp
-    name: 'USD (Bitstamp)',
-    symbol: 'USD',
-    icon: '/tokens/usd.svg',
-    decimals: 15,
-  },
-  {
-    currency: 'SOLO',
-    issuer: 'rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz',
-    name: 'Sologenic',
-    symbol: 'SOLO',
-    icon: '/tokens/solo.svg',
-    decimals: 15,
-  },
-  {
-    currency: 'CSC',
-    issuer: 'rCSCManTZ8ME9EoLrSHHYKW8PPwWMgkwr',
-    name: 'CasinoCoin',
-    symbol: 'CSC',
-    icon: '/tokens/csc.svg',
-    decimals: 15,
-  },
-];
+// Token icon component with fallback
+const TokenIcon = ({ token, size = 40 }: { token: Token | XRPLToken; size?: number }) => {
+  const [imgError, setImgError] = useState(false);
+  const iconUrl = token.icon || getTokenIconUrl(token.currency, token.issuer);
 
-const TokenSelector: React.FC<TokenSelectorProps> = ({ onSelect, onClose, excludeToken }) => {
+  // Generate a color from the token name for fallback
+  const generateColor = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = hash % 360;
+    return `hsl(${hue}, 60%, 50%)`;
+  };
+
+  if (imgError || !iconUrl) {
+    return (
+      <div
+        className="rounded-full flex items-center justify-center text-white font-bold"
+        style={{
+          width: size,
+          height: size,
+          backgroundColor: generateColor(token.currency),
+          fontSize: size * 0.35,
+        }}
+      >
+        {token.symbol?.slice(0, 3) || token.currency.slice(0, 3)}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={iconUrl}
+      alt={token.name || token.currency}
+      className="rounded-full object-cover bg-gray-800"
+      style={{ width: size, height: size }}
+      onError={() => setImgError(true)}
+    />
+  );
+};
+
+// Format large numbers
+const formatNumber = (num: number | undefined): string => {
+  if (!num) return '';
+  if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
+  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
+  if (num >= 1_000) return `$${(num / 1_000).toFixed(2)}K`;
+  return `$${num.toFixed(2)}`;
+};
+
+// Format price change
+const formatPriceChange = (change: number | undefined): { text: string; color: string } => {
+  if (change === undefined || change === null) return { text: '', color: 'text-gray-500' };
+  const num = typeof change === 'string' ? parseFloat(change) : change;
+  if (isNaN(num)) return { text: '', color: 'text-gray-500' };
+  const sign = num >= 0 ? '+' : '';
+  const color = num >= 0 ? 'text-green-400' : 'text-red-400';
+  return { text: `${sign}${num.toFixed(2)}%`, color };
+};
+
+// Safely format price
+const formatPrice = (price: number | string | undefined): string => {
+  if (price === undefined || price === null) return '';
+  const num = typeof price === 'string' ? parseFloat(price) : price;
+  if (isNaN(num)) return '';
+  return num.toFixed(6);
+};
+
+const TokenSelector: React.FC<TokenSelectorProps> = ({
+  isOpen = true,
+  onSelect,
+  onClose,
+  selectedToken,
+  excludeToken,
+}) => {
   const { wallet } = useWallet();
-  const [search, setSearch] = useState('');
-  const tokens = POPULAR_TOKENS;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [tokens, setTokens] = useState<XRPLToken[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'popular' | 'wallet'>('popular');
 
-  // Filter tokens based on search and exclude current selection
-  const filteredTokens = tokens.filter((token) => {
-    // Exclude the token from the other side
-    if (
-      excludeToken &&
-      token.currency === excludeToken.currency &&
-      token.issuer === excludeToken.issuer
-    ) {
-      return false;
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        if (searchQuery.length >= 2) {
+          const results = await searchTokens(searchQuery);
+          setTokens(results);
+        } else {
+          const popular = await getPopularTokens();
+          setTokens(popular);
+        }
+      } catch (error) {
+        console.error('Token search error:', error);
+        // Fallback to common tokens
+        setTokens(COMMON_TOKENS);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Load popular tokens on mount
+  useEffect(() => {
+    if (isOpen) {
+      setLoading(true);
+      getPopularTokens()
+        .then(setTokens)
+        .catch(() => setTokens(COMMON_TOKENS))
+        .finally(() => setLoading(false));
+    }
+  }, [isOpen]);
+
+  // Get user's wallet tokens
+  const walletTokens = useMemo(() => {
+    const userTokens: XRPLToken[] = [];
+
+    // Add XRP
+    userTokens.push({
+      ...COMMON_TOKENS[0],
+      issuer: '',
+    });
+
+    // Add user's tokens
+    for (const tb of wallet.balance.tokens) {
+      userTokens.push({
+        currency: tb.token.currency,
+        issuer: tb.token.issuer || '',
+        name: tb.token.name,
+        symbol: tb.token.symbol,
+        icon: tb.token.icon || getTokenIconUrl(tb.token.currency, tb.token.issuer),
+        decimals: tb.token.decimals,
+      });
     }
 
-    // Search filter
-    if (search) {
-      const query = search.toLowerCase();
-      return (
-        token.currency.toLowerCase().includes(query) ||
-        token.name.toLowerCase().includes(query) ||
-        token.symbol.toLowerCase().includes(query)
-      );
+    return userTokens;
+  }, [wallet.balance.tokens]);
+
+  // Filter out excluded token and include XRP at top
+  const displayTokens = useMemo(() => {
+    const sourceTokens = activeTab === 'wallet' && !searchQuery ? walletTokens : tokens;
+
+    let filtered = sourceTokens.filter(t => {
+      // Exclude the "other side" token
+      if (excludeToken && t.currency === excludeToken.currency && t.issuer === excludeToken.issuer) {
+        return false;
+      }
+      return true;
+    });
+
+    // Add XRP at top if not searching and not excluded
+    if (!searchQuery && activeTab === 'popular' && (!excludeToken || excludeToken.currency !== 'XRP')) {
+      const xrp = COMMON_TOKENS.find(t => t.currency === 'XRP');
+      if (xrp && !filtered.find(t => t.currency === 'XRP')) {
+        filtered = [{ ...xrp, issuer: '' }, ...filtered];
+      }
     }
 
-    return true;
-  });
+    return filtered;
+  }, [tokens, walletTokens, excludeToken, searchQuery, activeTab]);
 
   // Get balance for a token
-  const getBalance = (token: Token): string => {
+  const getBalance = useCallback((token: Token | XRPLToken): string => {
     if (token.currency === 'XRP') {
       return wallet.balance.xrp;
     }
@@ -85,101 +202,218 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({ onSelect, onClose, exclud
       (t) => t.token.currency === token.currency && t.token.issuer === token.issuer
     );
     return tokenBalance?.balance || '0';
-  };
+  }, [wallet.balance]);
+
+  // Handle token selection
+  const handleSelect = useCallback((token: Token | XRPLToken) => {
+    const selectedToken: Token = {
+      currency: token.currency,
+      issuer: token.issuer || undefined,
+      name: token.name,
+      symbol: token.symbol,
+      icon: token.icon || getTokenIconUrl(token.currency, token.issuer),
+      decimals: token.decimals,
+    };
+    onSelect(selectedToken);
+    setSearchQuery('');
+  }, [onSelect]);
+
+  // Reset state on close
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('');
+      setActiveTab('popular');
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
+    <AnimatePresence>
       <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="glass-card w-full max-w-md max-h-[70vh] overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
       >
-        {/* Header */}
-        <div className="p-4 border-b border-bear-dark-500">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-white">Select a token</h3>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg hover:bg-bear-dark-600 transition-colors"
-            >
-              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          {/* Search input */}
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name or paste address"
-              className="w-full bg-bear-dark-800 border border-bear-dark-500 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:border-bear-purple-500 outline-none"
-              autoFocus
-            />
-          </div>
-        </div>
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        />
 
-        {/* Token list */}
-        <div className="overflow-y-auto max-h-[400px] p-2">
-          {filteredTokens.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              No tokens found
-            </div>
-          ) : (
-            filteredTokens.map((token) => (
-              <motion.button
-                key={`${token.currency}-${token.issuer || 'native'}`}
-                onClick={() => onSelect(token)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-bear-dark-700 transition-colors"
-                whileHover={{ x: 4 }}
+        {/* Modal */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          className="relative w-full max-w-md bg-gradient-to-b from-gray-900 to-black border border-purple-500/30 rounded-2xl shadow-2xl shadow-purple-500/10 overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="p-4 border-b border-gray-800">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Select Token</h3>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
               >
-                {/* Token icon */}
-                <div className="w-10 h-10 rounded-full bg-bear-dark-600 flex items-center justify-center overflow-hidden">
-                  {token.icon ? (
-                    <img src={token.icon} alt={token.symbol} className="w-6 h-6" />
-                  ) : (
-                    <span className="text-lg font-bold text-bear-purple-400">
-                      {token.symbol.charAt(0)}
-                    </span>
-                  )}
-                </div>
+                ✕
+              </button>
+            </div>
 
-                {/* Token info */}
-                <div className="flex-1 text-left">
-                  <div className="font-semibold text-white">{token.symbol}</div>
-                  <div className="text-sm text-gray-400">{token.name}</div>
+            {/* Search Input */}
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name, symbol, or issuer..."
+                className="w-full px-4 py-3 pl-10 bg-black/60 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                autoFocus
+              />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                🔍
+              </div>
+              {loading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-5 h-5 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
                 </div>
+              )}
+            </div>
 
-                {/* Balance */}
-                <div className="text-right">
-                  <div className="text-white font-mono">{getBalance(token)}</div>
-                </div>
-              </motion.button>
-            ))
-          )}
-        </div>
+            {/* Tabs */}
+            {!searchQuery && (
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => setActiveTab('popular')}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    activeTab === 'popular'
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-gray-800 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  🔥 Popular
+                </button>
+                {wallet.isConnected && walletTokens.length > 1 && (
+                  <button
+                    onClick={() => setActiveTab('wallet')}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                      activeTab === 'wallet'
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-gray-800 text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    💼 My Tokens
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
-        {/* Add custom token hint */}
-        <div className="p-4 border-t border-bear-dark-500 text-center">
-          <p className="text-sm text-gray-500">
-            Can't find your token? Paste the issuer address above.
-          </p>
-        </div>
+          {/* Token List */}
+          <div className="max-h-[400px] overflow-y-auto">
+            {displayTokens.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                {loading ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+                    <span>Searching tokens...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-4xl mb-2">🔍</div>
+                    <div>No tokens found</div>
+                    <div className="text-xs mt-2">Try a different search term</div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="py-2">
+                {displayTokens.map((token, index) => {
+                  const isSelected =
+                    selectedToken?.currency === token.currency &&
+                    selectedToken?.issuer === token.issuer;
+                  const balance = getBalance(token);
+                  const hasBalance = parseFloat(balance) > 0;
+                  const priceChange = formatPriceChange((token as XRPLToken).priceChange24h);
+
+                  return (
+                    <motion.button
+                      key={`${token.currency}-${token.issuer || 'native'}-${index}`}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: Math.min(index * 0.02, 0.3) }}
+                      onClick={() => handleSelect(token)}
+                      className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors ${
+                        isSelected ? 'bg-purple-500/10 border-l-2 border-purple-500' : ''
+                      }`}
+                    >
+                      {/* Token Icon */}
+                      <TokenIcon token={token} size={40} />
+
+                      {/* Token Info */}
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white">{token.symbol}</span>
+                          {(token as XRPLToken).verified && (
+                            <span className="text-blue-400 text-xs" title="Verified">✓</span>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-500 truncate">
+                          {token.name}
+                        </div>
+                      </div>
+
+                      {/* Balance & Price */}
+                      <div className="text-right flex-shrink-0">
+                        {hasBalance ? (
+                          <>
+                            <div className="text-sm text-white font-mono">
+                              {parseFloat(balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                            </div>
+                            <div className="text-xs text-gray-500">Balance</div>
+                          </>
+                        ) : (token as XRPLToken).price !== undefined ? (
+                          <>
+                            <div className="text-sm text-white">
+                              ${formatPrice((token as XRPLToken).price)}
+                            </div>
+                            {priceChange.text && (
+                              <div className={`text-xs ${priceChange.color}`}>
+                                {priceChange.text}
+                              </div>
+                            )}
+                          </>
+                        ) : (token as XRPLToken).volume24h !== undefined ? (
+                          <div className="text-xs text-gray-500">
+                            Vol: {formatNumber((token as XRPLToken).volume24h)}
+                          </div>
+                        ) : null}
+                      </div>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-800 text-center">
+            <p className="text-xs text-gray-500">
+              Can't find your token? Search by issuer address
+            </p>
+          </div>
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </AnimatePresence>
   );
 };
 
 export default TokenSelector;
+
+// Export TokenIcon for reuse
+export { TokenIcon };

@@ -476,5 +476,70 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// ==================== VAULT STORAGE (localStorage) ====================
+
+const VAULT_STORAGE_KEY = 'bear_market_vault';
+const VAULT_ADDRESS_KEY = 'bear_market_address';
+
+/**
+ * Check if a saved vault exists in localStorage
+ */
+export const hasSavedVault = (): boolean => {
+  try {
+    return localStorage.getItem(VAULT_STORAGE_KEY) !== null;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Get the saved wallet address (for display purposes only)
+ */
+export const getSavedAddress = (): string | null => {
+  try {
+    return localStorage.getItem(VAULT_ADDRESS_KEY);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Save vault to localStorage
+ */
+export const saveVaultToStorage = (vault: EncryptedVault, address: string): void => {
+  try {
+    localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(vault));
+    localStorage.setItem(VAULT_ADDRESS_KEY, address);
+  } catch (err) {
+    console.error('Failed to save vault to localStorage:', err);
+    throw new Error('Failed to save wallet. Please check your browser settings.');
+  }
+};
+
+/**
+ * Load vault from localStorage
+ */
+export const loadVaultFromStorage = (): EncryptedVault | null => {
+  try {
+    const data = localStorage.getItem(VAULT_STORAGE_KEY);
+    if (!data) return null;
+    return JSON.parse(data) as EncryptedVault;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Delete vault from localStorage
+ */
+export const deleteVaultFromStorage = (): void => {
+  try {
+    localStorage.removeItem(VAULT_STORAGE_KEY);
+    localStorage.removeItem(VAULT_ADDRESS_KEY);
+  } catch {
+    // Ignore errors
+  }
+};
+
 export type { EncryptedVault };
 export { SecureKeyManager };

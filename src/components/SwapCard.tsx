@@ -5,7 +5,7 @@ import type { Token, SwapQuote } from '../types';
 import { XRP_TOKEN } from '../types';
 import { getSwapQuote, executeSwap } from '../services/swapService';
 import { formatFeePercent } from '../services/nftService';
-import TokenSelector from './TokenSelector';
+import TokenSelector, { TokenIcon } from './TokenSelector';
 import SlippageSlider from './SlippageSlider';
 
 const SwapCard: React.FC = () => {
@@ -195,8 +195,9 @@ const SwapCard: React.FC = () => {
           />
           <button
             onClick={() => setShowTokenSelector('input')}
-            className="flex items-center gap-2 bg-bear-dark-600 hover:bg-bear-dark-500 px-4 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-2 bg-bear-dark-600 hover:bg-bear-dark-500 px-3 py-2 rounded-xl transition-colors"
           >
+            <TokenIcon token={inputToken} size={24} />
             <span className="font-semibold">{inputToken.symbol}</span>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -204,7 +205,13 @@ const SwapCard: React.FC = () => {
           </button>
         </div>
         <div className="text-sm text-gray-500 mt-2">
-          Balance: {inputToken.currency === 'XRP' ? wallet.balance.xrp : '0'} {inputToken.symbol}
+          Balance: {inputToken.currency === 'XRP'
+            ? parseFloat(wallet.balance.xrp).toLocaleString(undefined, { maximumFractionDigits: 4 })
+            : (() => {
+                const tb = wallet.balance.tokens.find(t => t.token.currency === inputToken.currency && t.token.issuer === inputToken.issuer);
+                return tb ? parseFloat(tb.balance).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0';
+              })()
+          } {inputToken.symbol}
         </div>
       </div>
 
@@ -244,12 +251,15 @@ const SwapCard: React.FC = () => {
           </div>
           <button
             onClick={() => setShowTokenSelector('output')}
-            className="flex items-center gap-2 bg-bear-dark-600 hover:bg-bear-dark-500 px-4 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-2 bg-bear-dark-600 hover:bg-bear-dark-500 px-3 py-2 rounded-xl transition-colors"
           >
             {outputToken ? (
-              <span className="font-semibold">{outputToken.symbol}</span>
+              <>
+                <TokenIcon token={outputToken} size={24} />
+                <span className="font-semibold">{outputToken.symbol}</span>
+              </>
             ) : (
-              <span className="text-bear-purple-400">Select</span>
+              <span className="text-bear-purple-400">Select token</span>
             )}
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
