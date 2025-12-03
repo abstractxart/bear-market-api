@@ -406,12 +406,13 @@ class SecureKeyManager {
    */
   private validateSecretFormat(secret: string): boolean {
     // XRPL secrets start with 's' and are base58 encoded
-    // Family seed: starts with 's', 29 characters
-    // RFC-1751 mnemonic: multiple words
+    // secp256k1 family seed: starts with 's', 29 characters
+    // ED25519 family seed: starts with 'sEd', 31 characters
     // Hex: 64 characters
 
-    // Family seed format (most common)
-    if (/^s[1-9A-HJ-NP-Za-km-z]{28}$/.test(secret)) {
+    // Family seed format - secp256k1 (29 chars) or ED25519 (31 chars)
+    // Accept 29-31 characters to cover both algorithms
+    if (/^s[1-9A-HJ-NP-Za-km-z]{28,30}$/.test(secret)) {
       return true;
     }
 
