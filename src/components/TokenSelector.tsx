@@ -14,6 +14,7 @@ import {
   searchTokens,
   getPopularTokens,
   getTokenIconUrl,
+  getTokenIconUrls,
   formatCurrencyCode,
   COMMON_TOKENS,
   XRP_TOKEN,
@@ -30,15 +31,33 @@ interface TokenSelectorProps {
   excludeToken?: Token | null;
 }
 
-// Token icon component with fallback
+// Token icon component with fallback - tries multiple icon sources
 const TokenIcon = ({ token, size = 40 }: { token: Token | XRPLToken; size?: number }) => {
-  const [imgError, setImgError] = useState(false);
-  const iconUrl = token.icon || getTokenIconUrl(token.currency, token.issuer);
+  const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
+  const [allFailed, setAllFailed] = useState(false);
 
-  // Reset error state when token or iconUrl changes
+  // Get list of URLs to try
+  const iconUrls = useMemo(() => {
+    if (token.icon) return [token.icon];
+    return getTokenIconUrls(token.currency, token.issuer);
+  }, [token.currency, token.issuer, token.icon]);
+
+  const currentUrl = iconUrls[currentUrlIndex];
+
+  // Reset when token changes
   useEffect(() => {
-    setImgError(false);
-  }, [token.currency, token.issuer, iconUrl]);
+    setCurrentUrlIndex(0);
+    setAllFailed(false);
+  }, [token.currency, token.issuer]);
+
+  // Handle image load error - try next URL
+  const handleError = () => {
+    if (currentUrlIndex < iconUrls.length - 1) {
+      setCurrentUrlIndex(prev => prev + 1);
+    } else {
+      setAllFailed(true);
+    }
+  };
 
   // Generate a color from the token name for fallback
   const generateColor = (str: string) => {
@@ -50,7 +69,7 @@ const TokenIcon = ({ token, size = 40 }: { token: Token | XRPLToken; size?: numb
     return `hsl(${hue}, 60%, 50%)`;
   };
 
-  if (imgError || !iconUrl) {
+  if (allFailed || !currentUrl) {
     return (
       <div
         className="rounded-full flex items-center justify-center text-white font-bold"
@@ -68,11 +87,11 @@ const TokenIcon = ({ token, size = 40 }: { token: Token | XRPLToken; size?: numb
 
   return (
     <img
-      src={iconUrl}
+      src={currentUrl}
       alt={token.name || token.currency}
       className="rounded-full object-cover bg-gray-800"
       style={{ width: size, height: size }}
-      onError={() => setImgError(true)}
+      onError={handleError}
     />
   );
 };

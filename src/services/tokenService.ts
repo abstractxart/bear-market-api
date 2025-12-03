@@ -79,12 +79,11 @@ let popularTokensCacheTime: number = 0;
 // ==================== HELPER FUNCTIONS ====================
 
 /**
- * Get token icon URL from Bithomp CDN
- * Falls back to a generated icon if not available
+ * Get token icon URL - tries multiple sources
+ * Priority: XRPL Meta > Bithomp > XRP Scan > First Ledger
  */
 export function getTokenIconUrl(currency: string, issuer?: string): string {
   if (currency === 'XRP') {
-    // Use local XRP icon
     return '/tokens/xrp.svg';
   }
 
@@ -92,8 +91,28 @@ export function getTokenIconUrl(currency: string, issuer?: string): string {
     return '';
   }
 
-  // Use Bithomp CDN for issued tokens
-  return `${BITHOMP_CDN}/issued-token/${issuer}/${currency}`;
+  // Use XRPL Meta icon service (most reliable for XRPL tokens)
+  return `${XRPL_META_API}/token/${currency}:${issuer}/icon`;
+}
+
+/**
+ * Get multiple icon URLs to try (for fallback in components)
+ */
+export function getTokenIconUrls(currency: string, issuer?: string): string[] {
+  if (currency === 'XRP') {
+    return ['/tokens/xrp.svg'];
+  }
+
+  if (!issuer) {
+    return [];
+  }
+
+  // Try multiple sources in order of reliability
+  return [
+    `${XRPL_META_API}/token/${currency}:${issuer}/icon`,
+    `${BITHOMP_CDN}/token/${currency}.${issuer}.png`,
+    `https://cdn.xrplmeta.org/icon/${currency}:${issuer}`,
+  ];
 }
 
 /**

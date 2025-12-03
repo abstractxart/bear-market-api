@@ -8,10 +8,10 @@
  * - Transaction history
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWallet } from '../context/WalletContext';
-import { getTokenIconUrl } from '../services/tokenService';
+import { getTokenIconUrls } from '../services/tokenService';
 
 interface WalletDashboardProps {
   isOpen: boolean;
@@ -183,10 +183,32 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
     return currency;
   };
 
-  // Token Icon component with fallback
+  // Token Icon component with fallback - tries multiple sources
   const TokenIconSmall = ({ currency, issuer, size = 40 }: { currency: string; issuer?: string; size?: number }) => {
-    const [imgError, setImgError] = useState(false);
-    const iconUrl = currency === 'XRP' ? '/tokens/xrp.svg' : getTokenIconUrl(currency, issuer);
+    const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
+    const [allFailed, setAllFailed] = useState(false);
+
+    // Get list of URLs to try
+    const iconUrls = useMemo(() => {
+      return getTokenIconUrls(currency, issuer);
+    }, [currency, issuer]);
+
+    const currentUrl = iconUrls[currentUrlIndex];
+
+    // Reset when token changes
+    useEffect(() => {
+      setCurrentUrlIndex(0);
+      setAllFailed(false);
+    }, [currency, issuer]);
+
+    // Handle image load error - try next URL
+    const handleError = () => {
+      if (currentUrlIndex < iconUrls.length - 1) {
+        setCurrentUrlIndex(prev => prev + 1);
+      } else {
+        setAllFailed(true);
+      }
+    };
 
     // Generate a color from the currency code for fallback
     const generateColor = (str: string) => {
@@ -198,7 +220,7 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
       return `hsl(${hue}, 60%, 50%)`;
     };
 
-    if (imgError) {
+    if (allFailed || !currentUrl) {
       return (
         <div
           className="rounded-full flex items-center justify-center text-white font-bold"
@@ -216,11 +238,11 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
 
     return (
       <img
-        src={iconUrl}
+        src={currentUrl}
         alt={formatCurrency(currency)}
         className="rounded-full object-cover bg-gray-700"
         style={{ width: size, height: size }}
-        onError={() => setImgError(true)}
+        onError={handleError}
       />
     );
   };
