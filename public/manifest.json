@@ -9,26 +9,11 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/bear-icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/bear-icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/bear-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
-  "categories": ["finance", "business"],
-  "screenshots": [
-    {
-      "src": "/screenshot-swap.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Swap tokens with ease"
-    }
-  ]
+  "categories": ["finance", "business"]
 }

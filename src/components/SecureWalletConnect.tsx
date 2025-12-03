@@ -262,25 +262,40 @@ export const SecureWalletConnect = ({
         }
 
       case 'xaman-numbers':
-        // XAMAN uses RFC-1751 format (8 rows of characters)
-        // Join the rows into a single space-separated string
-        const xamanPhrase = xamanNumbers.filter(n => n.trim()).join(' ');
-        if (xamanNumbers.filter(n => n.trim()).length !== 8) {
-          throw new Error('Please enter all 8 rows of your XAMAN recovery phrase');
+        // XAMAN Secret Numbers: 8 rows of 6 digits each
+        // Use the official xrpl-secret-numbers library for correct decoding
+        const filledRows = xamanNumbers.filter(n => n.trim());
+        if (filledRows.length !== 8) {
+          throw new Error('Please enter all 8 rows of your Secret Numbers');
         }
+
         try {
-          // RFC-1751 mnemonic - try to import
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const xamanOpts: any = { mnemonicEncoding: 'rfc1751' };
-          if (algorithm === 'ed25519') {
-            xamanOpts.algorithm = 'ed25519';
-          } else {
-            xamanOpts.algorithm = 'ecdsa-secp256k1';
+          // Validate each row is exactly 6 digits
+          for (let i = 0; i < 8; i++) {
+            const row = xamanNumbers[i].trim();
+            if (!/^\d{6}$/.test(row)) {
+              throw new Error(`Row ${String.fromCharCode(65 + i)} must be exactly 6 digits`);
+            }
           }
-          const wallet = Wallet.fromMnemonic(xamanPhrase, xamanOpts);
-          return wallet.seed!;
-        } catch {
-          throw new Error('Invalid XAMAN recovery phrase');
+
+          // Use the official xrpl-secret-numbers library
+          const { Account } = await import('xrpl-secret-numbers');
+          const secretNumbersArray = xamanNumbers.map(n => n.trim());
+          const account = new Account(secretNumbersArray);
+
+          // Get the family seed from the account
+          const familySeed = account.getFamilySeed();
+
+          if (!familySeed) {
+            throw new Error('Could not derive wallet from Secret Numbers');
+          }
+
+          return familySeed;
+        } catch (err) {
+          if (err instanceof Error) {
+            throw err;
+          }
+          throw new Error('Invalid Secret Numbers format');
         }
 
       default:
@@ -528,7 +543,7 @@ export const SecureWalletConnect = ({
         case 'mnemonic':
           return mnemonicWords.trim().split(/\s+/).length >= 12;
         case 'xaman-numbers':
-          return xamanNumbers.filter(n => n.trim()).length === 8;
+          return xamanNumbers.filter(n => /^\d{6}$/.test(n.trim())).length === 8;
         default:
           return false;
       }
@@ -556,7 +571,7 @@ export const SecureWalletConnect = ({
           {[
             { id: 'family-seed', label: 'Family Seed', desc: 'Starts with "s"' },
             { id: 'mnemonic', label: 'Mnemonic Phrase', desc: '12 or 24 words' },
-            { id: 'xaman-numbers', label: 'Secret Numbers', desc: 'XAMAN/Xumm' },
+            { id: 'xaman-numbers', label: 'Secret Numbers', desc: '8 rows × 6 digits (XAMAN)' },
             { id: 'private-key', label: 'Private Key', desc: 'Hex format' },
           ].map((method) => (
             <label
@@ -629,37 +644,104 @@ export const SecureWalletConnect = ({
             </div>
           )}
 
-          {/* XAMAN Secret Numbers input - 8 rows stacked */}
-          {importMethod === 'xaman-numbers' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Enter your Secret Numbers (8 words)
-              </label>
-              <div className="space-y-2">
-                {xamanNumbers.map((num, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <span className="text-sm text-gray-500 w-6 text-right">{i + 1}.</span>
-                    <input
-                      type="text"
-                      value={num}
-                      onChange={(e) => {
-                        const newNums = [...xamanNumbers];
-                        newNums[i] = e.target.value.toUpperCase();
-                        setXamanNumbers(newNums);
-                      }}
-                      placeholder={`Word ${i + 1}`}
-                      className="flex-1 px-4 py-2.5 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 uppercase tracking-wider"
-                      autoComplete="off"
-                    />
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-3">RFC-1751 format used by XAMAN/Xumm</p>
-            </div>
-          )}
+          {/* XAMAN Secret Numbers input - 8 rows of 6 digits, sequential entry */}
+          {importMethod === 'xaman-numbers' && (() => {
+            // Find the current active row (first incomplete row)
+            const activeRow = xamanNumbers.findIndex(n => n.length < 6);
+            const currentRow = activeRow === -1 ? 7 : activeRow;
 
-          {/* Algorithm selection for mnemonic/xaman */}
-          {(importMethod === 'mnemonic' || importMethod === 'xaman-numbers') && (
+            return (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Enter your Secret Numbers (8 rows of 6 digits)
+                </label>
+                <div className="space-y-2">
+                  {xamanNumbers.map((num, i) => {
+                    const isComplete = num.length === 6;
+                    const isActive = i === currentRow;
+                    const isLocked = i < currentRow && isComplete;
+                    const isFuture = i > currentRow;
+
+                    return (
+                      <div key={i} className="flex items-center gap-3">
+                        <span className={`text-sm font-bold w-6 text-right ${
+                          isActive ? 'text-purple-400' : isComplete ? 'text-green-400' : 'text-gray-600'
+                        }`}>
+                          {String.fromCharCode(65 + i)}:
+                        </span>
+                        <div className="flex-1 relative">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={6}
+                            value={isLocked ? '••••••' : num}
+                            onChange={(e) => {
+                              if (isLocked || isFuture) return;
+                              const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                              const newNums = [...xamanNumbers];
+                              newNums[i] = value;
+                              setXamanNumbers(newNums);
+                            }}
+                            onKeyDown={(e) => {
+                              // Allow backspace to go to previous row when current is empty
+                              if (e.key === 'Backspace' && num.length === 0 && i > 0) {
+                                e.preventDefault();
+                                const newNums = [...xamanNumbers];
+                                newNums[i - 1] = newNums[i - 1].slice(0, -1);
+                                setXamanNumbers(newNums);
+                              }
+                            }}
+                            placeholder={isActive ? '000000' : ''}
+                            disabled={isLocked || isFuture}
+                            autoFocus={isActive && i === 0}
+                            className={`w-full px-4 py-2.5 rounded-xl font-mono text-lg tracking-widest text-center transition-all ${
+                              isLocked
+                                ? 'bg-green-500/10 border-2 border-green-500/30 text-green-400 cursor-not-allowed'
+                                : isActive
+                                  ? 'bg-black/60 border-2 border-purple-500 text-white focus:outline-none'
+                                  : isFuture
+                                    ? 'bg-gray-800/30 border-2 border-gray-700/50 text-gray-600 cursor-not-allowed'
+                                    : 'bg-black/60 border-2 border-gray-700 text-white'
+                            }`}
+                            autoComplete="off"
+                          />
+                          {isLocked && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                // Clear this row and all after it
+                                const newNums = [...xamanNumbers];
+                                for (let j = i; j < 8; j++) {
+                                  newNums[j] = '';
+                                }
+                                setXamanNumbers(newNums);
+                              }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-red-400 transition-colors"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                        {isComplete && (
+                          <span className="text-green-400 text-sm">✓</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between mt-3">
+                  <p className="text-xs text-gray-500">Found in XAMAN Settings → Security → Secret Numbers</p>
+                  <p className="text-xs text-gray-400">
+                    {xamanNumbers.filter(n => n.length === 6).length}/8 entered
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Algorithm selection for mnemonic only (Secret Numbers handled by library) */}
+          {importMethod === 'mnemonic' && (
             <div className="flex gap-4 pt-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input

@@ -7,8 +7,10 @@ export default defineConfig({
   base: '/',
   plugins: [react()],
   define: {
-    // Required for xrpl.js to work in browser
+    // Required for xrpl.js and Web3Auth to work in browser
     'global': 'globalThis',
+    'process': JSON.stringify({ env: {}, browser: true }),
+    'process.env': JSON.stringify({}),
   },
   resolve: {
     alias: {
