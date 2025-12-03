@@ -70,13 +70,12 @@ const TokenIcon = ({ token, size = 40 }: { token: Token | XRPLToken; size?: numb
   );
 };
 
-// Format large numbers
-const formatNumber = (num: number | undefined): string => {
-  if (!num) return '';
-  if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
-  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
-  if (num >= 1_000) return `$${(num / 1_000).toFixed(2)}K`;
-  return `$${num.toFixed(2)}`;
+// Format volume in XRP (like Magnetic shows: "1K", "2.7K", "255")
+const formatVolumeXRP = (num: number | undefined): string => {
+  if (!num || num === 0) return '';
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M XRP`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K XRP`;
+  return `${Math.round(num)} XRP`;
 };
 
 // Format price change
@@ -366,9 +365,15 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                         <div className="text-sm text-gray-500 truncate">
                           {token.name}
                         </div>
+                        {/* Show issuer address for non-XRP tokens */}
+                        {token.issuer && (
+                          <div className="text-xs text-gray-600 font-mono truncate">
+                            {token.issuer.slice(0, 4)}...{token.issuer.slice(-4)}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Balance & Price */}
+                      {/* Balance, Price & Volume */}
                       <div className="text-right flex-shrink-0">
                         {hasBalance ? (
                           <>
@@ -377,22 +382,25 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
                             </div>
                             <div className="text-xs text-gray-500">Balance</div>
                           </>
-                        ) : (token as XRPLToken).price !== undefined ? (
+                        ) : (
                           <>
-                            <div className="text-sm text-white">
-                              ${formatPrice((token as XRPLToken).price)}
-                            </div>
+                            {(token as XRPLToken).price !== undefined && (
+                              <div className="text-sm text-green-400 font-mono">
+                                {formatPrice((token as XRPLToken).price)}
+                              </div>
+                            )}
+                            {(token as XRPLToken).volume24h !== undefined && (token as XRPLToken).volume24h! > 0 && (
+                              <div className="text-xs text-gray-500">
+                                {formatVolumeXRP((token as XRPLToken).volume24h)}
+                              </div>
+                            )}
                             {priceChange.text && (
                               <div className={`text-xs ${priceChange.color}`}>
                                 {priceChange.text}
                               </div>
                             )}
                           </>
-                        ) : (token as XRPLToken).volume24h !== undefined ? (
-                          <div className="text-xs text-gray-500">
-                            Vol: {formatNumber((token as XRPLToken).volume24h)}
-                          </div>
-                        ) : null}
+                        )}
                       </div>
                     </motion.button>
                   );

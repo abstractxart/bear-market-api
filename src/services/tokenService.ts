@@ -2,18 +2,18 @@
  * BEAR MARKET - Token Service
  *
  * Fetches and caches XRPL token data from multiple APIs:
- * - XRPL Meta: Comprehensive token metadata
+ * - OnTheDex: Primary source for ALL traded XRPL tokens
+ * - XRPL Meta: Additional token metadata
  * - Bithomp CDN: Token icons (free, no auth)
- * - OnTheDex: Trading data and prices
  */
 
 import type { Token } from '../types';
 
 // ==================== CONFIGURATION ====================
 
+const ONTHEDEX_API = 'https://api.onthedex.live/public/v1';
 const XRPL_META_API = 'https://s1.xrplmeta.org';
 const BITHOMP_CDN = 'https://cdn.bithomp.com';
-const ONTHEDEX_API = 'https://api.onthedex.live/public/v1';
 
 // Cache duration: 5 minutes for tokens, 1 minute for prices
 const TOKENS_CACHE_DURATION = 5 * 60 * 1000;
@@ -210,7 +210,8 @@ function parseXRPLMetaToken(item: XRPLMetaToken): XRPLToken | null {
 }
 
 /**
- * Search tokens - searches COMMON_TOKENS, cache, and API
+ * Search tokens - uses OnTheDex API for comprehensive XRPL token search
+ * This finds ALL traded tokens on XRPL, not just a limited subset
  */
 export async function searchTokens(query: string): Promise<XRPLToken[]> {
   if (!query || query.length < 2) {
@@ -240,23 +241,47 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
     return matchesCurrency || matchesName || matchesSymbol || matchesIssuer || matchesDomain;
   };
 
-  // 1. ALWAYS search COMMON_TOKENS first (so BEAR always shows up)
+  // 1. ALWAYS search COMMON_TOKENS first
   for (const token of COMMON_TOKENS) {
     if (matchesQuery(token)) {
       addToken(token);
     }
   }
 
-  // 2. Search in cached tokens
-  if (tokenCache?.tokens) {
-    for (const token of tokenCache.tokens) {
-      if (matchesQuery(token)) {
+  // 2. Search OnTheDex API - this has ALL traded XRPL tokens
+  try {
+    const response = await fetch(
+      `${ONTHEDEX_API}/tokens?search=${encodeURIComponent(query)}`
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      const tokens = data.tokens || [];
+
+      for (const item of tokens) {
+        if (!item.currency || !item.issuer) continue;
+
+        const formattedCurrency = formatCurrencyCode(item.currency);
+        const token: XRPLToken = {
+          currency: item.currency,
+          issuer: item.issuer,
+          name: item.name || formattedCurrency,
+          symbol: formattedCurrency,
+          icon: getTokenIconUrl(item.currency, item.issuer),
+          decimals: 15,
+          volume24h: item.volume_24h,
+          price: item.price,
+          priceChange24h: item.change_24h,
+          verified: item.verified,
+        };
         addToken(token);
       }
     }
+  } catch (error) {
+    console.error('OnTheDex search error:', error);
   }
 
-  // 3. Try XRPL Meta API search for more results
+  // 3. Also try XRPL Meta API for additional tokens
   try {
     const response = await fetch(
       `${XRPL_META_API}/tokens?search=${encodeURIComponent(query)}&limit=50`
@@ -268,28 +293,35 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
 
       for (const item of items) {
         const token = parseXRPLMetaToken(item);
-        if (token) {
-          // API should already filter, but double-check
-          if (matchesQuery(token)) {
-            addToken(token);
-          }
+        if (token && matchesQuery(token)) {
+          addToken(token);
         }
       }
     }
   } catch (error) {
-    console.error('Token search API error:', error);
+    console.error('XRPL Meta search error:', error);
   }
 
-  // Sort results: exact matches first, then by market cap
+  // 4. Search in cached tokens
+  if (tokenCache?.tokens) {
+    for (const token of tokenCache.tokens) {
+      if (matchesQuery(token)) {
+        addToken(token);
+      }
+    }
+  }
+
+  // Sort results: exact matches first, then by volume
   results.sort((a, b) => {
     const aExact = a.symbol?.toLowerCase() === lowerQuery || a.currency.toLowerCase() === lowerQuery;
     const bExact = b.symbol?.toLowerCase() === lowerQuery || b.currency.toLowerCase() === lowerQuery;
     if (aExact && !bExact) return -1;
     if (bExact && !aExact) return 1;
-    return (b.marketCap || 0) - (a.marketCap || 0);
+    // Sort by volume (more active tokens first)
+    return (b.volume24h || 0) - (a.volume24h || 0);
   });
 
-  return results.slice(0, 50);
+  return results.slice(0, 100);
 }
 
 
