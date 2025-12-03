@@ -445,19 +445,25 @@ export const SecureWalletConnect = ({
         </p>
       </div>
 
-      {/* Single checkbox - that's it! */}
-      <label className="flex items-center gap-3 p-4 bg-purple-500/10 rounded-xl border border-purple-500/20 cursor-pointer hover:bg-purple-500/15 transition-colors">
-        <input
-          type="checkbox"
-          checked={seedAcknowledged}
-          onChange={(e) => {
-            setSeedAcknowledged(e.target.checked);
-            setError(null);
-          }}
-          className="w-5 h-5 rounded border-2 border-purple-500 bg-black/50 text-purple-500 focus:ring-purple-500 focus:ring-offset-0"
-        />
-        <span className="text-sm text-white font-medium">I saved my secret key</span>
-      </label>
+      {/* Self-custody acknowledgment */}
+      <div className="p-4 bg-purple-500/10 rounded-xl border border-purple-500/20">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={seedAcknowledged}
+            onChange={(e) => {
+              setSeedAcknowledged(e.target.checked);
+              setError(null);
+            }}
+            className="mt-1 w-5 h-5 rounded border-2 border-purple-500 bg-black/50 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 flex-shrink-0"
+          />
+          <span className="text-sm text-gray-300 leading-relaxed">
+            I understand this is a <span className="text-white font-semibold">self-custody wallet</span>.
+            If I lose my secret key, I will permanently lose access to my funds.
+            <span className="text-purple-400"> BEAR MARKET cannot recover lost keys.</span>
+          </span>
+        </label>
+      </div>
 
       {error && (
         <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300">
