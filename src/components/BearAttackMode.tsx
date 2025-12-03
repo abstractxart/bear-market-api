@@ -72,8 +72,7 @@ const BearAttackMode: React.FC<BearAttackModeProps> = ({ isEnabled, onToggle }) 
 
       if (result.success) {
         await refreshBalance();
-        // TODO: Play success sound/animation
-        console.log('Bear Attack successful!', result.txHash);
+        // Success - balance will be updated
       } else {
         console.error('Bear Attack failed:', result.error);
       }

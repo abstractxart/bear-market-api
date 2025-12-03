@@ -23,7 +23,6 @@ import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet } from 'xrpl';
 import { getKeyManager } from '../security/SecureKeyManager';
-import type { EncryptedVault } from '../security/SecureKeyManager';
 import {
   checkEnvironmentIntegrity,
   logSecurityEvent,
@@ -41,7 +40,6 @@ type ConnectionMode =
   | 'select'
   | 'instant-wallet'  // Single-screen wallet creation - FAST!
   | 'secret'
-  | 'vault-unlock'
   | 'social-loading';
 
 // Icons
@@ -74,13 +72,10 @@ export const SecureWalletConnect = ({
 }: SecureWalletConnectProps) => {
   const [mode, setMode] = useState<ConnectionMode>('select');
   const [secret, setSecret] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [securityCheck, setSecurityCheck] = useState<{ secure: boolean; warnings: string[] } | null>(null);
-  const [saveVault, setSaveVault] = useState(false);
 
   // Instant wallet creation states (FAST onboarding!)
   const [newWallet, setNewWallet] = useState<{ address: string; seed: string } | null>(null);
@@ -112,8 +107,6 @@ export const SecureWalletConnect = ({
   useEffect(() => {
     if (!isOpen) {
       setSecret('');
-      setPassword('');
-      setConfirmPassword('');
       setError(null);
       setMode('select');
       setShowSecret(false);
@@ -321,22 +314,6 @@ export const SecureWalletConnect = ({
 
       logSecurityEvent('session_connect_success', `Connected: ${address.slice(0, 8)}...`);
 
-      if (saveVault && password) {
-        if (password.length < 12) {
-          setError('Password must be at least 12 characters');
-          setLoading(false);
-          return;
-        }
-        if (password !== confirmPassword) {
-          setError('Passwords do not match');
-          setLoading(false);
-          return;
-        }
-        const vault = await keyManager.createVault(password);
-        localStorage.setItem('bear_market_vault', JSON.stringify(vault));
-        logSecurityEvent('vault_created', 'Encrypted vault saved');
-      }
-
       onConnect(address);
       onClose();
     } catch (err) {
@@ -347,45 +324,6 @@ export const SecureWalletConnect = ({
       setLoading(false);
     }
   };
-
-  // Unlock existing vault
-  const handleVaultUnlock = async () => {
-    if (!password) {
-      setError('Please enter your password');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    logSecurityEvent('vault_unlock_attempt', 'Attempting vault unlock');
-
-    try {
-      const vaultData = localStorage.getItem('bear_market_vault');
-      if (!vaultData) {
-        setError('No saved wallet found');
-        setLoading(false);
-        return;
-      }
-
-      const vault: EncryptedVault = JSON.parse(vaultData);
-      const keyManager = getKeyManager();
-      const { address } = await keyManager.initializeFromVault(vault, password);
-
-      setPassword('');
-      logSecurityEvent('vault_unlock_success', `Unlocked: ${address.slice(0, 8)}...`);
-
-      onConnect(address);
-      onClose();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to unlock';
-      setError(message);
-      logSecurityEvent('vault_unlock_error', message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const hasVault = typeof window !== 'undefined' && localStorage.getItem('bear_market_vault') !== null;
 
   // ==================== RENDER FUNCTIONS ====================
 
@@ -424,23 +362,6 @@ export const SecureWalletConnect = ({
         <div className="text-xs text-gray-500 uppercase tracking-wider text-center my-4">
           Already have a wallet?
         </div>
-
-        {/* Vault unlock (if exists) */}
-        {hasVault && (
-          <button
-            onClick={() => setMode('vault-unlock')}
-            className="w-full p-4 bg-gradient-to-r from-green-600/20 to-emerald-600/20 hover:from-green-600/30 hover:to-emerald-600/30 border border-green-500/40 rounded-xl text-left transition-all group"
-          >
-            <div className="flex items-center gap-4">
-              <span className="text-2xl">🔐</span>
-              <div className="flex-1">
-                <h4 className="font-bold text-white">Unlock Saved Wallet</h4>
-                <p className="text-xs text-gray-400">Decrypt with your password</p>
-              </div>
-              <div className="text-gray-500 group-hover:text-white transition-colors">→</div>
-            </div>
-          </button>
-        )}
 
         {/* Social Login */}
         <div className="grid grid-cols-2 gap-3">
@@ -764,52 +685,13 @@ export const SecureWalletConnect = ({
           )}
         </div>
 
-        {/* Save vault option */}
-        <div className="p-3 bg-purple-500/10 rounded-xl border border-purple-500/20">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={saveVault}
-              onChange={(e) => setSaveVault(e.target.checked)}
-              className="w-4 h-4 rounded border-purple-500/30 bg-black/50 text-purple-500"
-            />
-            <div>
-              <span className="text-sm font-medium text-white">💾 Save Encrypted</span>
-              <span className="text-xs text-gray-400 ml-1">Password-protected</span>
-            </div>
-          </label>
-        </div>
-
-        <AnimatePresence>
-          {saveVault && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-2 overflow-hidden">
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password (min 12 chars)"
-                className="w-full px-4 py-2 bg-black/60 border-2 border-purple-500/30 rounded-xl text-white text-sm focus:outline-none focus:border-purple-500"
-                autoComplete="new-password"
-              />
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm password"
-                className="w-full px-4 py-2 bg-black/60 border-2 border-purple-500/30 rounded-xl text-white text-sm focus:outline-none focus:border-purple-500"
-                autoComplete="new-password"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {error && (
           <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300">⚠️ {error}</div>
         )}
 
         <button
           onClick={handleSessionConnect}
-          disabled={loading || !canSubmit() || (saveVault && (!password || password.length < 12 || password !== confirmPassword))}
+          disabled={loading || !canSubmit()}
           className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all"
         >
           {loading ? 'Connecting...' : 'Confirm'}
@@ -817,59 +699,6 @@ export const SecureWalletConnect = ({
       </div>
     );
   };
-
-  // Vault unlock screen
-  const renderVaultUnlock = () => (
-    <div className="space-y-4">
-      <button onClick={() => setMode('select')} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm">
-        ← Back
-      </button>
-
-      <div className="text-center mb-4">
-        <h3 className="text-xl font-bold text-white mb-2">🔐 Unlock Wallet</h3>
-        <p className="text-sm text-gray-400">Enter your password</p>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleVaultUnlock()}
-            placeholder="••••••••••••"
-            className="w-full px-4 py-3 bg-black/60 border-2 border-green-500/30 rounded-xl text-white focus:outline-none focus:border-green-500"
-            autoComplete="current-password"
-            autoFocus
-          />
-        </div>
-
-        {error && (
-          <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300">⚠️ {error}</div>
-        )}
-
-        <button
-          onClick={handleVaultUnlock}
-          disabled={loading || !password}
-          className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all"
-        >
-          {loading ? 'Unlocking...' : '🔓 Unlock'}
-        </button>
-
-        <button
-          onClick={() => {
-            if (confirm('Delete saved wallet? You\'ll need your secret key to recover it.')) {
-              localStorage.removeItem('bear_market_vault');
-              setMode('select');
-            }
-          }}
-          className="w-full py-2 text-sm text-red-400 hover:text-red-300 transition-colors"
-        >
-          🗑️ Forget Saved Wallet
-        </button>
-      </div>
-    </div>
-  );
 
   return (
     <AnimatePresence>
@@ -891,7 +720,6 @@ export const SecureWalletConnect = ({
             {mode === 'instant-wallet' && renderInstantWallet()}
             {mode === 'social-loading' && renderSocialLoading()}
             {mode === 'secret' && renderSecretInput()}
-            {mode === 'vault-unlock' && renderVaultUnlock()}
           </motion.div>
         </motion.div>
       )}

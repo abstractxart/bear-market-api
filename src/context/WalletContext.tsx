@@ -54,7 +54,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const client = new Client(XRPL_ENDPOINT);
 
     client.connect().then(() => {
-      console.log('Connected to XRPL:', XRPL_ENDPOINT);
       setXrplClient(client);
     }).catch((err) => {
       console.error('Failed to connect to XRPL:', err);
@@ -179,15 +178,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Disconnect wallet
   const disconnect = useCallback(() => {
-    // Destroy key material
+    // Destroy key material securely
     const keyManager = getKeyManager();
     keyManager.destroy();
 
     // Clear wallet state
     setWallet(defaultWalletState);
-
-    // Clear any saved vault if user wants
-    // localStorage.removeItem('bear_market_vault');
   }, []);
 
   // Sign transaction using SecureKeyManager
