@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="xrpGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#23292F"/>
+      <stop offset="100%" style="stop-color:#1A1E24"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="url(#xrpGrad)" stroke="#3B4149" stroke-width="2"/>
+  <!-- XRP X logo -->
+  <g fill="#FFFFFF">
+    <!-- Top left arm -->
+    <path d="M25 25 L38 40 L45 40 L30 22 Q28 20 25 22 L25 25"/>
+    <!-- Top right arm -->
+    <path d="M75 25 L75 22 Q72 20 70 22 L55 40 L62 40 L75 25"/>
+    <!-- Bottom left arm -->
+    <path d="M25 75 L25 78 Q28 80 30 78 L45 60 L38 60 L25 75"/>
+    <!-- Bottom right arm -->
+    <path d="M75 75 L62 60 L55 60 L70 78 Q72 80 75 78 L75 75"/>
+    <!-- Center X -->
+    <polygon points="42,40 50,50 42,60 48,60 50,57 52,60 58,60 50,50 58,40 52,40 50,43 48,40"/>
+  </g>
+</svg>

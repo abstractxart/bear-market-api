@@ -41,6 +41,7 @@ export interface Token {
 
 export const XRP_TOKEN: Token = {
   currency: 'XRP',
+  issuer: undefined,
   name: 'XRP',
   symbol: 'XRP',
   icon: '/tokens/xrp.svg',

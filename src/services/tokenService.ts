@@ -13,6 +13,7 @@ import type { Token } from '../types';
 
 const ONTHEDEX_API = 'https://api.onthedex.live/public/v1';
 const XRPL_META_API = 'https://s1.xrplmeta.org';
+const XRPSCAN_API = 'https://api.xrpscan.com/api/v1';
 const BITHOMP_CDN = 'https://cdn.bithomp.com';
 
 // Cache duration: 5 minutes for tokens, 1 minute for prices
@@ -82,8 +83,8 @@ let popularTokensCache: XRPLToken[] | null = null;
  */
 export function getTokenIconUrl(currency: string, issuer?: string): string {
   if (currency === 'XRP') {
-    // Use a reliable XRP icon URL
-    return 'https://cdn.bithomp.com/xrp.svg';
+    // Use local XRP icon
+    return '/tokens/xrp.svg';
   }
 
   if (!issuer) {
@@ -336,7 +337,40 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
     console.error('XRPL Meta search error:', error);
   }
 
-  // 4. Search in cached tokens
+  // 4. Try XRPScan API for even more tokens
+  try {
+    const response = await fetch(`${XRPSCAN_API}/names/${encodeURIComponent(query)}`);
+    if (response.ok) {
+      const data = await response.json();
+      // XRPScan returns account names, but we can use it to find tokens
+      if (Array.isArray(data)) {
+        for (const item of data) {
+          if (item.account && item.name) {
+            // This is an issuer - check if we can find tokens from them
+            const issuer = item.account;
+            const name = item.name.toLowerCase();
+            if (name.includes(lowerQuery)) {
+              // Try to get tokens from this issuer via XRPL Meta
+              try {
+                const tokensResp = await fetch(`${XRPL_META_API}/issuer/${issuer}/tokens?limit=10`);
+                if (tokensResp.ok) {
+                  const tokensData = await tokensResp.json();
+                  for (const t of tokensData.tokens || []) {
+                    const token = parseXRPLMetaToken(t);
+                    if (token) addToken(token);
+                  }
+                }
+              } catch {}
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('XRPScan search error:', error);
+  }
+
+  // 5. Search in cached tokens
   if (tokenCache?.tokens) {
     for (const token of tokenCache.tokens) {
       if (matchesQuery(token)) {
@@ -500,7 +534,7 @@ export const COMMON_TOKENS: XRPLToken[] = [
     issuer: '',
     name: 'XRP',
     symbol: 'XRP',
-    icon: 'https://cdn.bithomp.com/xrp.svg',
+    icon: '/tokens/xrp.svg',
     decimals: 6,
   },
   {

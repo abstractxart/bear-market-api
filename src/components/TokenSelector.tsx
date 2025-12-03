@@ -34,6 +34,11 @@ const TokenIcon = ({ token, size = 40 }: { token: Token | XRPLToken; size?: numb
   const [imgError, setImgError] = useState(false);
   const iconUrl = token.icon || getTokenIconUrl(token.currency, token.issuer);
 
+  // Reset error state when token or iconUrl changes
+  useEffect(() => {
+    setImgError(false);
+  }, [token.currency, token.issuer, iconUrl]);
+
   // Generate a color from the token name for fallback
   const generateColor = (str: string) => {
     let hash = 0;
@@ -158,12 +163,16 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
     // Add user's tokens with decoded currency codes
     for (const tb of wallet.balance.tokens) {
       const decodedCurrency = formatCurrencyCode(tb.token.currency);
+      // Check if name looks like hex (40 char hex string) and use decoded instead
+      const isHexName = tb.token.name && tb.token.name.length === 40 && /^[0-9A-Fa-f]+$/.test(tb.token.name);
+      const tokenName = isHexName ? decodedCurrency : (tb.token.name || decodedCurrency);
+
       userTokens.push({
         currency: tb.token.currency,
         issuer: tb.token.issuer || '',
-        name: tb.token.name || decodedCurrency,
+        name: tokenName,
         symbol: decodedCurrency,
-        icon: tb.token.icon || getTokenIconUrl(tb.token.currency, tb.token.issuer),
+        icon: getTokenIconUrl(tb.token.currency, tb.token.issuer), // Always use Bithomp CDN
         decimals: tb.token.decimals,
       });
     }

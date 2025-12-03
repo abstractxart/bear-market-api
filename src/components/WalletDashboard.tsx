@@ -186,7 +186,7 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
   // Token Icon component with fallback
   const TokenIconSmall = ({ currency, issuer, size = 40 }: { currency: string; issuer?: string; size?: number }) => {
     const [imgError, setImgError] = useState(false);
-    const iconUrl = currency === 'XRP' ? 'https://cdn.bithomp.com/xrp.svg' : getTokenIconUrl(currency, issuer);
+    const iconUrl = currency === 'XRP' ? '/tokens/xrp.svg' : getTokenIconUrl(currency, issuer);
 
     // Generate a color from the currency code for fallback
     const generateColor = (str: string) => {
