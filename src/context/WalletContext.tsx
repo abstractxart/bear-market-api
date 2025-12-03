@@ -143,12 +143,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         balance: { xrp: '0', tokens: [] },
         honeyPoints: 0,
       });
-
-      // Fetch balances and fee tier
-      setTimeout(() => {
-        refreshBalance();
-        refreshFeeTier();
-      }, 100);
+      // Balance refresh is handled by the useEffect
 
     } catch (err: any) {
       console.error('Failed to connect wallet:', err);
@@ -156,7 +151,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsConnecting(false);
     }
-  }, [refreshBalance, refreshFeeTier]);
+  }, []);
 
   // Connect with just address (from SecureWalletConnect)
   const connectWithAddress = useCallback((address: string) => {
@@ -168,13 +163,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       balance: { xrp: '0', tokens: [] },
       honeyPoints: 0,
     });
+    // Balance refresh is handled by the useEffect below
+  }, []);
 
-    // Fetch balances and fee tier
-    setTimeout(() => {
+  // Auto-refresh balance when wallet address changes
+  useEffect(() => {
+    if (wallet.address && xrplClient) {
       refreshBalance();
       refreshFeeTier();
-    }, 100);
-  }, [refreshBalance, refreshFeeTier]);
+    }
+  }, [wallet.address, xrplClient, refreshBalance, refreshFeeTier]);
 
   // Disconnect wallet
   const disconnect = useCallback(() => {
