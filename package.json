@@ -13,6 +13,8 @@
     "@tailwindcss/postcss": "^4.1.17",
     "@walletconnect/core": "^2.23.0",
     "@walletconnect/web3wallet": "^1.16.1",
+    "@web3auth/base": "^9.7.0",
+    "@web3auth/modal": "^10.9.0",
     "buffer": "^6.0.3",
     "framer-motion": "^12.23.25",
     "react": "^19.2.0",

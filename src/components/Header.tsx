@@ -2,16 +2,21 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useWallet } from '../context/WalletContext';
 import { getFeeTierName } from '../services/nftService';
-import WalletConnect from './WalletConnect';
+import { SecureWalletConnect } from './SecureWalletConnect';
 
 const Header: React.FC = () => {
-  const { wallet, disconnect } = useWallet();
+  const { wallet, disconnect, connectWithAddress } = useWallet();
   const [showWalletConnect, setShowWalletConnect] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
   // Format address for display
   const formatAddress = (address: string): string => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  // Handle successful wallet connection
+  const handleConnect = (address: string) => {
+    connectWithAddress(address);
   };
 
   return (
@@ -149,10 +154,11 @@ const Header: React.FC = () => {
         </div>
       </header>
 
-      {/* Wallet connect modal */}
-      <WalletConnect
+      {/* Secure Wallet connect modal */}
+      <SecureWalletConnect
         isOpen={showWalletConnect}
         onClose={() => setShowWalletConnect(false)}
+        onConnect={handleConnect}
       />
 
       {/* Click outside to close dropdown */}

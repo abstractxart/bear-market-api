@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { Client, Wallet } from 'xrpl';
-import type { WalletState, WalletConnectionType, TokenBalance } from '../types';
+import { Client } from 'xrpl';
+import type { WalletState, TokenBalance } from '../types';
 import { checkPixelBearNFTs } from '../services/nftService';
+import { getKeyManager } from '../security/SecureKeyManager';
 
 // XRPL Client Configuration
 const XRPL_MAINNET = 'wss://xrplcluster.com';
@@ -18,14 +19,14 @@ interface WalletContextType {
   error: string | null;
 
   // Connection methods
-  connectWithSeed: (seed: string) => Promise<void>;
-  connectWithWalletConnect: () => Promise<void>;
+  connectWithSecret: (secret: string) => Promise<void>;
+  connectWithAddress: (address: string) => void;
   disconnect: () => void;
 
   // Wallet operations
   refreshBalance: () => Promise<void>;
   refreshFeeTier: () => Promise<void>;
-  signTransaction: (tx: any) => Promise<any>;
+  signTransaction: (tx: any) => Promise<{ tx_blob: string; hash: string }>;
 }
 
 const defaultWalletState: WalletState = {
@@ -45,7 +46,6 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined);
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [wallet, setWallet] = useState<WalletState>(defaultWalletState);
   const [xrplClient, setXrplClient] = useState<Client | null>(null);
-  const [xrplWallet, setXrplWallet] = useState<Wallet | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,20 +64,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return () => {
       client.disconnect();
     };
-  }, []);
-
-  // Check for saved wallet on mount
-  useEffect(() => {
-    const savedAddress = localStorage.getItem('bear_wallet_address');
-    const savedType = localStorage.getItem('bear_wallet_type') as WalletConnectionType;
-
-    if (savedAddress && savedType) {
-      // For manual wallets, we need to re-enter seed
-      // For WalletConnect, we attempt reconnection
-      if (savedType === 'walletconnect') {
-        // TODO: Attempt WalletConnect session restoration
-      }
-    }
   }, []);
 
   // Refresh XRP and token balances
@@ -141,28 +127,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [xrplClient, wallet.address]);
 
-  // Connect with seed phrase (manual import)
-  const connectWithSeed = useCallback(async (seed: string) => {
+  // Connect with secret key (uses SecureKeyManager)
+  const connectWithSecret = useCallback(async (secret: string) => {
     setIsConnecting(true);
     setError(null);
 
     try {
-      // Validate and create wallet from seed
-      const newWallet = Wallet.fromSeed(seed);
+      const keyManager = getKeyManager();
+      const { address } = await keyManager.initializeSessionOnly(secret);
 
-      setXrplWallet(newWallet);
       setWallet({
-        address: newWallet.address,
+        address: address,
         connectionType: 'manual',
         isConnected: true,
         feeTier: 'regular', // Will be updated after NFT check
         balance: { xrp: '0', tokens: [] },
         honeyPoints: 0,
       });
-
-      // Save address (NOT the seed!) for session restoration
-      localStorage.setItem('bear_wallet_address', newWallet.address);
-      localStorage.setItem('bear_wallet_type', 'manual');
 
       // Fetch balances and fee tier
       setTimeout(() => {
@@ -172,56 +153,58 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     } catch (err: any) {
       console.error('Failed to connect wallet:', err);
-      setError(err.message || 'Invalid seed phrase');
+      setError(err.message || 'Invalid secret key');
     } finally {
       setIsConnecting(false);
     }
   }, [refreshBalance, refreshFeeTier]);
 
-  // Connect with WalletConnect
-  const connectWithWalletConnect = useCallback(async () => {
-    setIsConnecting(true);
-    setError(null);
+  // Connect with just address (from SecureWalletConnect)
+  const connectWithAddress = useCallback((address: string) => {
+    setWallet({
+      address: address,
+      connectionType: 'manual',
+      isConnected: true,
+      feeTier: 'regular',
+      balance: { xrp: '0', tokens: [] },
+      honeyPoints: 0,
+    });
 
-    try {
-      // TODO: Implement WalletConnect v2 integration
-      // For now, show coming soon message
-      setError('WalletConnect integration coming soon!');
-    } catch (err: any) {
-      console.error('WalletConnect error:', err);
-      setError(err.message || 'WalletConnect connection failed');
-    } finally {
-      setIsConnecting(false);
-    }
-  }, []);
+    // Fetch balances and fee tier
+    setTimeout(() => {
+      refreshBalance();
+      refreshFeeTier();
+    }, 100);
+  }, [refreshBalance, refreshFeeTier]);
 
   // Disconnect wallet
   const disconnect = useCallback(() => {
-    setXrplWallet(null);
+    // Destroy key material
+    const keyManager = getKeyManager();
+    keyManager.destroy();
+
+    // Clear wallet state
     setWallet(defaultWalletState);
-    localStorage.removeItem('bear_wallet_address');
-    localStorage.removeItem('bear_wallet_type');
+
+    // Clear any saved vault if user wants
+    // localStorage.removeItem('bear_market_vault');
   }, []);
 
-  // Sign transaction
-  const signTransaction = useCallback(async (tx: any) => {
-    if (!xrplWallet) {
+  // Sign transaction using SecureKeyManager
+  const signTransaction = useCallback(async (tx: any): Promise<{ tx_blob: string; hash: string }> => {
+    const keyManager = getKeyManager();
+
+    if (!keyManager.hasKey()) {
       throw new Error('No wallet connected');
     }
 
-    // For manual wallets, sign directly
-    if (wallet.connectionType === 'manual') {
-      return xrplWallet.sign(tx);
+    if (keyManager.isLocked()) {
+      throw new Error('Wallet is locked');
     }
 
-    // For WalletConnect, send signing request
-    if (wallet.connectionType === 'walletconnect') {
-      // TODO: Send signing request via WalletConnect
-      throw new Error('WalletConnect signing not yet implemented');
-    }
-
-    throw new Error('Unknown wallet type');
-  }, [xrplWallet, wallet.connectionType]);
+    // Sign using the secure key manager
+    return await keyManager.signTransaction(tx);
+  }, []);
 
   return (
     <WalletContext.Provider
@@ -230,8 +213,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         xrplClient,
         isConnecting,
         error,
-        connectWithSeed,
-        connectWithWalletConnect,
+        connectWithSecret,
+        connectWithAddress,
         disconnect,
         refreshBalance,
         refreshFeeTier,
