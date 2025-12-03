@@ -635,7 +635,7 @@ export const SecureWalletConnect = ({
           {[
             { id: 'family-seed', label: 'Family Seed', desc: 'Starts with "s"' },
             { id: 'mnemonic', label: 'Mnemonic Phrase', desc: '12 or 24 words' },
-            { id: 'xaman-numbers', label: 'XAMAN Recovery', desc: '8 rows of words' },
+            { id: 'xaman-numbers', label: 'Secret Numbers', desc: 'XAMAN/Xumm' },
             { id: 'private-key', label: 'Private Key', desc: 'Hex format' },
           ].map((method) => (
             <label
@@ -708,16 +708,16 @@ export const SecureWalletConnect = ({
             </div>
           )}
 
-          {/* XAMAN Numbers input - 8 rows */}
+          {/* XAMAN Secret Numbers input - 8 rows stacked */}
           {importMethod === 'xaman-numbers' && (
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Enter your XAMAN recovery phrase (8 words)
+                Enter your Secret Numbers (8 words)
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
                 {xamanNumbers.map((num, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 w-4">{i + 1}.</span>
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-sm text-gray-500 w-6 text-right">{i + 1}.</span>
                     <input
                       type="text"
                       value={num}
@@ -726,14 +726,14 @@ export const SecureWalletConnect = ({
                         newNums[i] = e.target.value.toUpperCase();
                         setXamanNumbers(newNums);
                       }}
-                      placeholder="WORD"
-                      className="flex-1 px-3 py-2 bg-black/60 border-2 border-gray-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-purple-500 uppercase"
+                      placeholder={`Word ${i + 1}`}
+                      className="flex-1 px-4 py-2.5 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 uppercase tracking-wider"
                       autoComplete="off"
                     />
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-gray-500 mt-2">RFC-1751 format used by XAMAN/Xumm</p>
+              <p className="text-xs text-gray-500 mt-3">RFC-1751 format used by XAMAN/Xumm</p>
             </div>
           )}
 
