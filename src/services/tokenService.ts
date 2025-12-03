@@ -424,6 +424,7 @@ export async function getAllTokens(): Promise<XRPLToken[]> {
 
 /**
  * Get popular/featured tokens - Top tokens by 24h volume from OnTheDex
+ * BEAR token is ALWAYS at the top!
  */
 export async function getPopularTokens(): Promise<XRPLToken[]> {
   // Use short cache for popular tokens (30 seconds)
@@ -440,15 +441,28 @@ export async function getPopularTokens(): Promise<XRPLToken[]> {
       return (b.volume24h || 0) - (a.volume24h || 0);
     });
 
-    // Take top 50 by volume
-    popularTokensCache = sortedByVolume.slice(0, 50);
+    // Take top 50 by volume (excluding BEAR since we'll add it at top)
+    const topTokens = sortedByVolume
+      .filter(t => !(t.currency === 'BEAR' && t.issuer === 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW'))
+      .slice(0, 49);
+
+    // Get BEAR token from the list or use our defined one
+    const bearFromList = sortedByVolume.find(
+      t => t.currency === 'BEAR' && t.issuer === 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW'
+    );
+    const bearToken = bearFromList || COMMON_TOKENS.find(t => t.currency === 'BEAR')!;
+
+    // BEAR always at top!
+    popularTokensCache = [bearToken, ...topTokens];
     popularTokensCacheTime = Date.now();
 
     return popularTokensCache;
   } catch (error) {
     console.error('Failed to fetch popular tokens:', error);
-    // Fallback to common tokens
-    return COMMON_TOKENS;
+    // Fallback to common tokens with BEAR at top
+    const bear = COMMON_TOKENS.find(t => t.currency === 'BEAR')!;
+    const others = COMMON_TOKENS.filter(t => t.currency !== 'BEAR');
+    return [bear, ...others];
   }
 }
 
@@ -540,8 +554,18 @@ export async function validateToken(currency: string, issuer: string): Promise<b
 
 /**
  * Well-known tokens for quick access
+ * BEAR is FIRST - it's our token!
  */
 export const COMMON_TOKENS: XRPLToken[] = [
+  // BEAR is ALWAYS first!
+  {
+    currency: 'BEAR',
+    issuer: 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW',
+    name: 'BEAR Token',
+    symbol: 'BEAR',
+    icon: getTokenIconUrl('BEAR', 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW'),
+    decimals: 15,
+  },
   {
     currency: 'XRP',
     issuer: '',
@@ -585,14 +609,6 @@ export const COMMON_TOKENS: XRPLToken[] = [
     icon: getTokenIconUrl('XRPH', 'rNmKNMsHnpLmLXKL3bvwnqsr6MwxfPGvJf'),
     decimals: 15,
     verified: true,
-  },
-  {
-    currency: 'BEAR',
-    issuer: 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW',
-    name: 'BEAR Token',
-    symbol: 'BEAR',
-    icon: getTokenIconUrl('BEAR', 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW'),
-    decimals: 15,
   },
   // Top memecoins from First Ledger
   {
@@ -656,7 +672,12 @@ export const COMMON_TOKENS: XRPLToken[] = [
 /**
  * Get XRP token constant
  */
-export const XRP_TOKEN: Token = COMMON_TOKENS[0];
+export const XRP_TOKEN: Token = COMMON_TOKENS.find(t => t.currency === 'XRP')!;
+
+/**
+ * Get BEAR token constant
+ */
+export const BEAR_TOKEN: Token = COMMON_TOKENS[0]; // BEAR is always first!
 
 // ==================== PRELOAD ====================
 

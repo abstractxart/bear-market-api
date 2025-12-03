@@ -16,6 +16,7 @@ import {
   getTokenIconUrl,
   formatCurrencyCode,
   COMMON_TOKENS,
+  XRP_TOKEN,
   type XRPLToken,
 } from '../services/tokenService';
 import type { Token } from '../types';
@@ -154,11 +155,11 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
   const walletTokens = useMemo(() => {
     const userTokens: XRPLToken[] = [];
 
-    // Add XRP
+    // Add XRP first
     userTokens.push({
-      ...COMMON_TOKENS[0],
+      ...XRP_TOKEN,
       issuer: '',
-    });
+    } as XRPLToken);
 
     // Add user's tokens with decoded currency codes
     for (const tb of wallet.balance.tokens) {
@@ -180,25 +181,17 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
     return userTokens;
   }, [wallet.balance.tokens]);
 
-  // Filter out excluded token and include XRP at top
+  // Filter out excluded token - BEAR is always first from getPopularTokens()
   const displayTokens = useMemo(() => {
     const sourceTokens = activeTab === 'wallet' && !searchQuery ? walletTokens : tokens;
 
-    let filtered = sourceTokens.filter(t => {
+    const filtered = sourceTokens.filter(t => {
       // Exclude the "other side" token
       if (excludeToken && t.currency === excludeToken.currency && t.issuer === excludeToken.issuer) {
         return false;
       }
       return true;
     });
-
-    // Add XRP at top if not searching and not excluded
-    if (!searchQuery && activeTab === 'popular' && (!excludeToken || excludeToken.currency !== 'XRP')) {
-      const xrp = COMMON_TOKENS.find(t => t.currency === 'XRP');
-      if (xrp && !filtered.find(t => t.currency === 'XRP')) {
-        filtered = [{ ...xrp, issuer: '' }, ...filtered];
-      }
-    }
 
     return filtered;
   }, [tokens, walletTokens, excludeToken, searchQuery, activeTab]);
