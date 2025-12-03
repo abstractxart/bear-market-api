@@ -174,7 +174,13 @@ class SecureKeyManager {
 
     let wallet;
     try {
-      wallet = Wallet.fromSecret(secret);
+      // Auto-detect algorithm from seed prefix
+      // sEd... = ed25519, s... (without Ed) = secp256k1
+      const isEd25519 = secret.startsWith('sEd');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      wallet = Wallet.fromSeed(secret, {
+        algorithm: (isEd25519 ? 'ed25519' : 'ecdsa-secp256k1') as any
+      });
     } catch {
       throw new Error('Invalid secret key');
     }
@@ -341,7 +347,12 @@ class SecureKeyManager {
     const secret = await this.getSecretForSigning();
 
     const { Wallet } = await import('xrpl');
-    const wallet = Wallet.fromSecret(secret);
+    // Auto-detect algorithm from seed prefix
+    const isEd25519 = secret.startsWith('sEd');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wallet = Wallet.fromSeed(secret, {
+      algorithm: (isEd25519 ? 'ed25519' : 'ecdsa-secp256k1') as any
+    });
 
     // Sign the transaction
     const { tx_blob, hash } = wallet.sign(txJson as any);
