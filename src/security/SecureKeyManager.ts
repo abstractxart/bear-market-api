@@ -156,10 +156,8 @@ class SecureKeyManager {
   private _address: string | null = null;
   private _isLocked: boolean = true;
 
-  constructor() {
-    // Freeze the instance to prevent property injection
-    Object.freeze(this);
-  }
+  // Note: We don't freeze the instance because we need to modify private state
+  // Security is maintained by: private properties, closure singleton, memory encryption
 
   /**
    * Initialize with a secret key (session-only, no persistence)
