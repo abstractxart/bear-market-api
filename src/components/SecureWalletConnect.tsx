@@ -263,7 +263,6 @@ export const SecureWalletConnect = ({
 
       case 'xaman-numbers':
         // XAMAN Secret Numbers: 8 rows of 6 digits each
-        // Use the official xrpl-secret-numbers library for correct decoding
         const filledRows = xamanNumbers.filter(n => n.trim());
         if (filledRows.length !== 8) {
           throw new Error('Please enter all 8 rows of your Secret Numbers');
@@ -278,17 +277,29 @@ export const SecureWalletConnect = ({
             }
           }
 
-          // Use the official xrpl-secret-numbers library
-          const { Account } = await import('xrpl-secret-numbers');
-          const secretNumbersArray = xamanNumbers.map(n => n.trim());
-          const account = new Account(secretNumbersArray);
+          // Decode secret numbers to entropy bytes
+          // Format: each row is XXXXXC where XXXXX is value (0-65535) and C is checksum
+          const entropyBytes = new Uint8Array(16);
+          for (let i = 0; i < 8; i++) {
+            const row = xamanNumbers[i].trim();
+            const value = parseInt(row.slice(0, 5), 10);
 
-          // Get the family seed from the account
-          const familySeed = account.getFamilySeed();
+            // Validate checksum: sum of first 5 digits mod 10 should equal 6th digit
+            const digits = row.split('').map(Number);
+            const expectedChecksum = digits.slice(0, 5).reduce((a, b) => a + b, 0) % 10;
+            if (digits[5] !== expectedChecksum) {
+              throw new Error(`Row ${String.fromCharCode(65 + i)} has invalid checksum`);
+            }
 
-          if (!familySeed) {
-            throw new Error('Could not derive wallet from Secret Numbers');
+            // Store as 2 bytes (big-endian)
+            entropyBytes[i * 2] = Math.floor(value / 256);
+            entropyBytes[i * 2 + 1] = value % 256;
           }
+
+          // Convert to family seed with selected algorithm
+          const { encodeSeed } = await import('xrpl');
+          const algoType = algorithm === 'ed25519' ? 'ed25519' : 'secp256k1';
+          const familySeed = encodeSeed(entropyBytes, algoType);
 
           return familySeed;
         } catch (err) {
@@ -740,8 +751,8 @@ export const SecureWalletConnect = ({
             );
           })()}
 
-          {/* Algorithm selection for mnemonic only (Secret Numbers handled by library) */}
-          {importMethod === 'mnemonic' && (
+          {/* Algorithm selection for mnemonic and Secret Numbers */}
+          {(importMethod === 'mnemonic' || importMethod === 'xaman-numbers') && (
             <div className="flex gap-4 pt-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
