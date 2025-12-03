@@ -87,6 +87,13 @@ export const SecureWalletConnect = ({
   const [seedAcknowledged, setSeedAcknowledged] = useState(false);
   const [seedCopied, setSeedCopied] = useState(false);
 
+  // Import method states
+  type ImportMethod = 'family-seed' | 'mnemonic' | 'private-key' | 'xaman-numbers';
+  const [importMethod, setImportMethod] = useState<ImportMethod>('family-seed');
+  const [algorithm, setAlgorithm] = useState<'secp256k1' | 'ed25519'>('secp256k1');
+  const [mnemonicWords, setMnemonicWords] = useState('');
+  const [xamanNumbers, setXamanNumbers] = useState<string[]>(Array(8).fill(''));
+
   // Initialize Web3Auth on mount
   useEffect(() => {
     initWeb3Auth().catch(console.error);
@@ -113,6 +120,10 @@ export const SecureWalletConnect = ({
       setNewWallet(null);
       setSeedAcknowledged(false);
       setSeedCopied(false);
+      setImportMethod('family-seed');
+      setAlgorithm('secp256k1');
+      setMnemonicWords('');
+      setXamanNumbers(Array(8).fill(''));
     }
   }, [isOpen]);
 
@@ -229,21 +240,85 @@ export const SecureWalletConnect = ({
     }
   };
 
-  // Connect with secret key
-  const handleSessionConnect = async () => {
-    if (!secret) {
-      setError('Please enter your secret key');
-      return;
-    }
+  // Get the secret key based on import method
+  const getSecretFromImportMethod = async (): Promise<string> => {
+    switch (importMethod) {
+      case 'family-seed':
+        return secret.trim();
 
+      case 'private-key':
+        // Private key is hex format, return as-is
+        return secret.trim();
+
+      case 'mnemonic':
+        // Convert mnemonic to wallet using xrpl.js
+        try {
+          const words = mnemonicWords.trim();
+          // xrpl.js Wallet.fromMnemonic expects space-separated words
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const opts: any = {};
+          if (algorithm === 'ed25519') {
+            opts.algorithm = 'ed25519';
+          } else {
+            opts.algorithm = 'ecdsa-secp256k1';
+          }
+          const wallet = Wallet.fromMnemonic(words, opts);
+          return wallet.seed!;
+        } catch {
+          throw new Error('Invalid mnemonic phrase');
+        }
+
+      case 'xaman-numbers':
+        // XAMAN uses RFC-1751 format (8 rows of characters)
+        // Join the rows into a single space-separated string
+        const xamanPhrase = xamanNumbers.filter(n => n.trim()).join(' ');
+        if (xamanNumbers.filter(n => n.trim()).length !== 8) {
+          throw new Error('Please enter all 8 rows of your XAMAN recovery phrase');
+        }
+        try {
+          // RFC-1751 mnemonic - try to import
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const xamanOpts: any = { mnemonicEncoding: 'rfc1751' };
+          if (algorithm === 'ed25519') {
+            xamanOpts.algorithm = 'ed25519';
+          } else {
+            xamanOpts.algorithm = 'ecdsa-secp256k1';
+          }
+          const wallet = Wallet.fromMnemonic(xamanPhrase, xamanOpts);
+          return wallet.seed!;
+        } catch {
+          throw new Error('Invalid XAMAN recovery phrase');
+        }
+
+      default:
+        throw new Error('Please select an import method');
+    }
+  };
+
+  // Connect with secret key (supports multiple import methods)
+  const handleSessionConnect = async () => {
     setLoading(true);
     setError(null);
-    logSecurityEvent('session_connect_attempt', 'Attempting secure connection');
+    logSecurityEvent('session_connect_attempt', `Attempting ${importMethod} import`);
 
     try {
+      // Get the secret based on the selected import method
+      const secretKey = await getSecretFromImportMethod();
+
+      if (!secretKey) {
+        setError('Please enter your credentials');
+        setLoading(false);
+        return;
+      }
+
       const keyManager = getKeyManager();
-      const { address } = await keyManager.initializeSessionOnly(secret);
+      const { address } = await keyManager.initializeSessionOnly(secretKey);
+
+      // Clear sensitive data
       setSecret('');
+      setMnemonicWords('');
+      setXamanNumbers(Array(8).fill(''));
+
       logSecurityEvent('session_connect_success', `Connected: ${address.slice(0, 8)}...`);
 
       if (saveVault && password) {
@@ -521,87 +596,209 @@ export const SecureWalletConnect = ({
     </div>
   );
 
-  // Secret key input screen
-  const renderSecretInput = () => (
-    <div className="space-y-4">
-      <button onClick={() => setMode('select')} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm">
-        ← Back
-      </button>
+  // Secret key input screen - Multiple import methods like First Ledger
+  const renderSecretInput = () => {
+    // Check if we can submit based on the import method
+    const canSubmit = () => {
+      switch (importMethod) {
+        case 'family-seed':
+        case 'private-key':
+          return secret.trim().length > 0;
+        case 'mnemonic':
+          return mnemonicWords.trim().split(/\s+/).length >= 12;
+        case 'xaman-numbers':
+          return xamanNumbers.filter(n => n.trim()).length === 8;
+        default:
+          return false;
+      }
+    };
 
-      <div className="text-center mb-4">
-        <h3 className="text-xl font-bold text-white mb-2">🔑 Import Wallet</h3>
-        <p className="text-sm text-gray-400">Enter your existing XRPL secret key</p>
-      </div>
-
-      {!isSecureContext() && (
-        <div className="p-3 bg-yellow-500/20 rounded-lg border border-yellow-500/30 text-xs text-yellow-300">
-          ⚠️ Use HTTPS for maximum security
-        </div>
-      )}
-
+    return (
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Secret Key</label>
-          <div className="relative">
-            <input
-              type={showSecret ? 'text' : 'password'}
-              value={secret}
-              onChange={handleSecretChange}
-              onPaste={handleSecretPaste}
-              placeholder="sXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-              className="w-full px-4 py-3 bg-black/60 border-2 border-purple-500/30 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 pr-12"
-              autoComplete="off"
-            />
-            <button
-              type="button"
-              onClick={() => setShowSecret(!showSecret)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg"
-            >
-              {showSecret ? '🙈' : '👁️'}
-            </button>
-          </div>
+        <button onClick={() => setMode('select')} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm">
+          ← Back
+        </button>
+
+        <div className="text-center mb-2">
+          <h3 className="text-xl font-bold text-white mb-1">Import Wallet</h3>
+          <p className="text-sm text-gray-400">Choose your import method</p>
         </div>
 
-        <div className="p-4 bg-purple-500/10 rounded-xl border border-purple-500/20">
-          <label className="flex items-start gap-3 cursor-pointer">
+        {!isSecureContext() && (
+          <div className="p-2 bg-yellow-500/20 rounded-lg border border-yellow-500/30 text-xs text-yellow-300">
+            ⚠️ Use HTTPS for maximum security
+          </div>
+        )}
+
+        {/* Import Method Selection - Radio buttons like First Ledger */}
+        <div className="space-y-2">
+          {[
+            { id: 'family-seed', label: 'Family Seed', desc: 'Starts with "s"' },
+            { id: 'mnemonic', label: 'Mnemonic Phrase', desc: '12 or 24 words' },
+            { id: 'xaman-numbers', label: 'XAMAN Recovery', desc: '8 rows of words' },
+            { id: 'private-key', label: 'Private Key', desc: 'Hex format' },
+          ].map((method) => (
+            <label
+              key={method.id}
+              className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
+                importMethod === method.id
+                  ? 'bg-purple-500/20 border-2 border-purple-500'
+                  : 'bg-black/30 border-2 border-transparent hover:border-gray-600'
+              }`}
+            >
+              <input
+                type="radio"
+                name="importMethod"
+                checked={importMethod === method.id}
+                onChange={() => setImportMethod(method.id as typeof importMethod)}
+                className="w-4 h-4 text-purple-500 bg-black border-gray-600 focus:ring-purple-500"
+              />
+              <div>
+                <span className="text-sm font-medium text-white">{method.label}</span>
+                <span className="text-xs text-gray-500 ml-2">({method.desc})</span>
+              </div>
+            </label>
+          ))}
+        </div>
+
+        {/* Dynamic input based on selected method */}
+        <div className="space-y-3">
+          {/* Family Seed or Private Key input */}
+          {(importMethod === 'family-seed' || importMethod === 'private-key') && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                {importMethod === 'family-seed' ? 'Enter your family seed' : 'Enter your private key'}
+              </label>
+              <div className="relative">
+                <input
+                  type={showSecret ? 'text' : 'password'}
+                  value={secret}
+                  onChange={handleSecretChange}
+                  onPaste={handleSecretPaste}
+                  placeholder={importMethod === 'family-seed' ? 'sXXXXXXXXXXXXXXXXXXXXXXXXXXXX' : '00112233...'}
+                  className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 pr-12"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSecret(!showSecret)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg"
+                >
+                  {showSecret ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Mnemonic Phrase input */}
+          {importMethod === 'mnemonic' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Enter your mnemonic phrase words
+              </label>
+              <textarea
+                value={mnemonicWords}
+                onChange={(e) => setMnemonicWords(e.target.value)}
+                placeholder="word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12"
+                rows={3}
+                className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 resize-none"
+                autoComplete="off"
+              />
+              <p className="text-xs text-gray-500 mt-1">Enter 12 or 24 words separated by spaces</p>
+            </div>
+          )}
+
+          {/* XAMAN Numbers input - 8 rows */}
+          {importMethod === 'xaman-numbers' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Enter your XAMAN recovery phrase (8 words)
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {xamanNumbers.map((num, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 w-4">{i + 1}.</span>
+                    <input
+                      type="text"
+                      value={num}
+                      onChange={(e) => {
+                        const newNums = [...xamanNumbers];
+                        newNums[i] = e.target.value.toUpperCase();
+                        setXamanNumbers(newNums);
+                      }}
+                      placeholder="WORD"
+                      className="flex-1 px-3 py-2 bg-black/60 border-2 border-gray-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-purple-500 uppercase"
+                      autoComplete="off"
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">RFC-1751 format used by XAMAN/Xumm</p>
+            </div>
+          )}
+
+          {/* Algorithm selection for mnemonic/xaman */}
+          {(importMethod === 'mnemonic' || importMethod === 'xaman-numbers') && (
+            <div className="flex gap-4 pt-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="algorithm"
+                  checked={algorithm === 'secp256k1'}
+                  onChange={() => setAlgorithm('secp256k1')}
+                  className="w-3 h-3 text-blue-500 bg-black border-gray-600"
+                />
+                <span className="text-xs text-gray-300">ecdsa-secp256k1</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="algorithm"
+                  checked={algorithm === 'ed25519'}
+                  onChange={() => setAlgorithm('ed25519')}
+                  className="w-3 h-3 text-blue-500 bg-black border-gray-600"
+                />
+                <span className="text-xs text-gray-300">ed25519</span>
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* Save vault option */}
+        <div className="p-3 bg-purple-500/10 rounded-xl border border-purple-500/20">
+          <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={saveVault}
               onChange={(e) => setSaveVault(e.target.checked)}
-              className="mt-1 w-4 h-4 rounded border-purple-500/30 bg-black/50 text-purple-500"
+              className="w-4 h-4 rounded border-purple-500/30 bg-black/50 text-purple-500"
             />
             <div>
-              <span className="text-sm font-medium text-white">💾 Save Encrypted Wallet</span>
-              <p className="text-xs text-gray-400 mt-0.5">Password-protected for quick access</p>
+              <span className="text-sm font-medium text-white">💾 Save Encrypted</span>
+              <span className="text-xs text-gray-400 ml-1">Password-protected</span>
             </div>
           </label>
         </div>
 
         <AnimatePresence>
           {saveVault && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-3 overflow-hidden">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Password (min 12 chars)</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-4 py-3 bg-black/60 border-2 border-purple-500/30 rounded-xl text-white focus:outline-none focus:border-purple-500"
-                  autoComplete="new-password"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Confirm Password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-4 py-3 bg-black/60 border-2 border-purple-500/30 rounded-xl text-white focus:outline-none focus:border-purple-500"
-                  autoComplete="new-password"
-                />
-              </div>
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-2 overflow-hidden">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password (min 12 chars)"
+                className="w-full px-4 py-2 bg-black/60 border-2 border-purple-500/30 rounded-xl text-white text-sm focus:outline-none focus:border-purple-500"
+                autoComplete="new-password"
+              />
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm password"
+                className="w-full px-4 py-2 bg-black/60 border-2 border-purple-500/30 rounded-xl text-white text-sm focus:outline-none focus:border-purple-500"
+                autoComplete="new-password"
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -612,14 +809,14 @@ export const SecureWalletConnect = ({
 
         <button
           onClick={handleSessionConnect}
-          disabled={loading || !secret || (saveVault && (!password || password.length < 12 || password !== confirmPassword))}
+          disabled={loading || !canSubmit() || (saveVault && (!password || password.length < 12 || password !== confirmPassword))}
           className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all"
         >
-          {loading ? 'Connecting...' : '🔐 Connect'}
+          {loading ? 'Connecting...' : 'Confirm'}
         </button>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Vault unlock screen
   const renderVaultUnlock = () => (
