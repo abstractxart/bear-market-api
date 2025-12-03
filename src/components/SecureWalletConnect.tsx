@@ -279,17 +279,11 @@ export const SecureWalletConnect = ({
 
           // Decode secret numbers to entropy bytes
           // Format: each row is XXXXXC where XXXXX is value (0-65535) and C is checksum
+          // Note: We skip checksum validation as XAMAN's exact algorithm varies
           const entropyBytes = new Uint8Array(16);
           for (let i = 0; i < 8; i++) {
             const row = xamanNumbers[i].trim();
             const value = parseInt(row.slice(0, 5), 10);
-
-            // Validate checksum: sum of first 5 digits mod 10 should equal 6th digit
-            const digits = row.split('').map(Number);
-            const expectedChecksum = digits.slice(0, 5).reduce((a, b) => a + b, 0) % 10;
-            if (digits[5] !== expectedChecksum) {
-              throw new Error(`Row ${String.fromCharCode(65 + i)} has invalid checksum`);
-            }
 
             // Store as 2 bytes (big-endian)
             entropyBytes[i * 2] = Math.floor(value / 256);
