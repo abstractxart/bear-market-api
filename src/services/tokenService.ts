@@ -74,6 +74,7 @@ interface XRPLMetaToken {
 let tokenCache: TokenCache | null = null;
 let priceCache: PriceCache | null = null;
 let popularTokensCache: XRPLToken[] | null = null;
+let popularTokensCacheTime: number = 0;
 
 // ==================== HELPER FUNCTIONS ====================
 
@@ -422,21 +423,33 @@ export async function getAllTokens(): Promise<XRPLToken[]> {
 }
 
 /**
- * Get popular/featured tokens
+ * Get popular/featured tokens - Top tokens by 24h volume from OnTheDex
  */
 export async function getPopularTokens(): Promise<XRPLToken[]> {
-  if (popularTokensCache) {
+  // Use short cache for popular tokens (30 seconds)
+  if (popularTokensCache && Date.now() - (popularTokensCacheTime || 0) < 30000) {
     return popularTokensCache;
   }
 
-  const allTokens = await getAllTokens();
+  try {
+    // Fetch ALL traded tokens from OnTheDex
+    const onTheDexTokens = await fetchOnTheDexTokens();
 
-  // Filter for tokens with good liquidity
-  popularTokensCache = allTokens
-    .filter(t => (t.holders || 0) > 100 || (t.volume24h || 0) > 1000)
-    .slice(0, 20);
+    // Sort by 24h volume (highest first) - this gives us the most active tokens
+    const sortedByVolume = [...onTheDexTokens].sort((a, b) => {
+      return (b.volume24h || 0) - (a.volume24h || 0);
+    });
 
-  return popularTokensCache;
+    // Take top 50 by volume
+    popularTokensCache = sortedByVolume.slice(0, 50);
+    popularTokensCacheTime = Date.now();
+
+    return popularTokensCache;
+  } catch (error) {
+    console.error('Failed to fetch popular tokens:', error);
+    // Fallback to common tokens
+    return COMMON_TOKENS;
+  }
 }
 
 /**
@@ -579,6 +592,63 @@ export const COMMON_TOKENS: XRPLToken[] = [
     name: 'BEAR Token',
     symbol: 'BEAR',
     icon: getTokenIconUrl('BEAR', 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW'),
+    decimals: 15,
+  },
+  // Top memecoins from First Ledger
+  {
+    currency: 'FUZZY',
+    issuer: 'rhCAT4hRdi1J4fh1LK5qcUTsVcGWxNpVjh',
+    name: 'Fuzzy',
+    symbol: 'FUZZY',
+    icon: getTokenIconUrl('FUZZY', 'rhCAT4hRdi1J4fh1LK5qcUTsVcGWxNpVjh'),
+    decimals: 15,
+  },
+  {
+    currency: 'ARMY',
+    issuer: 'rGG3wQ4kfSgJgHRpWPAu5NxVA18q6gcSnZ',
+    name: 'Army',
+    symbol: 'ARMY',
+    icon: getTokenIconUrl('ARMY', 'rGG3wQ4kfSgJgHRpWPAu5NxVA18q6gcSnZ'),
+    decimals: 15,
+  },
+  {
+    currency: 'DROP',
+    issuer: 'rszenFJoDdicWqfK2F9U9VWTxqEfB2HNJ6',
+    name: 'Drop',
+    symbol: 'DROP',
+    icon: getTokenIconUrl('DROP', 'rszenFJoDdicWqfK2F9U9VWTxqEfB2HNJ6'),
+    decimals: 15,
+  },
+  {
+    currency: 'VGB',
+    issuer: 'rhcyBrowwApgNonehVqrg6JgzqaM1DLRv8',
+    name: 'VGB',
+    symbol: 'VGB',
+    icon: getTokenIconUrl('VGB', 'rhcyBrowwApgNonehVqrg6JgzqaM1DLRv8'),
+    decimals: 15,
+  },
+  {
+    currency: 'MAG',
+    issuer: 'rXmagwMmnFtVet3uL26Q2iwk287SxYHov',
+    name: 'Magnetic',
+    symbol: 'MAG',
+    icon: getTokenIconUrl('MAG', 'rXmagwMmnFtVet3uL26Q2iwk287SxYHov'),
+    decimals: 15,
+  },
+  {
+    currency: 'XPM',
+    issuer: 'rXPMxBeefHGxx3Z3CMFqwzGi3Vt19LHvCR',
+    name: 'XPMarket',
+    symbol: 'XPM',
+    icon: getTokenIconUrl('XPM', 'rXPMxBeefHGxx3Z3CMFqwzGi3Vt19LHvCR'),
+    decimals: 15,
+  },
+  {
+    currency: 'XMEME',
+    issuer: 'rMeMEz93gAbQfs5LB9bR9XFXBC9u6NEVYt',
+    name: 'XMeme',
+    symbol: 'XMEME',
+    icon: getTokenIconUrl('XMEME', 'rMeMEz93gAbQfs5LB9bR9XFXBC9u6NEVYt'),
     decimals: 15,
   },
 ];
