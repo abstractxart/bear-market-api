@@ -654,6 +654,98 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
     return currency;
   };
 
+  // NFT Image component with multi-gateway fallback
+  // When one IPFS gateway fails, tries the next one
+  const NFTImage = ({
+    src,
+    alt,
+    className = '',
+    fallbackElement
+  }: {
+    src: string;
+    alt: string;
+    className?: string;
+    fallbackElement?: React.ReactNode;
+  }) => {
+    const [currentGatewayIndex, setCurrentGatewayIndex] = useState(0);
+    const [allFailed, setAllFailed] = useState(false);
+    const [currentSrc, setCurrentSrc] = useState('');
+
+    // Convert IPFS URL to use a specific gateway
+    const getGatewayUrl = useMemo(() => {
+      return (url: string, gatewayIdx: number): string => {
+        if (!url) return '';
+
+        // Extract IPFS hash from any format
+        let hash = '';
+
+        if (url.startsWith('ipfs://')) {
+          hash = url.replace('ipfs://', '');
+        } else if (url.includes('/ipfs/')) {
+          // Already an HTTP gateway URL - extract hash
+          const match = url.match(/\/ipfs\/([^/?#]+)/);
+          if (match) hash = match[1];
+        } else if (url.startsWith('Qm') || url.startsWith('baf')) {
+          hash = url;
+        }
+
+        if (hash) {
+          // Use the gateway at the specified index
+          const gateway = IPFS_GATEWAYS[gatewayIdx] || IPFS_GATEWAYS[0];
+          return `${gateway}${hash}`;
+        }
+
+        // Not an IPFS URL, return as-is
+        return url;
+      };
+    }, []);
+
+    // Update current source when gateway index or src changes
+    useEffect(() => {
+      if (!src) {
+        setAllFailed(true);
+        return;
+      }
+      setCurrentGatewayIndex(0);
+      setAllFailed(false);
+      setCurrentSrc(getGatewayUrl(src, 0));
+    }, [src, getGatewayUrl]);
+
+    // Handle image error - try next gateway
+    const handleError = () => {
+      const nextIndex = currentGatewayIndex + 1;
+      if (nextIndex < IPFS_GATEWAYS.length) {
+        // Check if this is an IPFS URL that can use different gateways
+        const newUrl = getGatewayUrl(src, nextIndex);
+        if (newUrl !== currentSrc) {
+          setCurrentGatewayIndex(nextIndex);
+          setCurrentSrc(newUrl);
+          return;
+        }
+      }
+      // All gateways failed or not an IPFS URL
+      setAllFailed(true);
+    };
+
+    if (allFailed || !currentSrc) {
+      return fallbackElement ? <>{fallbackElement}</> : (
+        <div className={`flex items-center justify-center ${className}`}>
+          <span className="text-2xl">🖼️</span>
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={currentSrc}
+        alt={alt}
+        className={className}
+        onError={handleError}
+        loading="lazy"
+      />
+    );
+  };
+
   // Token Icon component with fallback - tries multiple sources
   const TokenIconSmall = ({ currency, issuer, size = 40 }: { currency: string; issuer?: string; size?: number }) => {
     const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
@@ -971,19 +1063,17 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                                   <div className="absolute -right-0.5 -bottom-0.5 w-14 h-14 rounded-lg bg-gray-700/70 transform rotate-3" />
                                   <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-gray-600/50">
                                     {collection.image ? (
-                                      <img
+                                      <NFTImage
                                         src={collection.image}
                                         alt={collection.name}
                                         className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                          (e.target as HTMLImageElement).style.display = 'none';
-                                          (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                                        }}
+                                        fallbackElement={
+                                          <div className="w-full h-full flex items-center justify-center text-2xl">🖼️</div>
+                                        }
                                       />
-                                    ) : null}
-                                    <div className={`absolute inset-0 flex items-center justify-center text-2xl ${collection.image ? 'hidden' : ''}`}>
-                                      🖼️
-                                    </div>
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-2xl">🖼️</div>
+                                    )}
                                   </div>
                                 </div>
 
@@ -1020,7 +1110,14 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                                         style={{ opacity: 1 - (idx * 0.15) }}
                                       >
                                         {(nft.image || nft.animationUrl) ? (
-                                          <img src={nft.image || nft.animationUrl} alt="" className="w-full h-full object-cover" />
+                                          <NFTImage
+                                            src={nft.image || nft.animationUrl || ''}
+                                            alt=""
+                                            className="w-full h-full object-cover"
+                                            fallbackElement={
+                                              <div className="w-full h-full flex items-center justify-center text-sm">🖼️</div>
+                                            }
+                                          />
                                         ) : (
                                           <div className="w-full h-full flex items-center justify-center text-sm">🖼️</div>
                                         )}
@@ -1066,7 +1163,14 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                               <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl border border-purple-500/20">
                                 <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-700">
                                   {col.image ? (
-                                    <img src={col.image} alt="" className="w-full h-full object-cover" />
+                                    <NFTImage
+                                      src={col.image}
+                                      alt={col.name}
+                                      className="w-full h-full object-cover"
+                                      fallbackElement={
+                                        <div className="w-full h-full flex items-center justify-center text-xl">🖼️</div>
+                                      }
+                                    />
                                   ) : (
                                     <div className="w-full h-full flex items-center justify-center text-xl">🖼️</div>
                                   )}
@@ -1109,18 +1213,15 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                               <div className="aspect-square bg-gradient-to-br from-gray-700/50 to-gray-800/50 relative overflow-hidden">
                                 {/* For GIF: use animationUrl if available, otherwise use image (GIF might be in image field) */}
                                 {(nft.mediaType === 'gif') ? (
-                                  <img
-                                    src={nft.animationUrl || nft.image}
+                                  <NFTImage
+                                    src={nft.animationUrl || nft.image || ''}
                                     alt={nft.name}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                    onError={(e) => {
-                                      // Fallback to static image if animation fails
-                                      if (nft.image && (e.target as HTMLImageElement).src !== nft.image) {
-                                        (e.target as HTMLImageElement).src = nft.image;
-                                      } else {
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                      }
-                                    }}
+                                    fallbackElement={
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <span className="text-4xl">🖼️</span>
+                                      </div>
+                                    }
                                   />
                                 ) : /* Video NFT with no static image - show video preview */
                                 nft.mediaType === 'video' && !nft.image && nft.animationUrl ? (
@@ -1136,23 +1237,27 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                                     }}
                                   />
                                 ) : nft.image ? (
-                                  <img
+                                  <NFTImage
                                     src={nft.image}
                                     alt={nft.name}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display = 'none';
-                                    }}
+                                    fallbackElement={
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <span className="text-4xl">🖼️</span>
+                                      </div>
+                                    }
                                   />
                                 ) : /* Fallback - try animationUrl as image if available */
                                 nft.animationUrl ? (
-                                  <img
+                                  <NFTImage
                                     src={nft.animationUrl}
                                     alt={nft.name}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display = 'none';
-                                    }}
+                                    fallbackElement={
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <span className="text-4xl">🖼️</span>
+                                      </div>
+                                    }
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center">
@@ -1255,22 +1360,27 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                             </video>
                           ) : /* GIF - use animation URL if available, otherwise use image */
                           selectedNFT.mediaType === 'gif' ? (
-                            <img
-                              src={selectedNFT.animationUrl || selectedNFT.image}
+                            <NFTImage
+                              src={selectedNFT.animationUrl || selectedNFT.image || ''}
                               alt={selectedNFT.name}
                               className="w-full h-full object-contain"
-                              onError={(e) => {
-                                if (selectedNFT.image && (e.target as HTMLImageElement).src !== selectedNFT.image) {
-                                  (e.target as HTMLImageElement).src = selectedNFT.image;
-                                }
-                              }}
+                              fallbackElement={
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <span className="text-6xl">🖼️</span>
+                                </div>
+                              }
                             />
                           ) : /* Static image */
                           selectedNFT.image ? (
-                            <img
+                            <NFTImage
                               src={selectedNFT.image}
                               alt={selectedNFT.name}
                               className="w-full h-full object-contain"
+                              fallbackElement={
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <span className="text-6xl">🖼️</span>
+                                </div>
+                              }
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
