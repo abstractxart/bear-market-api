@@ -133,12 +133,13 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
     }
   };
 
-  // IPFS gateways - try faster ones first
+  // IPFS gateways - ordered by reliability (cloudflare is DOWN as of Dec 2024)
   const IPFS_GATEWAYS = [
-    'https://cloudflare-ipfs.com/ipfs/',
-    'https://gateway.pinata.cloud/ipfs/',
-    'https://dweb.link/ipfs/',
+    'https://nftstorage.link/ipfs/',
     'https://ipfs.io/ipfs/',
+    'https://dweb.link/ipfs/',
+    'https://gateway.pinata.cloud/ipfs/',
+    'https://cf-ipfs.com/ipfs/',
   ];
 
   // Convert IPFS to HTTP gateway - uses first gateway by default
@@ -163,7 +164,7 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
         if (!httpUri.startsWith('http')) return null;
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        const timeout = setTimeout(() => controller.abort(), 12000); // 12 second timeout for slow IPFS
 
         const response = await fetch(httpUri, { signal: controller.signal });
         clearTimeout(timeout);
@@ -1077,15 +1078,15 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                               className="group bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700/50 hover:border-purple-500/50 transition-all hover:shadow-lg hover:shadow-purple-500/10"
                             >
                               <div className="aspect-square bg-gradient-to-br from-gray-700/50 to-gray-800/50 relative overflow-hidden">
-                                {/* For GIF media type with animationUrl, use animationUrl; otherwise use image */}
-                                {(nft.mediaType === 'gif' && nft.animationUrl) ? (
+                                {/* For GIF: use animationUrl if available, otherwise use image (GIF might be in image field) */}
+                                {(nft.mediaType === 'gif') ? (
                                   <img
-                                    src={nft.animationUrl}
+                                    src={nft.animationUrl || nft.image}
                                     alt={nft.name}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                     onError={(e) => {
                                       // Fallback to static image if animation fails
-                                      if (nft.image) {
+                                      if (nft.image && (e.target as HTMLImageElement).src !== nft.image) {
                                         (e.target as HTMLImageElement).src = nft.image;
                                       } else {
                                         (e.target as HTMLImageElement).style.display = 'none';
@@ -1200,14 +1201,14 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                             >
                               Your browser does not support video playback.
                             </video>
-                          ) : /* GIF - use animation URL if available */
-                          selectedNFT.mediaType === 'gif' && selectedNFT.animationUrl ? (
+                          ) : /* GIF - use animation URL if available, otherwise use image */
+                          selectedNFT.mediaType === 'gif' ? (
                             <img
-                              src={selectedNFT.animationUrl}
+                              src={selectedNFT.animationUrl || selectedNFT.image}
                               alt={selectedNFT.name}
                               className="w-full h-full object-contain"
                               onError={(e) => {
-                                if (selectedNFT.image) {
+                                if (selectedNFT.image && (e.target as HTMLImageElement).src !== selectedNFT.image) {
                                   (e.target as HTMLImageElement).src = selectedNFT.image;
                                 }
                               }}
