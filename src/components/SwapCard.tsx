@@ -19,6 +19,8 @@ const SwapCard: React.FC = () => {
   const [inputToken, setInputToken] = useState<Token>(XRP_TOKEN);
   const [outputToken, setOutputToken] = useState<Token | null>(null);
   const [inputAmount, setInputAmount] = useState('');
+  const [outputAmount, setOutputAmount] = useState('');
+  const [editingField, setEditingField] = useState<'input' | 'output'>('input');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
   const [slippage, setSlippage] = useState(0.5);
 
@@ -31,9 +33,13 @@ const SwapCard: React.FC = () => {
   const [showTokenSelector, setShowTokenSelector] = useState<'input' | 'output' | null>(null);
   const [swapSuccess, setSwapSuccess] = useState<{ swapHash?: string; feeHash?: string } | null>(null);
 
-  // Debounced quote fetching
+  // Debounced quote fetching - supports both input and output editing
   useEffect(() => {
-    if (!inputAmount || !outputToken || !xrplClient || parseFloat(inputAmount) <= 0) {
+    const hasAmount = editingField === 'input'
+      ? (inputAmount && parseFloat(inputAmount) > 0)
+      : (outputAmount && parseFloat(outputAmount) > 0);
+
+    if (!hasAmount || !outputToken || !xrplClient) {
       setQuote(null);
       return;
     }
@@ -43,24 +49,61 @@ const SwapCard: React.FC = () => {
       setError(null);
 
       try {
-        const newQuote = await getSwapQuote(xrplClient, {
-          inputToken,
-          outputToken,
-          inputAmount,
-          slippage,
-          feeTier: wallet.feeTier,
-        });
-        setQuote(newQuote);
+        if (editingField === 'input') {
+          // User is editing input - get quote normally
+          const newQuote = await getSwapQuote(xrplClient, {
+            inputToken,
+            outputToken,
+            inputAmount,
+            slippage,
+            feeTier: wallet.feeTier,
+          });
+          setQuote(newQuote);
+          // Update output amount to match quote
+          setOutputAmount(newQuote.outputAmount);
+        } else {
+          // User is editing output - need to calculate reverse
+          // First, get a reference quote for 1 unit to get the exchange rate
+          const refQuote = await getSwapQuote(xrplClient, {
+            inputToken,
+            outputToken,
+            inputAmount: '1',
+            slippage,
+            feeTier: wallet.feeTier,
+          });
+
+          // Calculate required input based on desired output
+          const rate = parseFloat(refQuote.exchangeRate);
+          if (rate > 0) {
+            const desiredOutput = parseFloat(outputAmount);
+            // Account for fees - we need slightly more input
+            const feeMultiplier = 1 + (wallet.feeTier === 'ultra_rare' ? 0.00321 : wallet.feeTier === 'pixel_bear' ? 0.00485 : 0.00589);
+            const estimatedInput = (desiredOutput / rate) * feeMultiplier;
+            const roundedInput = estimatedInput.toFixed(6);
+
+            // Now get actual quote with this input
+            const newQuote = await getSwapQuote(xrplClient, {
+              inputToken,
+              outputToken,
+              inputAmount: roundedInput,
+              slippage,
+              feeTier: wallet.feeTier,
+            });
+            setQuote(newQuote);
+            // Update input amount to show calculated value
+            setInputAmount(roundedInput);
+          }
+        }
       } catch (err: any) {
         setError(err.message);
         setQuote(null);
       } finally {
         setIsLoading(false);
       }
-    }, 150); // FAST: 150ms debounce (OnTheDex API is quick!)
+    }, 200);
 
     return () => clearTimeout(timer);
-  }, [inputAmount, inputToken, outputToken, slippage, wallet.feeTier, xrplClient]);
+  }, [inputAmount, outputAmount, editingField, inputToken, outputToken, slippage, wallet.feeTier, xrplClient]);
 
   // Swap tokens positions (XRP stays on one side - this is always valid after our enforcement)
   const handleFlipTokens = () => {
@@ -70,12 +113,17 @@ const SwapCard: React.FC = () => {
         setInputToken(XRP_TOKEN);
         setOutputToken(null);
         setInputAmount('');
+        setOutputAmount('');
+        setEditingField('input');
         setQuote(null);
         return;
       }
       setInputToken(outputToken);
       setOutputToken(inputToken);
-      setInputAmount('');
+      // Swap the amounts too
+      setInputAmount(outputAmount);
+      setOutputAmount(inputAmount);
+      setEditingField('input');
       setQuote(null);
     }
   };
@@ -105,6 +153,8 @@ const SwapCard: React.FC = () => {
           feeHash: result.feeTxHash,
         });
         setInputAmount('');
+        setOutputAmount('');
+        setEditingField('input');
         setQuote(null);
         await refreshBalance();
 
@@ -227,8 +277,10 @@ const SwapCard: React.FC = () => {
               const val = e.target.value.replace(/[^0-9.]/g, '');
               if (val === '' || /^\d*\.?\d*$/.test(val)) {
                 setInputAmount(val);
+                setEditingField('input');
               }
             }}
+            onFocus={() => setEditingField('input')}
             placeholder="0.00"
             className="token-input flex-1"
           />
@@ -278,15 +330,32 @@ const SwapCard: React.FC = () => {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex-1">
-            {isLoading ? (
+          <div className="flex-1 relative">
+            {isLoading && editingField === 'input' ? (
               <div className="h-9 flex items-center">
                 <div className="animate-pulse bg-bear-dark-600 h-8 w-32 rounded"></div>
               </div>
             ) : (
-              <span className="token-input text-gray-300">
-                {quote ? quote.outputAmount : '0.00'}
-              </span>
+              <input
+                type="text"
+                value={outputAmount}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9.]/g, '');
+                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                    setOutputAmount(val);
+                    setEditingField('output');
+                  }
+                }}
+                onFocus={() => setEditingField('output')}
+                placeholder="0.00"
+                className="token-input flex-1 w-full"
+                disabled={!outputToken}
+              />
+            )}
+            {isLoading && editingField === 'output' && (
+              <div className="absolute right-0 top-1/2 -translate-y-1/2">
+                <div className="w-5 h-5 border-2 border-bear-purple-500/30 border-t-bear-purple-500 rounded-full animate-spin" />
+              </div>
             )}
           </div>
           <button
@@ -306,6 +375,17 @@ const SwapCard: React.FC = () => {
             </svg>
           </button>
         </div>
+        {outputToken && (
+          <div className="text-sm text-gray-500 mt-2">
+            Balance: {outputToken.currency === 'XRP'
+              ? parseFloat(wallet.balance.xrp).toLocaleString(undefined, { maximumFractionDigits: 4 })
+              : (() => {
+                  const tb = findTokenBalance(wallet.balance.tokens, outputToken.currency, outputToken.issuer);
+                  return tb ? parseFloat(tb.balance).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0';
+                })()
+            } {outputToken.symbol}
+          </div>
+        )}
       </div>
 
       {/* Quote details */}
@@ -435,7 +515,7 @@ const SwapCard: React.FC = () => {
             ? 'Swapping...'
             : !outputToken
               ? 'Select a token'
-              : !inputAmount
+              : (!inputAmount && !outputAmount)
                 ? 'Enter an amount'
                 : quote
                   ? 'Swap'
