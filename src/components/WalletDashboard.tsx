@@ -134,14 +134,14 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
     }
   };
 
-  // IPFS gateways - ordered by speed and reliability (Dec 2024)
+  // IPFS gateways - ordered by CORS support first! (Dec 2024)
+  // Many gateways block CORS from production domains, so we prioritize ones that work
   const IPFS_GATEWAYS = [
-    'https://w3s.link/ipfs/',           // Web3.Storage - very fast
-    'https://nftstorage.link/ipfs/',    // NFT.Storage - reliable
-    'https://ipfs.io/ipfs/',            // Protocol Labs - standard
-    'https://gateway.pinata.cloud/ipfs/', // Pinata - popular
-    'https://4everland.io/ipfs/',       // 4everland - fast CDN
-    'https://dweb.link/ipfs/',          // Protocol Labs alt
+    'https://ipfs.io/ipfs/',            // Protocol Labs - has CORS headers
+    'https://cloudflare-ipfs.com/ipfs/', // Cloudflare - good CORS support
+    'https://gateway.ipfs.io/ipfs/',    // Protocol Labs alt - CORS enabled
+    'https://dweb.link/ipfs/',          // Protocol Labs - CORS enabled
+    'https://w3s.link/ipfs/',           // Web3.Storage - should have CORS
   ];
 
   // Convert IPFS to HTTP gateway - uses first gateway by default
@@ -235,6 +235,38 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
       }
     }
     return null;
+  };
+
+  // Fetch NFT metadata from Bithomp (fallback when IPFS fails)
+  const fetchNFTMetadataFromBithomp = async (tokenId: string): Promise<NFTMetadata | null> => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(
+        `https://bithomp.com/api/v2/nft/${tokenId}`,
+        { signal: controller.signal }
+      );
+      clearTimeout(timeout);
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      if (data?.metadata) {
+        // Bithomp returns metadata with image URLs already resolved
+        return {
+          name: data.metadata.name || data.nftokenID?.slice(-8),
+          description: data.metadata.description,
+          image: data.metadata.image,
+          animation_url: data.metadata.animation_url,
+          animation: data.metadata.animation,
+          attributes: data.metadata.attributes,
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
   };
 
   // Fetch collection info from XRP.cafe API
@@ -394,8 +426,14 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
               animationUrl = httpUri;
               mediaType = directMediaType;
             } else {
-              // Try to fetch as JSON metadata
-              const meta = await fetchNFTMetadata(uri);
+              // Try to fetch as JSON metadata from IPFS first
+              let meta = await fetchNFTMetadata(uri);
+
+              // If IPFS fails (CORS or 404), try Bithomp as fallback
+              if (!meta) {
+                meta = await fetchNFTMetadataFromBithomp(nft.NFTokenID);
+              }
+
               if (meta) {
                 metadata = meta;
                 if (meta.image) {
