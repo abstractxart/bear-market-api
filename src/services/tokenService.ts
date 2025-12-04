@@ -179,7 +179,8 @@ export { fetchDexScreenerIcon };
  */
 const LOCAL_TOKEN_ICONS: Record<string, string> = {
   'XRP': '/tokens/xrp.svg',
-  'RLUSD:rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De': '/tokens/rlusd.svg',
+  'RLUSD:rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De': '/tokens/rlusd.webp',
+  'RLUSD': '/tokens/rlusd.webp',
   'SOLO:rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz': '/tokens/solo.svg',
   'CORE:rcoreNywaoz2ZCQ8Lg2EbSLnGuRBmun6D': '/tokens/core.svg',
   'XRPH:rNmKNMsHnpLmLXKL3bvwnqsr6MwxfPGvJf': '/tokens/xrph.svg',
@@ -498,22 +499,29 @@ async function fetchOnTheDexTokens(): Promise<XRPLToken[]> {
   }
 }
 
+// First Ledger API - comprehensive XRPL token database
+const FIRST_LEDGER_API = 'https://api.firstledger.net/v1';
+
+// Sologenic Market Index API
+const SOLOGENIC_API = 'https://api.sologenic.org/api/v1';
+
 /**
- * Search tokens using DexScreener API - finds ALL XRPL tokens!
+ * Search tokens - COMPREHENSIVE like XMagnetic!
+ * Searches multiple sources in parallel for maximum coverage
  */
 export async function searchTokens(query: string): Promise<XRPLToken[]> {
   if (!query || query.length < 2) {
     return getPopularTokens();
   }
 
-  const lowerQuery = query.toLowerCase();
+  const lowerQuery = query.toLowerCase().trim();
   const results: XRPLToken[] = [];
   const seen = new Set<string>();
 
   // Helper to add token if not already in results
   const addToken = (token: XRPLToken) => {
-    const key = `${token.currency}:${token.issuer}`;
-    if (!seen.has(key)) {
+    const key = `${token.currency}:${token.issuer}`.toLowerCase();
+    if (!seen.has(key) && token.currency && token.issuer) {
       seen.add(key);
       results.push(token);
     }
@@ -530,136 +538,20 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
     return matchesCurrency || matchesName || matchesSymbol || matchesIssuer || matchesDomain;
   };
 
-  // 1. DexScreener API FIRST - has ALL XRPL tokens!
-  try {
-    const response = await fetch(
-      `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(query)}`
-    );
+  // Check if query is an XRPL address (starts with 'r')
+  const isIssuerSearch = query.startsWith('r') && query.length >= 25 && query.length <= 35;
 
-    if (response.ok) {
-      const data = await response.json();
-      const pairs = data.pairs || [];
+  // Run ALL searches in parallel for speed!
+  const searchPromises: Promise<void>[] = [];
 
-      for (const pair of pairs) {
-        // Only XRPL tokens
-        if (pair.chainId !== 'xrpl') continue;
-
-        const baseToken = pair.baseToken;
-        if (!baseToken) continue;
-
-        // Parse the address - DexScreener format: "hexCurrency.rIssuerAddress"
-        const address = baseToken.address || '';
-        let issuer = '';
-
-        // Extract issuer from address (the part after the dot starting with 'r')
-        if (address.includes('.')) {
-          const dotIndex = address.lastIndexOf('.');
-          const possibleIssuer = address.substring(dotIndex + 1);
-          // XRPL addresses start with 'r' and are ~25-35 chars
-          if (possibleIssuer.startsWith('r') && possibleIssuer.length >= 25) {
-            issuer = possibleIssuer;
-          }
-        }
-
-        if (!issuer) continue;
-
-        // Use the symbol from baseToken (DexScreener already decodes it)
-        const symbol = baseToken.symbol || '';
-        const name = baseToken.name || symbol;
-
-        const token: XRPLToken = {
-          currency: symbol,
-          issuer,
-          name: name,
-          symbol: symbol,
-          icon: getTokenIconUrl(symbol, issuer),
-          decimals: 15,
-          price: pair.priceNative ? parseFloat(pair.priceNative) : undefined, // Use native XRP price
-          volume24h: pair.volume?.h24 || 0,
-          priceChange24h: pair.priceChange?.h24,
-        };
-
-        addToken(token);
-      }
-    }
-  } catch (error) {
-    console.error('DexScreener search error:', error);
-  }
-
-  // 2. Also search COMMON_TOKENS
+  // 1. COMMON_TOKENS - instant, local
   for (const token of COMMON_TOKENS) {
     if (matchesQuery(token)) {
       addToken(token);
     }
   }
 
-  // 3. Fetch and search OnTheDex tokens
-  try {
-    const onTheDexTokens = await fetchOnTheDexTokens();
-    for (const token of onTheDexTokens) {
-      if (matchesQuery(token)) {
-        addToken(token);
-      }
-    }
-  } catch (error) {
-    console.error('OnTheDex search error:', error);
-  }
-
-  // 4. Try XRPL Meta API for additional tokens
-  try {
-    const response = await fetch(
-      `${XRPL_META_API}/tokens?search=${encodeURIComponent(query)}&limit=50`
-    );
-
-    if (response.ok) {
-      const data = await response.json();
-      const items = data.tokens || data || [];
-
-      for (const item of items) {
-        const token = parseXRPLMetaToken(item);
-        if (token && matchesQuery(token)) {
-          addToken(token);
-        }
-      }
-    }
-  } catch (error) {
-    console.error('XRPL Meta search error:', error);
-  }
-
-  // 5. Try XRPScan API for even more tokens
-  try {
-    const response = await fetch(`${XRPSCAN_API}/names/${encodeURIComponent(query)}`);
-    if (response.ok) {
-      const data = await response.json();
-      // XRPScan returns account names, but we can use it to find tokens
-      if (Array.isArray(data)) {
-        for (const item of data) {
-          if (item.account && item.name) {
-            // This is an issuer - check if we can find tokens from them
-            const issuer = item.account;
-            const name = item.name.toLowerCase();
-            if (name.includes(lowerQuery)) {
-              // Try to get tokens from this issuer via XRPL Meta
-              try {
-                const tokensResp = await fetch(`${XRPL_META_API}/issuer/${issuer}/tokens?limit=10`);
-                if (tokensResp.ok) {
-                  const tokensData = await tokensResp.json();
-                  for (const t of tokensData.tokens || []) {
-                    const token = parseXRPLMetaToken(t);
-                    if (token) addToken(token);
-                  }
-                }
-              } catch {}
-            }
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error('XRPScan search error:', error);
-  }
-
-  // 5. Search in cached tokens
+  // 2. Cached tokens - instant
   if (tokenCache?.tokens) {
     for (const token of tokenCache.tokens) {
       if (matchesQuery(token)) {
@@ -668,12 +560,248 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
     }
   }
 
+  // 3. OnTheDex cache - instant if available
+  if (onTheDexCache) {
+    for (const token of onTheDexCache) {
+      if (matchesQuery(token)) {
+        addToken(token);
+      }
+    }
+  }
+
+  // 4. DexScreener API - great coverage
+  searchPromises.push((async () => {
+    try {
+      const response = await fetch(
+        `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(query)}`
+      );
+      if (!response.ok) return;
+
+      const data = await response.json();
+      for (const pair of data.pairs || []) {
+        if (pair.chainId !== 'xrpl') continue;
+        const baseToken = pair.baseToken;
+        if (!baseToken) continue;
+
+        const address = baseToken.address || '';
+        let issuer = '';
+        if (address.includes('.')) {
+          const dotIndex = address.lastIndexOf('.');
+          const possibleIssuer = address.substring(dotIndex + 1);
+          if (possibleIssuer.startsWith('r') && possibleIssuer.length >= 25) {
+            issuer = possibleIssuer;
+          }
+        }
+        if (!issuer) continue;
+
+        addToken({
+          currency: baseToken.symbol || '',
+          issuer,
+          name: baseToken.name || baseToken.symbol || '',
+          symbol: baseToken.symbol || '',
+          icon: getTokenIconUrl(baseToken.symbol || '', issuer),
+          decimals: 15,
+          price: pair.priceNative ? parseFloat(pair.priceNative) : undefined,
+          volume24h: pair.volume?.h24 || 0,
+          priceChange24h: pair.priceChange?.h24,
+        });
+      }
+    } catch (e) { console.error('DexScreener error:', e); }
+  })());
+
+  // 5. First Ledger API - comprehensive token list!
+  searchPromises.push((async () => {
+    try {
+      const response = await fetch(
+        `${FIRST_LEDGER_API}/tokens/search?q=${encodeURIComponent(query)}&limit=50`
+      );
+      if (!response.ok) return;
+
+      const data = await response.json();
+      for (const item of data.tokens || data || []) {
+        if (!item.currency || !item.issuer) continue;
+        const symbol = formatCurrencyCode(item.currency);
+        addToken({
+          currency: item.currency,
+          issuer: item.issuer,
+          name: item.name || symbol,
+          symbol: symbol,
+          icon: item.icon || getTokenIconUrl(item.currency, item.issuer),
+          decimals: 15,
+          price: item.price,
+          volume24h: item.volume_24h,
+          marketCap: item.market_cap,
+          trustlines: item.trustlines,
+        });
+      }
+    } catch (e) { /* First Ledger might not have search endpoint */ }
+  })());
+
+  // 6. Sologenic Market Index - another comprehensive source
+  searchPromises.push((async () => {
+    try {
+      const response = await fetch(`${SOLOGENIC_API}/tokens?search=${encodeURIComponent(query)}&limit=50`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      for (const item of data.tokens || data || []) {
+        if (!item.currency || !item.issuer) continue;
+        const symbol = formatCurrencyCode(item.currency);
+        addToken({
+          currency: item.currency,
+          issuer: item.issuer,
+          name: item.name || symbol,
+          symbol: symbol,
+          icon: item.icon || getTokenIconUrl(item.currency, item.issuer),
+          decimals: 15,
+          price: item.price,
+          volume24h: item.volume,
+        });
+      }
+    } catch (e) { /* Sologenic might have different format */ }
+  })());
+
+  // 7. XRPL Meta API - good metadata
+  searchPromises.push((async () => {
+    try {
+      const response = await fetch(
+        `${XRPL_META_API}/tokens?search=${encodeURIComponent(query)}&limit=50`
+      );
+      if (!response.ok) return;
+
+      const data = await response.json();
+      for (const item of data.tokens || data || []) {
+        const token = parseXRPLMetaToken(item);
+        if (token) addToken(token);
+      }
+    } catch (e) { console.error('XRPL Meta error:', e); }
+  })());
+
+  // 8. OnTheDex fresh fetch
+  searchPromises.push((async () => {
+    try {
+      const tokens = await fetchOnTheDexTokens();
+      for (const token of tokens) {
+        if (matchesQuery(token)) {
+          addToken(token);
+        }
+      }
+    } catch (e) { console.error('OnTheDex error:', e); }
+  })());
+
+  // 9. XPMarket API - another good source
+  searchPromises.push((async () => {
+    try {
+      const response = await fetch(
+        `https://api.xpmarket.com/api/v1/token/search?q=${encodeURIComponent(query)}`
+      );
+      if (!response.ok) return;
+
+      const data = await response.json();
+      for (const item of data.data || data.tokens || []) {
+        if (!item.currency || !item.issuer) continue;
+        const symbol = formatCurrencyCode(item.currency);
+        addToken({
+          currency: item.currency,
+          issuer: item.issuer,
+          name: item.name || symbol,
+          symbol: symbol,
+          icon: item.icon || getTokenIconUrl(item.currency, item.issuer),
+          decimals: 15,
+          price: item.price,
+          volume24h: item.volume_24h || item.volume,
+          trustlines: item.trustlines,
+        });
+      }
+    } catch (e) { /* XPMarket might have different format */ }
+  })());
+
+  // 10. If searching by issuer address, fetch tokens from that issuer directly
+  if (isIssuerSearch) {
+    searchPromises.push((async () => {
+      try {
+        // Try XRPL Meta issuer endpoint
+        const response = await fetch(`${XRPL_META_API}/issuer/${query}/tokens?limit=50`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        for (const item of data.tokens || []) {
+          const token = parseXRPLMetaToken(item);
+          if (token) addToken(token);
+        }
+      } catch (e) { console.error('Issuer search error:', e); }
+    })());
+
+    // Also try XRPScan for issuer info
+    searchPromises.push((async () => {
+      try {
+        const response = await fetch(`${XRPSCAN_API}/account/${query}`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        // If this account is an issuer, it might have obligations
+        if (data.obligations) {
+          for (const [currency, _amount] of Object.entries(data.obligations)) {
+            const symbol = formatCurrencyCode(currency);
+            addToken({
+              currency,
+              issuer: query,
+              name: symbol,
+              symbol: symbol,
+              icon: getTokenIconUrl(currency, query),
+              decimals: 15,
+            });
+          }
+        }
+      } catch (e) { /* XRPScan account might not exist */ }
+    })());
+  }
+
+  // 11. XRPScan name search
+  searchPromises.push((async () => {
+    try {
+      const response = await fetch(`${XRPSCAN_API}/names/${encodeURIComponent(query)}`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      if (!Array.isArray(data)) return;
+
+      for (const item of data.slice(0, 5)) { // Limit to 5 issuers
+        if (!item.account || !item.name) continue;
+        if (!item.name.toLowerCase().includes(lowerQuery)) continue;
+
+        // Fetch tokens from this issuer
+        try {
+          const tokensResp = await fetch(`${XRPL_META_API}/issuer/${item.account}/tokens?limit=10`);
+          if (!tokensResp.ok) continue;
+
+          const tokensData = await tokensResp.json();
+          for (const t of tokensData.tokens || []) {
+            const token = parseXRPLMetaToken(t);
+            if (token) addToken(token);
+          }
+        } catch {}
+      }
+    } catch (e) { console.error('XRPScan names error:', e); }
+  })());
+
+  // Wait for all searches to complete (with timeout)
+  await Promise.race([
+    Promise.allSettled(searchPromises),
+    new Promise(resolve => setTimeout(resolve, 3000)), // 3 second max
+  ]);
+
   // Sort results: exact matches first, then by volume
   results.sort((a, b) => {
     const aExact = a.symbol?.toLowerCase() === lowerQuery || formatCurrencyCode(a.currency).toLowerCase() === lowerQuery;
     const bExact = b.symbol?.toLowerCase() === lowerQuery || formatCurrencyCode(b.currency).toLowerCase() === lowerQuery;
     if (aExact && !bExact) return -1;
     if (bExact && !aExact) return 1;
+    // Prioritize tokens with volume
+    const aHasVolume = (a.volume24h || 0) > 0;
+    const bHasVolume = (b.volume24h || 0) > 0;
+    if (aHasVolume && !bHasVolume) return -1;
+    if (bHasVolume && !aHasVolume) return 1;
     // Sort by volume (more active tokens first)
     return (b.volume24h || 0) - (a.volume24h || 0);
   });

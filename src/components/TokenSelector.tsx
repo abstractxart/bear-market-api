@@ -149,6 +149,9 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
   const [tokens, setTokens] = useState<XRPLToken[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'popular' | 'wallet'>('popular');
+  const [showCustomEntry, setShowCustomEntry] = useState(false);
+  const [customCurrency, setCustomCurrency] = useState('');
+  const [customIssuer, setCustomIssuer] = useState('');
 
   // Debounced search
   useEffect(() => {
@@ -260,8 +263,34 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
     if (!isOpen) {
       setSearchQuery('');
       setActiveTab('popular');
+      setShowCustomEntry(false);
+      setCustomCurrency('');
+      setCustomIssuer('');
     }
   }, [isOpen]);
+
+  // Handle custom token entry
+  const handleCustomTokenSelect = () => {
+    if (!customCurrency || !customIssuer) return;
+    if (!customIssuer.startsWith('r') || customIssuer.length < 25) {
+      alert('Invalid issuer address. Must start with "r" and be 25-35 characters.');
+      return;
+    }
+
+    const currency = customCurrency.toUpperCase().trim();
+    const token: Token = {
+      currency,
+      issuer: customIssuer.trim(),
+      name: currency,
+      symbol: currency,
+      icon: getTokenIconUrl(currency, customIssuer.trim()),
+      decimals: 15,
+    };
+    onSelect(token);
+    setShowCustomEntry(false);
+    setCustomCurrency('');
+    setCustomIssuer('');
+  };
 
   if (!isOpen) return null;
 
@@ -447,11 +476,71 @@ const TokenSelector: React.FC<TokenSelectorProps> = ({
             )}
           </div>
 
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-800 text-center">
-            <p className="text-xs text-gray-500">
-              Can't find your token? Search by issuer address
-            </p>
+          {/* Footer - Custom Token Entry */}
+          <div className="p-4 border-t border-gray-800">
+            {!showCustomEntry ? (
+              <button
+                onClick={() => setShowCustomEntry(true)}
+                className="w-full text-center text-sm text-purple-400 hover:text-purple-300 transition-colors"
+              >
+                Can't find your token? <span className="underline">Add manually</span>
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-white">Add Custom Token</span>
+                  <button
+                    onClick={() => {
+                      setShowCustomEntry(false);
+                      setCustomCurrency('');
+                      setCustomIssuer('');
+                    }}
+                    className="text-gray-400 hover:text-white text-xs"
+                  >
+                    ✕ Close
+                  </button>
+                </div>
+
+                {/* Currency Code Input */}
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Currency Code</label>
+                  <input
+                    type="text"
+                    value={customCurrency}
+                    onChange={(e) => setCustomCurrency(e.target.value.toUpperCase())}
+                    placeholder="e.g., BEAR, SOLO, RLUSD"
+                    className="w-full px-3 py-2 bg-black/60 border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 text-sm"
+                    maxLength={40}
+                  />
+                </div>
+
+                {/* Issuer Address Input */}
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">Issuer Address</label>
+                  <input
+                    type="text"
+                    value={customIssuer}
+                    onChange={(e) => setCustomIssuer(e.target.value)}
+                    placeholder="rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                    className="w-full px-3 py-2 bg-black/60 border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500 text-sm font-mono"
+                    maxLength={35}
+                  />
+                </div>
+
+                {/* Add Token Button */}
+                <button
+                  onClick={handleCustomTokenSelect}
+                  disabled={!customCurrency || !customIssuer}
+                  className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all"
+                >
+                  Add Token
+                </button>
+
+                <p className="text-xs text-gray-600 text-center">
+                  Find issuer addresses on XRPScan or First Ledger
+                </p>
+              </div>
+            )}
           </div>
         </motion.div>
       </motion.div>
