@@ -8,6 +8,7 @@ import { formatFeePercent, getFeeRate } from '../services/nftService';
 import { findTokenBalance } from '../utils/currency';
 import TokenSelector, { TokenIcon } from './TokenSelector';
 import SlippageSlider from './SlippageSlider';
+import { api } from '../services/apiClient';
 
 // Shorten address for display
 const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -157,6 +158,26 @@ const SwapCard: React.FC = () => {
         setEditingField('input');
         setQuote(null);
         await refreshBalance();
+
+        // Record trade with backend API for referral payouts (async, don't wait)
+        api.recordTrade({
+          traderWallet: wallet.address!,
+          inputToken: quote.inputToken.currency,
+          outputToken: quote.outputToken.currency,
+          inputAmount: parseFloat(quote.inputAmount),
+          outputAmount: parseFloat(quote.outputAmount),
+          feeAmount: quote.feeXRP,
+          feeToken: 'XRP',
+          swapTxHash: result.swapTxHash,
+        }).then(response => {
+          if (response.success) {
+            console.log('[Swap] Trade recorded, payout triggered');
+          } else {
+            console.warn('[Swap] Failed to record trade:', response.error);
+          }
+        }).catch(error => {
+          console.error('[Swap] Error recording trade:', error);
+        });
 
         // Auto-clear success message after 10 seconds
         setTimeout(() => setSwapSuccess(null), 10000);
