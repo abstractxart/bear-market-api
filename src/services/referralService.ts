@@ -3,11 +3,12 @@
  *
  * Phase 2: Backend API integration with automatic payouts
  * - Captures referral codes from URL
- * - Registers with backend API
+ * - Registers with backend API with signature verification
  * - Falls back to localStorage if API unavailable
  */
 
 import { api } from './apiClient';
+import { getKeyManager } from '../security/SecureKeyManager';
 
 const REFERRAL_STORAGE_KEY = 'bear_market_referral';
 const REFERRER_STORAGE_KEY = 'bear_market_referrer';
@@ -68,8 +69,31 @@ export function clearStoredReferralCode(): void {
 }
 
 /**
+ * Create local-only referral data (fallback when API unavailable)
+ */
+function createLocalReferralData(
+  userWallet: string,
+  referrerCode: string | null
+): ReferralData {
+  const userCode = generateReferralCode(userWallet);
+  const referralData: ReferralData = {
+    referralCode: userCode,
+    referredBy: referrerCode,
+    referralLink: `${window.location.origin}?ref=${userCode}`,
+    timestamp: Date.now(),
+  };
+
+  localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify(referralData));
+  clearStoredReferralCode();
+
+  return referralData;
+}
+
+/**
  * Register a referral relationship (when wallet connects)
- * Phase 2: Registers with backend API
+ * Phase 2: Registers with backend API using signature verification
+ *
+ * SECURITY: Requires cryptographic proof of wallet ownership
  */
 export async function registerReferral(
   userWallet: string,
@@ -84,8 +108,52 @@ export async function registerReferral(
   }
 
   try {
-    // Register with backend API
-    const response = await api.registerReferral(userWallet, referrerCode);
+    // Check if we have access to the wallet's private key
+    const keyManager = getKeyManager();
+    if (!keyManager.hasKey() || keyManager.isLocked()) {
+      console.warn('[Referral] Wallet not fully connected, using localStorage fallback');
+      return createLocalReferralData(userWallet, referrerCode);
+    }
+
+    // 1. Request authentication challenge from backend
+    console.log('[Referral] Requesting authentication challenge...');
+    const challengeResponse = await api.getChallenge(userWallet);
+
+    if (!challengeResponse.success || !challengeResponse.data) {
+      throw new Error('Failed to get challenge from backend');
+    }
+
+    const { nonce, timestamp, message } = challengeResponse.data;
+    console.log('[Referral] Challenge received');
+
+    // 2. Sign the challenge with wallet private key
+    const secret = await keyManager.getSecretForSigning();
+    const { Wallet } = await import('xrpl');
+    const wallet = Wallet.fromSeed(secret);
+
+    // Sign the message (not a transaction, just a string)
+    // XRPL Wallet has a sign method that returns {signature, ...}
+    // For message signing, we use the wallet's keypair directly
+    const signature = wallet.sign(message);
+
+    console.log('[Referral] Challenge signed');
+
+    // Clean up wallet object from memory
+    // @ts-ignore
+    wallet.privateKey = undefined;
+    // @ts-ignore
+    wallet.publicKey = undefined;
+    // @ts-ignore
+    wallet.seed = undefined;
+
+    // 3. Submit signed challenge to backend for verification
+    const response = await api.registerReferralWithSignature({
+      walletAddress: userWallet,
+      referrerCode,
+      signature: signature.signature || signature.tx_blob, // Handle different return formats
+      nonce,
+      timestamp
+    });
 
     if (response.success && response.data) {
       const referralData: ReferralData = {
@@ -95,30 +163,22 @@ export async function registerReferral(
         timestamp: Date.now(),
       };
 
-      // Also store locally for offline access
+      // Store locally for offline access
       localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify(referralData));
       clearStoredReferralCode();
 
-      console.log('[Referral] Registered with API:', referralData);
+      console.log('[Referral] ✓ Wallet verified and registered with API:', referralData);
       return referralData;
     } else {
-      throw new Error(response.error || 'API registration failed');
+      throw new Error(response.error || 'Registration failed');
     }
+
   } catch (error) {
-    console.error('[Referral] API registration failed, using localStorage fallback:', error);
+    console.error('[Referral] Signature verification failed:', error);
 
-    // Fallback to localStorage (Phase 1 behavior)
-    const referralData: ReferralData = {
-      referralCode: userCode,
-      referredBy: referrerCode,
-      referralLink: `${window.location.origin}?ref=${userCode}`,
-      timestamp: Date.now(),
-    };
-
-    localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify(referralData));
-    clearStoredReferralCode();
-
-    return referralData;
+    // Fallback to localStorage only (no backend registration)
+    console.log('[Referral] Using localStorage fallback');
+    return createLocalReferralData(userWallet, referrerCode);
   }
 }
 

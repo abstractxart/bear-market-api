@@ -22,7 +22,7 @@ interface WalletContextType {
 
   // Connection methods
   connectWithSecret: (secret: string) => Promise<void>;
-  connectWithAddress: (address: string) => Promise<void>;
+  // REMOVED: connectWithAddress - Security vulnerability (wallet impersonation)
   disconnect: () => void;
 
   // Wallet operations
@@ -216,48 +216,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [xrplClient]);
 
-  // Connect with just address (from SecureWalletConnect)
-  const connectWithAddress = useCallback(async (address: string) => {
-    if (!xrplClient) {
-      console.warn('XRPL client not ready, fee tier check will be delayed');
-    }
-
-    setWallet({
-      address: address,
-      connectionType: 'manual',
-      isConnected: true,
-      feeTier: 'regular',
-      balance: { xrp: '0', tokens: [] },
-      honeyPoints: 0,
-    });
-
-    // Immediately check fee tier
-    if (xrplClient && address) {
-      try {
-        const nftResult = await checkPixelBearNFTs(xrplClient, address);
-        setWallet((prev) => ({
-          ...prev,
-          feeTier: nftResult.tier,
-        }));
-      } catch (err) {
-        console.error('Failed to check NFT tier during connection:', err);
-      }
-    }
-
-    // Register referral if there's a stored referral code
-    const storedRefCode = getStoredReferralCode();
-    if (storedRefCode) {
-      registerReferral(address, storedRefCode)
-        .then(result => {
-          if (result) {
-            console.log(`[Wallet] Registered referral from code: ${storedRefCode}`);
-          }
-        })
-        .catch(error => {
-          console.error(`[Wallet] Failed to register referral:`, error);
-        });
-    }
-  }, [xrplClient]);
+  // REMOVED: connectWithAddress() - CRITICAL SECURITY VULNERABILITY
+  // This function allowed wallet impersonation attacks by accepting any address
+  // without proof of ownership. Users must now connect with:
+  // 1. connectWithSecret() - Requires actual wallet control
+  // 2. External wallet providers (future) - Xumm, Crossmark, etc.
+  //
+  // David Schwartz approved this removal.
 
   // Auto-refresh balance when wallet address changes
   useEffect(() => {
@@ -301,7 +266,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         isConnecting,
         error,
         connectWithSecret,
-        connectWithAddress,
+        // connectWithAddress REMOVED - security vulnerability
         disconnect,
         refreshBalance,
         refreshFeeTier,

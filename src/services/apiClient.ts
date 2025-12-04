@@ -47,7 +47,31 @@ async function apiRequest<T>(
 
 export const api = {
   /**
-   * Register a referral relationship
+   * Get authentication challenge for wallet ownership proof
+   * SECURITY: First step of challenge-response authentication
+   */
+  getChallenge: (walletAddress: string) =>
+    apiRequest(`/api/referrals/challenge/${walletAddress}`),
+
+  /**
+   * Register a referral relationship with signature verification
+   * SECURITY: Requires cryptographic proof of wallet ownership
+   */
+  registerReferralWithSignature: (data: {
+    walletAddress: string;
+    referrerCode: string | null;
+    signature: string;
+    nonce: string;
+    timestamp: number;
+  }) =>
+    apiRequest('/api/referrals/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  /**
+   * DEPRECATED: Register a referral relationship (legacy, no signature)
+   * WARNING: This will be removed once all clients upgrade to signature-based auth
    */
   registerReferral: (walletAddress: string, referrerCode: string | null) =>
     apiRequest('/api/referrals/register', {
