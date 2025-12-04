@@ -682,11 +682,19 @@ export async function getPopularTokens(): Promise<XRPLToken[]> {
       .filter(t => !(t.currency === 'BEAR' && t.issuer === 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW'))
       .slice(0, 49);
 
-    // Get BEAR token from the list or use our defined one
+    // Get BEAR token - merge COMMON_TOKENS info with OnTheDex price data
     const bearFromList = sortedByVolume.find(
       t => t.currency === 'BEAR' && t.issuer === 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW'
     );
-    const bearToken = bearFromList || COMMON_TOKENS.find(t => t.currency === 'BEAR')!;
+    const bearBase = COMMON_TOKENS.find(t => t.currency === 'BEAR')!;
+
+    // Merge: use nice name/icon from COMMON_TOKENS, but price data from OnTheDex
+    const bearToken: XRPLToken = {
+      ...bearBase,
+      price: bearFromList?.price,
+      volume24h: bearFromList?.volume24h,
+      priceChange24h: bearFromList?.priceChange24h,
+    };
 
     // BEAR always at top!
     popularTokensCache = [bearToken, ...topTokens];
