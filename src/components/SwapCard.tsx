@@ -5,6 +5,7 @@ import type { Token, SwapQuote } from '../types';
 import { XRP_TOKEN } from '../types';
 import { getSwapQuote, executeSwap, BEAR_TREASURY_WALLET } from '../services/swapService';
 import { formatFeePercent } from '../services/nftService';
+import { findTokenBalance } from '../utils/currency';
 import TokenSelector, { TokenIcon } from './TokenSelector';
 import SlippageSlider from './SlippageSlider';
 
@@ -127,8 +128,11 @@ const SwapCard: React.FC = () => {
       const max = Math.max(0, parseFloat(wallet.balance.xrp) - 2);
       setInputAmount(max.toFixed(6));
     } else {
-      const tokenBalance = wallet.balance.tokens.find(
-        (t) => t.token.currency === inputToken.currency && t.token.issuer === inputToken.issuer
+      // Use findTokenBalance to handle hex-encoded currency codes (e.g., RLUSD)
+      const tokenBalance = findTokenBalance(
+        wallet.balance.tokens,
+        inputToken.currency,
+        inputToken.issuer
       );
       if (tokenBalance) {
         setInputAmount(tokenBalance.balance);
@@ -243,7 +247,8 @@ const SwapCard: React.FC = () => {
           Balance: {inputToken.currency === 'XRP'
             ? parseFloat(wallet.balance.xrp).toLocaleString(undefined, { maximumFractionDigits: 4 })
             : (() => {
-                const tb = wallet.balance.tokens.find(t => t.token.currency === inputToken.currency && t.token.issuer === inputToken.issuer);
+                // Use findTokenBalance to handle hex-encoded currency codes (e.g., RLUSD)
+                const tb = findTokenBalance(wallet.balance.tokens, inputToken.currency, inputToken.issuer);
                 return tb ? parseFloat(tb.balance).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '0';
               })()
           } {inputToken.symbol}

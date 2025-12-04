@@ -4,6 +4,7 @@ import { Client } from 'xrpl';
 import type { WalletState, TokenBalance } from '../types';
 import { checkPixelBearNFTs } from '../services/nftService';
 import { getKeyManager } from '../security/SecureKeyManager';
+import { normalizeCurrency } from '../utils/currency';
 
 // XRPL Client Configuration
 const XRPL_MAINNET = 'wss://xrplcluster.com';
@@ -106,16 +107,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         ledger_index: 'validated',
       });
 
-      const tokenBalances: TokenBalance[] = accountLines.result.lines.map((line: any) => ({
-        token: {
-          currency: line.currency,
-          issuer: line.account,
-          name: line.currency,
-          symbol: line.currency,
-          decimals: 15,
-        },
-        balance: line.balance,
-      }));
+      const tokenBalances: TokenBalance[] = accountLines.result.lines.map((line: any) => {
+        // Normalize currency code (convert hex to human-readable for currencies like RLUSD)
+        const currency = normalizeCurrency(line.currency);
+        return {
+          token: {
+            currency,
+            issuer: line.account,
+            name: currency,
+            symbol: currency,
+            decimals: 15,
+          },
+          balance: line.balance,
+        };
+      });
 
       setWallet((prev) => ({
         ...prev,
