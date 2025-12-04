@@ -7,9 +7,14 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "db:init": "psql $DATABASE_URL -f src/db/schema.sql"
+    "db:init": "tsx src/db/init.ts",
+    "db:init:sql": "psql $DATABASE_URL -f src/db/schema.sql"
   },
-  "keywords": ["xrpl", "dex", "referrals"],
+  "keywords": [
+    "xrpl",
+    "dex",
+    "referrals"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -23,6 +28,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^24.10.1",
+    "@types/pg": "^8.15.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
