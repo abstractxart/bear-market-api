@@ -299,64 +299,74 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
         const nftData = await Promise.all(nftDataPromises);
         setNfts(nftData);
 
-        // Group by issuer (collection)
+        // Group by issuer + taxon (like XRP.cafe does!)
+        // This properly separates collections like "Pixel Bears" vs "Ultra Rare Bears"
         const collectionMap = new Map<string, NFTData[]>();
         nftData.forEach(nft => {
-          const existing = collectionMap.get(nft.issuer) || [];
+          // Use issuer:taxon as the unique collection key
+          const collectionKey = `${nft.issuer}:${nft.taxon}`;
+          const existing = collectionMap.get(collectionKey) || [];
           existing.push(nft);
-          collectionMap.set(nft.issuer, existing);
+          collectionMap.set(collectionKey, existing);
         });
 
         // Create collection objects with cached/XRP.cafe names
         setNftLoadProgress(`Loading ${collectionMap.size} collection names...`);
 
-        const collectionPromises = Array.from(collectionMap.entries()).map(async ([issuer, nftList]) => {
+        const collectionPromises = Array.from(collectionMap.entries()).map(async ([collectionKey, nftList]) => {
+          // Parse the key back to issuer and taxon
+          const [issuer, taxonStr] = collectionKey.split(':');
+          const taxon = parseInt(taxonStr, 10);
+
           // Get first NFT with an image as collection cover
           const coverNft = nftList.find(n => n.image) || nftList[0];
 
           let collectionName = '';
           let collectionImage = coverNft?.image || '';
 
-          // 1. First check localStorage cache
-          const cachedInfo = getCachedCollectionName(issuer);
+          // Cache key is issuer:taxon for proper separation
+          const cacheKey = collectionKey;
+
+          // 1. First check localStorage cache (using issuer:taxon key)
+          const cachedInfo = getCachedCollectionName(cacheKey);
           if (cachedInfo?.name) {
             collectionName = cachedInfo.name;
             if (cachedInfo.image) {
               collectionImage = ipfsToHttp(cachedInfo.image);
             }
-            console.log(`Using cached name for ${issuer}: ${collectionName}`);
+            console.log(`Using cached name for ${cacheKey}: ${collectionName}`);
           }
 
-          // 2. Check KNOWN_COLLECTIONS hardcoded list
+          // 2. Check KNOWN_COLLECTIONS hardcoded list (try both key formats)
           if (!collectionName) {
-            collectionName = KNOWN_COLLECTIONS[issuer];
+            collectionName = KNOWN_COLLECTIONS[cacheKey] || KNOWN_COLLECTIONS[issuer];
             if (collectionName) {
-              // Save hardcoded name to cache for consistency
-              saveToCollectionCache(issuer, { name: collectionName, image: collectionImage });
+              // Save to cache for consistency
+              saveToCollectionCache(cacheKey, { name: collectionName, image: collectionImage });
             }
           }
 
-          // 3. Try XRP.cafe API if still no name
+          // 3. Try XRP.cafe API if still no name (pass taxon for proper collection!)
           if (!collectionName) {
             try {
-              const xrpCafeInfo = await fetchCollectionFromXrpCafe(issuer, nftList[0]?.taxon);
+              const xrpCafeInfo = await fetchCollectionFromXrpCafe(issuer, taxon);
               if (xrpCafeInfo?.name) {
                 collectionName = xrpCafeInfo.name;
                 if (xrpCafeInfo.image) {
                   collectionImage = ipfsToHttp(xrpCafeInfo.image);
                 }
-                // Save to localStorage cache for next time!
-                saveToCollectionCache(issuer, { name: collectionName, image: xrpCafeInfo.image });
-                console.log(`Cached new collection: ${issuer} -> ${collectionName}`);
+                // Save to localStorage cache using issuer:taxon key!
+                saveToCollectionCache(cacheKey, { name: collectionName, image: xrpCafeInfo.image });
+                console.log(`Cached new collection: ${cacheKey} -> ${collectionName}`);
               }
             } catch {
               // Ignore errors, use fallback
             }
           }
 
-          // 4. Fallback to issuer address
+          // 4. Fallback to issuer address + taxon
           if (!collectionName) {
-            collectionName = `Collection ${issuer.slice(0, 6)}...${issuer.slice(-4)}`;
+            collectionName = `Collection ${issuer.slice(0, 6)}...${issuer.slice(-4)} #${taxon}`;
           }
 
           return {
@@ -364,7 +374,7 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
             name: collectionName,
             image: collectionImage,
             nfts: nftList,
-            taxon: nftList[0]?.taxon,
+            taxon, // Use the parsed taxon
           } as NFTCollection;
         });
 
@@ -758,10 +768,13 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                           <span className="text-sm font-medium text-gray-400">{collections.length} Collection{collections.length !== 1 ? 's' : ''}</span>
                           <span className="text-sm text-purple-400">{nfts.length} NFTs</span>
                         </div>
-                        {collections.map((collection) => (
+                        {collections.map((collection) => {
+                          // Unique key is issuer:taxon
+                          const collectionKey = `${collection.issuer}:${collection.taxon}`;
+                          return (
                           <motion.button
-                            key={collection.issuer}
-                            onClick={() => setExpandedCollection(collection.issuer)}
+                            key={collectionKey}
+                            onClick={() => setExpandedCollection(collectionKey)}
                             className="w-full group"
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.99 }}
@@ -839,7 +852,8 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                               )}
                             </div>
                           </motion.button>
-                        ))}
+                        );
+                        })}
                       </div>
                     ) : (
                       // Expanded Collection View
@@ -861,7 +875,8 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                           </button>
 
                           {(() => {
-                            const col = collections.find(c => c.issuer === expandedCollection);
+                            // Find by issuer:taxon key
+                            const col = collections.find(c => `${c.issuer}:${c.taxon}` === expandedCollection);
                             if (!col) return null;
                             return (
                               <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl border border-purple-500/20">
@@ -898,7 +913,7 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                           animate={{ opacity: 1, y: 0 }}
                           className="grid grid-cols-2 gap-3"
                         >
-                          {collections.find(c => c.issuer === expandedCollection)?.nfts.map((nft, idx) => (
+                          {collections.find(c => `${c.issuer}:${c.taxon}` === expandedCollection)?.nfts.map((nft, idx) => (
                             <motion.button
                               key={nft.id}
                               initial={{ opacity: 0, scale: 0.9 }}
