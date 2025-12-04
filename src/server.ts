@@ -1,0 +1,57 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import referralRoutes from './routes/referrals';
+
+// Load environment variables
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(express.json());
+app.use(cors({
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    process.env.FRONTEND_URL_PROD || 'https://bear-market-gjqg3nove-bear-xrpls-projects.vercel.app',
+  ],
+  credentials: true,
+}));
+
+// Request logging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// API routes
+app.use('/api/referrals', referralRoutes);
+
+// Error handling
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('[Server] Error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`
+╔════════════════════════════════════════════╗
+║   BEAR MARKET API Server                   ║
+║   Environment: ${process.env.NODE_ENV || 'development'}              ║
+║   Port: ${PORT}                               ║
+╚════════════════════════════════════════════╝
+  `);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('[Server] SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});

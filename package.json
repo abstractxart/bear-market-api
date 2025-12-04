@@ -1,0 +1,29 @@
+{
+  "name": "bear-market-api",
+  "version": "1.0.0",
+  "description": "BEAR MARKET Referral System API with automatic payouts",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "db:init": "psql $DATABASE_URL -f src/db/schema.sql"
+  },
+  "keywords": ["xrpl", "dex", "referrals"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "pg": "^8.16.3",
+    "xrpl": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.10.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
