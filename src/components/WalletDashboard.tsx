@@ -135,11 +135,11 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
   };
 
   // IPFS gateways - only include ones that actually work! (Dec 2024)
-  // cloudflare-ipfs.com is DEAD (DNS failure), gateway.ipfs.io has CORS issues
+  // nftstorage.link BLOCKS CORS (403), cloudflare-ipfs.com is DEAD
   const IPFS_GATEWAYS = [
-    'https://ipfs.io/ipfs/',            // Protocol Labs - works sometimes
-    'https://nftstorage.link/ipfs/',    // NFT.storage - good for NFT content
+    'https://ipfs.io/ipfs/',            // Protocol Labs - works sometimes (but content often gone)
     'https://4everland.io/ipfs/',       // 4everland - fast
+    'https://cf-ipfs.com/ipfs/',        // Cloudflare new domain
   ];
 
   // Convert IPFS to HTTP gateway - uses first gateway by default
@@ -254,13 +254,24 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('XRP.cafe response for', tokenId.slice(-8), ':', data);
+
+        // Log the structure to understand what we're getting
+        console.log(`XRP.cafe for ${tokenId.slice(-8)}:`, {
+          hasMetadata: !!data?.metadata,
+          hasNft: !!data?.nft,
+          hasName: !!data?.name,
+          hasImage: !!data?.image,
+          topLevelKeys: Object.keys(data || {}),
+          metadataType: typeof data?.metadata,
+          fullData: data, // Log everything so we can see the structure
+        });
 
         // XRP.cafe format - check multiple locations
         if (data?.metadata || data?.nft?.metadata) {
           const meta = data.metadata || data.nft?.metadata;
           // Handle if metadata is a string
           const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
+          console.log(`Parsed metadata for ${tokenId.slice(-8)}:`, parsed);
           if (parsed?.image || parsed?.name) {
             return {
               name: parsed.name,
@@ -274,6 +285,7 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
         }
         // Try direct fields
         if (data?.image || data?.name) {
+          console.log(`Using direct fields for ${tokenId.slice(-8)}`);
           return {
             name: data.name,
             description: data.description,
@@ -283,6 +295,8 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
             attributes: data.attributes,
           };
         }
+
+        console.log(`No usable metadata found for ${tokenId.slice(-8)}`);
       } else {
         console.log('XRP.cafe failed:', response.status, response.statusText);
       }
