@@ -195,8 +195,11 @@ const LOCAL_TOKEN_ICONS: Record<string, string> = {
 
 // ==================== HELPER FUNCTIONS ====================
 
+// XMagnetic CDN - predictable URL pattern for ALL XRPL tokens!
+const XMAGNETIC_CDN = 'https://img.xmagnetic.org/u';
+
 /**
- * Get token icon URL - DexScreener CDN first, then local fallback
+ * Get token icon URL - XMagnetic CDN (predictable pattern!) then fallbacks
  */
 export function getTokenIconUrl(currency: string, issuer?: string): string {
   // XRP always uses local
@@ -206,17 +209,7 @@ export function getTokenIconUrl(currency: string, issuer?: string): string {
 
   const fullKey = `${currency}:${issuer}`;
 
-  // 1. Check DexScreener CDN icons (real icons!)
-  if (DEXSCREENER_ICONS[fullKey]) {
-    return DEXSCREENER_ICONS[fullKey];
-  }
-
-  // 2. Check by symbol only (for tokens without issuer in key)
-  if (DEXSCREENER_ICONS[currency]) {
-    return DEXSCREENER_ICONS[currency];
-  }
-
-  // 3. Check local fallback icons (by full key or symbol)
+  // 1. Check local icons first (fastest)
   if (LOCAL_TOKEN_ICONS[fullKey]) {
     return LOCAL_TOKEN_ICONS[fullKey];
   }
@@ -224,16 +217,24 @@ export function getTokenIconUrl(currency: string, issuer?: string): string {
     return LOCAL_TOKEN_ICONS[currency];
   }
 
-  if (!issuer) {
-    return '';
+  // 2. Check hardcoded DexScreener icons
+  if (DEXSCREENER_ICONS[fullKey]) {
+    return DEXSCREENER_ICONS[fullKey];
+  }
+  if (DEXSCREENER_ICONS[currency]) {
+    return DEXSCREENER_ICONS[currency];
   }
 
-  // Fallback to CDN
-  return `${XRPL_META_API}/token/${currency}:${issuer}/icon`;
+  // 3. XMagnetic CDN - predictable pattern for ANY token with issuer!
+  if (issuer) {
+    return `${XMAGNETIC_CDN}/${issuer}_${currency}.webp`;
+  }
+
+  return '';
 }
 
 /**
- * Get multiple icon URLs to try (DexScreener FIRST, then local, then CDN fallbacks)
+ * Get multiple icon URLs to try - XMagnetic FIRST (works for most XRPL tokens!)
  */
 export function getTokenIconUrls(currency: string, issuer?: string): string[] {
   if (currency === 'XRP') {
@@ -243,25 +244,30 @@ export function getTokenIconUrls(currency: string, issuer?: string): string[] {
   const fullKey = `${currency}:${issuer}`;
   const urls: string[] = [];
 
-  // 1. DexScreener CDN first (real icons like First Ledger!)
-  if (DEXSCREENER_ICONS[fullKey]) {
-    urls.push(DEXSCREENER_ICONS[fullKey]);
-  } else if (DEXSCREENER_ICONS[currency]) {
-    urls.push(DEXSCREENER_ICONS[currency]);
+  // 1. XMagnetic CDN FIRST - predictable pattern, works for most tokens!
+  if (issuer) {
+    urls.push(`${XMAGNETIC_CDN}/${issuer}_${currency}.webp`);
   }
 
-  // 2. Local fallback icons (by full key or symbol)
+  // 2. Local fallback icons
   if (LOCAL_TOKEN_ICONS[fullKey]) {
     urls.push(LOCAL_TOKEN_ICONS[fullKey]);
   } else if (LOCAL_TOKEN_ICONS[currency]) {
     urls.push(LOCAL_TOKEN_ICONS[currency]);
   }
 
+  // 3. DexScreener CDN (hardcoded)
+  if (DEXSCREENER_ICONS[fullKey]) {
+    urls.push(DEXSCREENER_ICONS[fullKey]);
+  } else if (DEXSCREENER_ICONS[currency]) {
+    urls.push(DEXSCREENER_ICONS[currency]);
+  }
+
   if (!issuer) {
     return urls;
   }
 
-  // 3. External CDNs as last resort
+  // 4. Other CDNs as last resort
   urls.push(
     `${XRPL_META_API}/token/${currency}:${issuer}/icon`,
     `${BITHOMP_CDN}/token/${currency}.${issuer}.png`,
