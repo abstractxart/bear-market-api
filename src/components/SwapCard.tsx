@@ -61,9 +61,17 @@ const SwapCard: React.FC = () => {
     return () => clearTimeout(timer);
   }, [inputAmount, inputToken, outputToken, slippage, wallet.feeTier, xrplClient]);
 
-  // Swap tokens positions
+  // Swap tokens positions (XRP stays on one side - this is always valid after our enforcement)
   const handleFlipTokens = () => {
     if (outputToken) {
+      // Safety: If somehow neither is XRP (should never happen), reset to XRP
+      if (inputToken.currency !== 'XRP' && outputToken.currency !== 'XRP') {
+        setInputToken(XRP_TOKEN);
+        setOutputToken(null);
+        setInputAmount('');
+        setQuote(null);
+        return;
+      }
       setInputToken(outputToken);
       setOutputToken(inputToken);
       setInputAmount('');
@@ -128,17 +136,29 @@ const SwapCard: React.FC = () => {
     }
   };
 
-  // Token selection handlers
+  // Token selection handlers - XRP MUST be on one side of every trade!
   const handleSelectInputToken = (token: Token) => {
     setInputToken(token);
     setShowTokenSelector(null);
-    // If same as output, swap them
-    if (outputToken && token.currency === outputToken.currency && token.issuer === outputToken.issuer) {
+
+    // ENFORCE: XRP must be on one side of every trade
+    // If user selects non-XRP as input, force output to XRP
+    if (token.currency !== 'XRP') {
       setOutputToken(XRP_TOKEN);
+    }
+    // If same as output, set output to XRP
+    else if (outputToken && token.currency === outputToken.currency && token.issuer === outputToken.issuer) {
+      setOutputToken(null); // Let user pick again
     }
   };
 
   const handleSelectOutputToken = (token: Token) => {
+    // ENFORCE: XRP must be on one side of every trade
+    // If user selects non-XRP as output, force input to XRP
+    if (token.currency !== 'XRP') {
+      setInputToken(XRP_TOKEN);
+    }
+
     setOutputToken(token);
     setShowTokenSelector(null);
   };
