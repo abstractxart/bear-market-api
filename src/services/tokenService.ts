@@ -127,6 +127,10 @@ const LOCAL_TOKEN_ICONS: Record<string, string> = {
   'XMEME:rMeMEz93gAbQfs5LB9bR9XFXBC9u6NEVYt': '/tokens/xmeme.svg',
   'USDC:rGm7uYknXfn7RhNzEuvwu4p98f3hkRzWhE': '/tokens/usdc.svg',
   'EUROP:rMkEJxjXRV7SvDaGP3tX4MQ3pWyvnfLLjg': '/tokens/europ.svg',
+  // User requested tokens
+  'SPIFFY': '/tokens/spiffy.svg',
+  'FARM': '/tokens/farm.svg',
+  'PUPPET': '/tokens/puppet.svg',
 };
 
 // ==================== HELPER FUNCTIONS ====================
@@ -152,9 +156,12 @@ export function getTokenIconUrl(currency: string, issuer?: string): string {
     return DEXSCREENER_ICONS[currency];
   }
 
-  // 3. Check local fallback icons
+  // 3. Check local fallback icons (by full key or symbol)
   if (LOCAL_TOKEN_ICONS[fullKey]) {
     return LOCAL_TOKEN_ICONS[fullKey];
+  }
+  if (LOCAL_TOKEN_ICONS[currency]) {
+    return LOCAL_TOKEN_ICONS[currency];
   }
 
   if (!issuer) {
@@ -183,9 +190,11 @@ export function getTokenIconUrls(currency: string, issuer?: string): string[] {
     urls.push(DEXSCREENER_ICONS[currency]);
   }
 
-  // 2. Local fallback icons
+  // 2. Local fallback icons (by full key or symbol)
   if (LOCAL_TOKEN_ICONS[fullKey]) {
     urls.push(LOCAL_TOKEN_ICONS[fullKey]);
+  } else if (LOCAL_TOKEN_ICONS[currency]) {
+    urls.push(LOCAL_TOKEN_ICONS[currency]);
   }
 
   if (!issuer) {

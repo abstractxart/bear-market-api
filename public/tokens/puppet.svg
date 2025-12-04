@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="puppetGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#DC143C"/>
+      <stop offset="100%" style="stop-color:#8B0000"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#puppetGrad)" stroke="#FF4444" stroke-width="2"/>
+  <!-- Puppet face -->
+  <circle cx="50" cy="45" r="25" fill="#FFE4C4"/>
+  <!-- Eyes -->
+  <circle cx="42" cy="40" r="5" fill="white"/>
+  <circle cx="58" cy="40" r="5" fill="white"/>
+  <circle cx="42" cy="40" r="2.5" fill="#000"/>
+  <circle cx="58" cy="40" r="2.5" fill="#000"/>
+  <!-- Nose -->
+  <circle cx="50" cy="48" r="4" fill="#DC143C"/>
+  <!-- Mouth -->
+  <path d="M40 55 Q50 65 60 55" fill="none" stroke="#000" stroke-width="2"/>
+  <!-- Strings -->
+  <line x1="35" y1="20" x2="42" y2="35" stroke="#888" stroke-width="1.5"/>
+  <line x1="65" y1="20" x2="58" y2="35" stroke="#888" stroke-width="1.5"/>
+  <line x1="50" y1="15" x2="50" y2="30" stroke="#888" stroke-width="1.5"/>
+</svg>
