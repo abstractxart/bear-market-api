@@ -39,7 +39,7 @@ const ReferralsPage: React.FC = () => {
           <span className="text-gradient-bear">Earn</span> with Referrals
         </h1>
         <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-          Share your referral link and earn <span className="text-bear-gold-400 font-semibold">20% of trading fees</span> from everyone you refer!
+          Share your referral link and earn <span className="text-bear-gold-400 font-semibold">50% of trading fees</span> from everyone you refer!
         </p>
       </div>
 
@@ -132,7 +132,7 @@ const ReferralsPage: React.FC = () => {
             </div>
             <h3 className="font-semibold text-white mb-2">You Earn</h3>
             <p className="text-sm text-gray-400">
-              Earn 20% of all trading fees from your referrals
+              Earn 50% of all trading fees from your referrals
             </p>
           </div>
         </div>
