@@ -71,15 +71,45 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
   // Known collection names on XRPL - use issuer:taxon format for specific collections
   const KNOWN_COLLECTIONS: Record<string, string> = {
     // BEAR collections - different taxons = different collections!
-    'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF:0': 'Ultra Rare Bears',  // Taxon 0 = Ultra Rare
-    'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF:1': 'Pixel Bears',       // Taxon 1 = Pixel Bears
-    'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF:2': 'Pixel Bears',       // Taxon 2 = Pixel Bears
+    'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF:0': 'Ultra Rare BEARS',  // Taxon 0 = Ultra Rare
+    'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF:1': 'Pixel BEARS',       // Taxon 1 = Pixel Bears
+    'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF:2': 'Pixel BEARS',       // Taxon 2 = Pixel Bears
     // Other known collections
     'rPdvC6ccq8hCdPKSPJkPmyZ4Mi1oG2FFkT': 'xPunks',
     'rJzaNhosn5sgL3H5MxkFGpN6PEoAffPnhL': 'Bored Apes XRP',
     'rDzn8G4bH6bKrj4K2Wy2n2pKQViuxFQnxx': 'XRP Punks',
     'rDCgaaSBAWYfsxUYhCk1n26Na7x8PQGmkP': 'XRPL Apes',
     'rfx2R4sCFrXmfYKrX8r3C1bKP1cLJLiJXa': 'onXRP Collectibles',
+  };
+
+  // Extract collection name from NFT metadata
+  const extractCollectionNameFromMetadata = (nftList: NFTData[]): string | null => {
+    for (const nft of nftList) {
+      if (!nft.metadata) continue;
+
+      // Check for explicit collection field (common in NFT standards)
+      const meta = nft.metadata as any;
+      if (meta.collection) {
+        if (typeof meta.collection === 'string') return meta.collection;
+        if (meta.collection.name) return meta.collection.name;
+      }
+      if (meta.collection_name) return meta.collection_name;
+      if (meta.collectionName) return meta.collectionName;
+
+      // Try to extract from NFT name pattern like "CollectionName #123" or "CollectionName 123"
+      if (nft.name) {
+        // Match patterns like "Something #123" or "Something 123" or "Something_123"
+        const match = nft.name.match(/^(.+?)[\s_]*[#]?\d+$/);
+        if (match && match[1]) {
+          const extracted = match[1].trim();
+          // Only use if it's a reasonable collection name (not just a hash)
+          if (extracted.length > 2 && extracted.length < 50 && !/^[a-f0-9]+$/i.test(extracted)) {
+            return extracted;
+          }
+        }
+      }
+    }
+    return null;
   };
 
   // Convert hex to string
@@ -194,13 +224,14 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
     }
   };
 
-  // localStorage key for collection name cache - version 2 uses issuer:taxon keys
-  const COLLECTION_CACHE_KEY = 'bear_market_collection_names_v2';
+  // localStorage key for collection name cache - version 3 with metadata extraction
+  const COLLECTION_CACHE_KEY = 'bear_market_collection_names_v3';
 
-  // Clear old cache on first load (one-time migration)
+  // Clear old caches on first load (one-time migration)
   useEffect(() => {
-    // Remove old v1 cache that used wrong keys
+    // Remove old cache versions that had wrong names
     localStorage.removeItem('bear_market_collection_names');
+    localStorage.removeItem('bear_market_collection_names_v2');
   }, []);
 
   // Load cached collection names from localStorage
@@ -390,14 +421,25 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                 }
                 // Save to localStorage cache using issuer:taxon key!
                 saveToCollectionCache(cacheKey, { name: collectionName, image: xrpCafeInfo.image });
-                console.log(`Cached new collection: ${cacheKey} -> ${collectionName}`);
+                console.log(`Cached new collection from XRP.cafe: ${cacheKey} -> ${collectionName}`);
               }
             } catch {
-              // Ignore errors, use fallback
+              // Ignore errors, try metadata extraction next
             }
           }
 
-          // 4. Fallback to issuer address + taxon
+          // 4. Try to extract collection name from NFT metadata
+          if (!collectionName) {
+            const extractedName = extractCollectionNameFromMetadata(nftList);
+            if (extractedName) {
+              collectionName = extractedName;
+              // Save to cache so we don't have to extract again
+              saveToCollectionCache(cacheKey, { name: collectionName, image: collectionImage });
+              console.log(`Extracted collection name from metadata: ${cacheKey} -> ${collectionName}`);
+            }
+          }
+
+          // 5. Fallback to issuer address + taxon
           if (!collectionName) {
             collectionName = `Collection ${issuer.slice(0, 6)}...${issuer.slice(-4)} #${taxon}`;
           }
