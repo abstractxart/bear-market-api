@@ -11,6 +11,35 @@ import { getFeeRate } from './nftService';
 
 const ONTHEDEX_API = 'https://api.onthedex.live/public/v1';
 
+/**
+ * Convert currency code to XRPL-compatible format
+ * - 3-char codes stay as-is (USD, EUR, etc)
+ * - Longer codes get hex-encoded (BEAR -> 4245415200...)
+ * - Already hex codes (40 chars) stay as-is
+ */
+function toXRPLCurrency(currency: string): string {
+  // XRP is special
+  if (currency === 'XRP') return 'XRP';
+
+  // Already a hex currency code (40 characters)
+  if (currency.length === 40 && /^[0-9A-Fa-f]+$/.test(currency)) {
+    return currency.toUpperCase();
+  }
+
+  // Standard 3-char code
+  if (currency.length === 3) {
+    return currency.toUpperCase();
+  }
+
+  // Non-standard code - convert to hex (pad to 20 bytes / 40 hex chars)
+  let hex = '';
+  for (let i = 0; i < currency.length && i < 20; i++) {
+    hex += currency.charCodeAt(i).toString(16).padStart(2, '0');
+  }
+  // Pad to 40 characters
+  return hex.padEnd(40, '0').toUpperCase();
+}
+
 // Price cache for instant quotes (5 second TTL)
 const priceCache = new Map<string, { price: number; timestamp: number }>();
 const PRICE_CACHE_TTL = 5000;
@@ -182,10 +211,10 @@ async function getQuoteFromOrderBook(
       command: 'book_offers',
       taker_gets: inputToken.currency === 'XRP'
         ? { currency: 'XRP' }
-        : { currency: inputToken.currency, issuer: inputToken.issuer! },
+        : { currency: toXRPLCurrency(inputToken.currency), issuer: inputToken.issuer! },
       taker_pays: outputToken.currency === 'XRP'
         ? { currency: 'XRP' }
-        : { currency: outputToken.currency, issuer: outputToken.issuer! },
+        : { currency: toXRPLCurrency(outputToken.currency), issuer: outputToken.issuer! },
       limit: 20, // Get more offers for better pricing
     });
 
@@ -234,10 +263,10 @@ async function getAMMQuote(
       command: 'amm_info',
       asset: inputToken.currency === 'XRP'
         ? { currency: 'XRP' }
-        : { currency: inputToken.currency, issuer: inputToken.issuer! },
+        : { currency: toXRPLCurrency(inputToken.currency), issuer: inputToken.issuer! },
       asset2: outputToken.currency === 'XRP'
         ? { currency: 'XRP' }
-        : { currency: outputToken.currency, issuer: outputToken.issuer! },
+        : { currency: toXRPLCurrency(outputToken.currency), issuer: outputToken.issuer! },
     });
 
     const amm = ammInfo.result.amm;
@@ -375,14 +404,14 @@ export async function executeSwap(
       Amount: quote.outputToken.currency === 'XRP'
         ? xrpToDrops(quote.minimumReceived)
         : {
-            currency: quote.outputToken.currency,
+            currency: toXRPLCurrency(quote.outputToken.currency),
             issuer: quote.outputToken.issuer!,
             value: quote.minimumReceived,
           },
       SendMax: quote.inputToken.currency === 'XRP'
         ? xrpToDrops(quote.inputAmount)
         : {
-            currency: quote.inputToken.currency,
+            currency: toXRPLCurrency(quote.inputToken.currency),
             issuer: quote.inputToken.issuer!,
             value: quote.inputAmount,
           },
