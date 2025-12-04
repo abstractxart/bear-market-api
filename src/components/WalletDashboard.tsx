@@ -1111,9 +1111,32 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                                       }
                                     }}
                                   />
+                                ) : /* Video NFT with no static image - show video preview */
+                                nft.mediaType === 'video' && !nft.image && nft.animationUrl ? (
+                                  <video
+                                    src={nft.animationUrl}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    muted
+                                    loop
+                                    playsInline
+                                    autoPlay
+                                    onError={(e) => {
+                                      (e.target as HTMLVideoElement).style.display = 'none';
+                                    }}
+                                  />
                                 ) : nft.image ? (
                                   <img
                                     src={nft.image}
+                                    alt={nft.name}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
+                                ) : /* Fallback - try animationUrl as image if available */
+                                nft.animationUrl ? (
+                                  <img
+                                    src={nft.animationUrl}
                                     alt={nft.name}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                     onError={(e) => {
