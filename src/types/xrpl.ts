@@ -160,23 +160,24 @@ export interface BookOffer {
 
 // Known BEAR ecosystem addresses
 export const BEAR_ECOSYSTEM = {
-  // Pixel Bear NFT issuer - UPDATE WITH ACTUAL ADDRESS
-  PIXEL_BEAR_ISSUER: 'rPixelBearIssuerAddressHere',
+  // Pixel Bear NFT issuer
+  PIXEL_BEAR_ISSUER: 'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF',
 
-  // Ultra rare taxons - UPDATE WITH ACTUAL TAXONS
-  ULTRA_RARE_TAXONS: [1, 2, 3, 4, 5] as number[],
+  // Ultra rare taxons - Taxon 0 = Ultra Rare BEARS (667 total)
+  // Taxon 1/2 = Regular Pixel BEARS
+  ULTRA_RARE_TAXONS: [0] as number[],
 
   // BEAR token
   BEAR_TOKEN: {
     currency: 'BEAR',
-    issuer: 'rBEARTokenIssuerAddressHere', // UPDATE
+    issuer: 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW',
   },
 
-  // Fee collection wallet (will LP deposit)
-  FEE_WALLET: 'rFeeCollectionWalletHere', // UPDATE
+  // Fee collection wallet - BEAR Treasury
+  FEE_WALLET: 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9',
 
-  // BEAR/XRP AMM
+  // BEAR/XRP AMM pool
   BEAR_AMM: {
-    account: 'rBEARAMMAccountHere', // UPDATE
+    account: 'rwE86ARLXfyKYCVmFpk511ddYfs5Fh6Vcp',
   },
 } as const;
