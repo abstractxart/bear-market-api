@@ -129,7 +129,8 @@ export async function getSwapQuote(
 }
 
 /**
- * Get token price in XRP - FAST using OnTheDex ticker API
+ * Get token price in XRP - tries multiple sources for accuracy
+ * Returns: price of 1 token in XRP (e.g., 1 BEAR = 0.00132 XRP)
  */
 async function getTokenPriceInXRP(
   token: Token,
@@ -144,11 +145,11 @@ async function getTokenPriceInXRP(
     return cached.price;
   }
 
+  // 1. Try OnTheDex ticker API first (INSTANT!)
   try {
-    // Try OnTheDex ticker API first (INSTANT!)
     const tickerUrl = `${ONTHEDEX_API}/ticker/XRP/${token.currency}:${token.issuer}`;
     const response = await fetch(tickerUrl, {
-      signal: AbortSignal.timeout(3000), // 3 second timeout
+      signal: AbortSignal.timeout(3000),
     });
 
     if (response.ok) {
@@ -159,22 +160,71 @@ async function getTokenPriceInXRP(
         const pricePerXRP = parseFloat(data.last);
         const priceInXRP = 1 / pricePerXRP;
 
-        // Cache it
         priceCache.set(cacheKey, { price: priceInXRP, timestamp: Date.now() });
         return priceInXRP;
       }
     }
   } catch (error) {
-    console.warn('OnTheDex ticker failed, falling back to order book:', error);
+    console.warn('OnTheDex ticker failed:', error);
   }
 
-  // Fallback to XRPL order book (slower but reliable)
-  const quoteResult = await getQuoteFromOrderBook(client, params);
-  const price = parseFloat(quoteResult.outputAmount) / parseFloat(params.inputAmount);
+  // 2. Try DexScreener API (has most tokens including BEAR)
+  try {
+    const dexResponse = await fetch(
+      `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(token.currency)}%20xrpl`,
+      { signal: AbortSignal.timeout(3000) }
+    );
 
-  // Cache the fallback result too
-  priceCache.set(cacheKey, { price, timestamp: Date.now() });
-  return price;
+    if (dexResponse.ok) {
+      const dexData = await dexResponse.json();
+      const pairs = dexData.pairs || [];
+
+      // Find matching XRPL pair
+      for (const pair of pairs) {
+        if (pair.chainId === 'xrpl') {
+          const baseToken = pair.baseToken;
+          if (baseToken?.symbol?.toUpperCase() === token.currency.toUpperCase()) {
+            // Check issuer matches if we have one
+            const address = baseToken.address || '';
+            if (token.issuer && !address.includes(token.issuer)) continue;
+
+            // priceNative is price in XRP (native currency)
+            if (pair.priceNative) {
+              const priceInXRP = parseFloat(pair.priceNative);
+              priceCache.set(cacheKey, { price: priceInXRP, timestamp: Date.now() });
+              return priceInXRP;
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('DexScreener price fetch failed:', error);
+  }
+
+  // 3. Fallback to XRPL order book
+  try {
+    const quoteResult = await getQuoteFromOrderBook(client, params);
+    // quoteResult gives us output for the input amount
+    // priceInXRP = how much XRP for 1 token = inputAmount / outputAmount (for XRP→Token)
+    // But we need to handle both directions
+    const isInputXRP = params.inputToken.currency === 'XRP';
+    let priceInXRP: number;
+
+    if (isInputXRP) {
+      // XRP → Token: we got tokens for XRP, so price = XRP/tokens
+      priceInXRP = parseFloat(params.inputAmount) / parseFloat(quoteResult.outputAmount);
+    } else {
+      // Token → XRP: we got XRP for tokens, so price = XRP/tokens
+      priceInXRP = parseFloat(quoteResult.outputAmount) / parseFloat(params.inputAmount);
+    }
+
+    priceCache.set(cacheKey, { price: priceInXRP, timestamp: Date.now() });
+    return priceInXRP;
+  } catch (error) {
+    console.error('Order book fallback failed:', error);
+    throw new Error('Unable to get price quote');
+  }
 }
 
 /**
