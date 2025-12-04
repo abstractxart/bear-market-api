@@ -229,6 +229,8 @@ const SwapCard: React.FC = () => {
         <div className="flex items-center gap-2">
           {/* Fee tier badge */}
           <span className={`fee-badge-${wallet.feeTier === 'ultra_rare' ? 'ultra' : wallet.feeTier === 'pixel_bear' ? 'pixel' : 'regular'}`}>
+            {wallet.feeTier === 'ultra_rare' && '👑 '}
+            {wallet.feeTier === 'pixel_bear' && '🐻 '}
             {formatFeePercent(wallet.feeTier)} fee
           </span>
           {/* Settings button */}
