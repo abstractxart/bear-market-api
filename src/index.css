@@ -248,62 +248,62 @@ body {
   border: 1px solid rgba(107, 114, 128, 0.2);
 }
 
-/* Pixel Bear tier - Purple glow */
+/* Pixel Bear tier - Purple glow (subtle) */
 .fee-badge-pixel {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(124, 58, 237, 0.25));
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.2));
   color: var(--color-bear-purple-300);
-  border: 1px solid rgba(139, 92, 246, 0.5);
+  border: 1px solid rgba(139, 92, 246, 0.4);
   box-shadow:
-    0 0 20px rgba(139, 92, 246, 0.3),
-    0 0 40px rgba(139, 92, 246, 0.1),
-    inset 0 1px 0 rgba(139, 92, 246, 0.4);
+    0 0 12px rgba(139, 92, 246, 0.2),
+    0 0 24px rgba(139, 92, 246, 0.08),
+    inset 0 1px 0 rgba(139, 92, 246, 0.3);
   animation: pulse-purple 3s ease-in-out infinite;
   font-weight: 700;
   letter-spacing: 0.025em;
 }
 
-/* Ultra Rare tier - Golden royal glow */
+/* Ultra Rare tier - Golden royal glow (subtle) */
 .fee-badge-ultra {
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(245, 158, 11, 0.3));
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.25), rgba(245, 158, 11, 0.25));
   color: var(--color-bear-gold-300);
-  border: 1px solid rgba(251, 191, 36, 0.6);
+  border: 1px solid rgba(251, 191, 36, 0.5);
   box-shadow:
-    0 0 25px rgba(251, 191, 36, 0.4),
-    0 0 50px rgba(245, 158, 11, 0.2),
-    inset 0 1px 0 rgba(251, 191, 36, 0.5);
+    0 0 15px rgba(251, 191, 36, 0.25),
+    0 0 30px rgba(245, 158, 11, 0.12),
+    inset 0 1px 0 rgba(251, 191, 36, 0.4);
   animation: pulse-gold 2.5s ease-in-out infinite;
   font-weight: 700;
   letter-spacing: 0.025em;
 }
 
-/* Pulse animations for fee badges */
+/* Pulse animations for fee badges (reduced intensity) */
 @keyframes pulse-purple {
   0%, 100% {
     box-shadow:
-      0 0 20px rgba(139, 92, 246, 0.3),
-      0 0 40px rgba(139, 92, 246, 0.1),
-      inset 0 1px 0 rgba(139, 92, 246, 0.4);
+      0 0 12px rgba(139, 92, 246, 0.2),
+      0 0 24px rgba(139, 92, 246, 0.08),
+      inset 0 1px 0 rgba(139, 92, 246, 0.3);
   }
   50% {
     box-shadow:
-      0 0 30px rgba(139, 92, 246, 0.5),
-      0 0 60px rgba(139, 92, 246, 0.2),
-      inset 0 1px 0 rgba(139, 92, 246, 0.6);
+      0 0 18px rgba(139, 92, 246, 0.3),
+      0 0 36px rgba(139, 92, 246, 0.12),
+      inset 0 1px 0 rgba(139, 92, 246, 0.4);
   }
 }
 
 @keyframes pulse-gold {
   0%, 100% {
     box-shadow:
-      0 0 25px rgba(251, 191, 36, 0.4),
-      0 0 50px rgba(245, 158, 11, 0.2),
-      inset 0 1px 0 rgba(251, 191, 36, 0.5);
+      0 0 15px rgba(251, 191, 36, 0.25),
+      0 0 30px rgba(245, 158, 11, 0.12),
+      inset 0 1px 0 rgba(251, 191, 36, 0.4);
   }
   50% {
     box-shadow:
-      0 0 35px rgba(251, 191, 36, 0.6),
-      0 0 70px rgba(245, 158, 11, 0.3),
-      inset 0 1px 0 rgba(251, 191, 36, 0.7);
+      0 0 20px rgba(251, 191, 36, 0.35),
+      0 0 40px rgba(245, 158, 11, 0.15),
+      inset 0 1px 0 rgba(251, 191, 36, 0.5);
   }
 }
 
