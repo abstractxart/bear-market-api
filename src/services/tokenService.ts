@@ -76,25 +76,54 @@ let priceCache: PriceCache | null = null;
 let popularTokensCache: XRPLToken[] | null = null;
 let popularTokensCacheTime: number = 0;
 
-// ==================== LOCAL ICONS ====================
+// ==================== TOKEN ICONS (DexScreener CDN) ====================
 
 /**
- * Map of tokens with local SVG icons (hosted on our server)
- * These are guaranteed to work - no external CDN dependencies!
+ * REAL token icons from DexScreener CDN - same as First Ledger uses!
+ * Format: 'SYMBOL:issuer' -> 'https://cdn.dexscreener.com/cms/images/...'
+ */
+const DEXSCREENER_ICONS: Record<string, string> = {
+  // Top tokens with verified DexScreener icons
+  'BEAR:rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW': 'https://cdn.dexscreener.com/cms/images/aa9f8178c7bd1e8b6ec7d36c26ade56149f751a3227ff9df763030034739bbe5',
+  'MAG:rXmagwMmnFtVet3uL26Q2iwk287SxYHov': 'https://cdn.dexscreener.com/cms/images/23a66da0d3b631ebec758f5cfd0c85a6ca98dbb9cf2b7340be9bd0069b8c1a3c',
+  'XPM:rXPMxBeefHGxx3Z3CMFqwzGi3Vt19LHvCR': 'https://cdn.dexscreener.com/cms/images/52e1af2085e486325ba71f8290551f469a08a24afd9f35b7a91201c0de525506',
+  'ARMY:rGG3wQ4kfSgJgHRpWPAu5NxVA18q6gcSnZ': 'https://cdn.dexscreener.com/cms/images/ed1f6d19db7e44c91785ffa0d1082ffb3e0a0da0c93027d307ccb246e17cdb92',
+  'FUZZY:rhCAT4hRdi1J4fh1LK5qcUTsVcGWxNpVjh': 'https://cdn.dexscreener.com/cms/images/3cf16daefe237f160d943e53324a200b90fbe982ea43300c872c5f5bca60941c',
+  'DROP:rszenFJoDdicWqfK2F9U9VWTxqEfB2HNJ6': 'https://cdn.dexscreener.com/cms/images/237caaf20769c4f611c3c242dc33da0c665c22fd2240c44f989f04a8514d5811',
+  'CSC:rCSCManTZ8ME9EoLrSHHYKW8PPwWMgkwr': 'https://cdn.dexscreener.com/cms/images/7961c5de7298f3436610f8c496dd142561251933133b6382178ff71482ba1de9',
+  'PHNIX': 'https://cdn.dexscreener.com/cms/images/45ac1f4fde3c704c57789ac0399336cbb1b9afc6724b3ffd76b2a6b344ef0089',
+  'SLT': 'https://cdn.dexscreener.com/cms/images/2447af16f7dbc28426615c32424277fecf0f5e5968198f441acaa46c1d8f8bbe',
+  'SIGMA': 'https://cdn.dexscreener.com/cms/images/0d842ca17f4b5ab92f237abf8c2aa47b6fed14b5e420645d3473f4a1bedbb652',
+  'CULT': 'https://cdn.dexscreener.com/cms/images/c64a0f792ff19f8468f898280fa67ed85cbde57e15d374dad6188cb39355cacc',
+  'JELLY': 'https://cdn.dexscreener.com/cms/images/a635c021e7a0ada3163e5e12b052b6e637ad3bb7013b1c2b13a7206c8d3ed892',
+  'GOAT': 'https://cdn.dexscreener.com/cms/images/86db2add041f94699931d7d0a845da3c7f154f5ef8e55027c475c0beaa459731',
+  'OLX': 'https://cdn.dexscreener.com/cms/images/4bd3efc5218579a57c9d213e09df10ee3b2f89cf47af1510ffa1db17bf8604b8',
+  'CO2': 'https://cdn.dexscreener.com/cms/images/c9f7be92f53c521cc090912c47e5d749f2c3f721a2f9b5e0ae5cc15c1dce41e5',
+  'MALLARD': 'https://cdn.dexscreener.com/cms/images/f6b5ef097295e1b083d6d2832022615980d1d90d681a95b45f7b5de2c49b64f1',
+  '666': 'https://cdn.dexscreener.com/cms/images/44fe722a5aea5847e8ed441246d8d0a604654f60a22da3e4ec82264fd7e287cf',
+  '589': 'https://cdn.dexscreener.com/cms/images/4a0969cf5787f495af665a95dfbfaf80c29c46ed93514b642e892d37a7291e46',
+  'DONNIE': 'https://cdn.dexscreener.com/cms/images/80fdacbe116bd052b11327e926aab415197a33609b0c648854e1d98713197ef3',
+  'SEAL': 'https://cdn.dexscreener.com/cms/images/69878be5f14ae0e0cbaaa45178d3190ae38b97d51ab2882b60ba8ef2349dd2f9',
+  'CBIRD': 'https://cdn.dexscreener.com/cms/images/c63349105d407605fd2908c1bbc34af4dea74b68e50fdda51ee2b65c78d34212',
+  'FLIPPY': 'https://cdn.dexscreener.com/cms/images/c7dfd777f4c7ba098acbaa9bb63816a6b86c6aa8ac1321bfdd3fab4b891f28e3',
+  'BERT': 'https://cdn.dexscreener.com/cms/images/d85a51a786ac61c7668ae38c256eab88a77dc87b3af7acd1c82e3145a45df1b3',
+  'PIGEONS': 'https://cdn.dexscreener.com/cms/images/5fa79ec7f125929e17daa181f8c297898712d973679cfc3227edcb299c36259c',
+  'ATM': 'https://cdn.dexscreener.com/cms/images/b912ada213e37a79135c3ee3c8ca21818b5c4dce5db5f8909fd4654fcc850caf',
+  'Horizon': 'https://cdn.dexscreener.com/cms/images/f911fea0b87e05aa260aab697dfd7e8e12f6816297d048e9afa3512b6ca74d0e',
+  'Opulence': 'https://cdn.dexscreener.com/cms/images/2e378aded56e20773293e584bc61c915c8e8c8972545d568b14aed250af28c87',
+  'bull': 'https://cdn.dexscreener.com/cms/images/364494165161887247a37fafc7691d300191ad605b9408faf5aeefea82c75a00',
+};
+
+/**
+ * Local fallback SVG icons (for XRP and tokens without DexScreener icons)
  */
 const LOCAL_TOKEN_ICONS: Record<string, string> = {
   'XRP': '/tokens/xrp.svg',
-  'BEAR:rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW': '/tokens/bear.svg',
   'RLUSD:rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De': '/tokens/rlusd.svg',
   'SOLO:rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz': '/tokens/solo.svg',
   'CORE:rcoreNywaoz2ZCQ8Lg2EbSLnGuRBmun6D': '/tokens/core.svg',
   'XRPH:rNmKNMsHnpLmLXKL3bvwnqsr6MwxfPGvJf': '/tokens/xrph.svg',
-  'FUZZY:rhCAT4hRdi1J4fh1LK5qcUTsVcGWxNpVjh': '/tokens/fuzzy.svg',
-  'ARMY:rGG3wQ4kfSgJgHRpWPAu5NxVA18q6gcSnZ': '/tokens/army.svg',
-  'DROP:rszenFJoDdicWqfK2F9U9VWTxqEfB2HNJ6': '/tokens/drop.svg',
   'VGB:rhcyBrowwApgNonehVqrg6JgzqaM1DLRv8': '/tokens/vgb.svg',
-  'MAG:rXmagwMmnFtVet3uL26Q2iwk287SxYHov': '/tokens/mag.svg',
-  'XPM:rXPMxBeefHGxx3Z3CMFqwzGi3Vt19LHvCR': '/tokens/xpm.svg',
   'XMEME:rMeMEz93gAbQfs5LB9bR9XFXBC9u6NEVYt': '/tokens/xmeme.svg',
   'USDC:rGm7uYknXfn7RhNzEuvwu4p98f3hkRzWhE': '/tokens/usdc.svg',
   'EUROP:rMkEJxjXRV7SvDaGP3tX4MQ3pWyvnfLLjg': '/tokens/europ.svg',
@@ -103,17 +132,29 @@ const LOCAL_TOKEN_ICONS: Record<string, string> = {
 // ==================== HELPER FUNCTIONS ====================
 
 /**
- * Get token icon URL - LOCAL FIRST, then CDN fallback
+ * Get token icon URL - DexScreener CDN first, then local fallback
  */
 export function getTokenIconUrl(currency: string, issuer?: string): string {
-  // Check for local icon first (always works!)
+  // XRP always uses local
   if (currency === 'XRP') {
     return '/tokens/xrp.svg';
   }
 
-  const localKey = `${currency}:${issuer}`;
-  if (LOCAL_TOKEN_ICONS[localKey]) {
-    return LOCAL_TOKEN_ICONS[localKey];
+  const fullKey = `${currency}:${issuer}`;
+
+  // 1. Check DexScreener CDN icons (real icons!)
+  if (DEXSCREENER_ICONS[fullKey]) {
+    return DEXSCREENER_ICONS[fullKey];
+  }
+
+  // 2. Check by symbol only (for tokens without issuer in key)
+  if (DEXSCREENER_ICONS[currency]) {
+    return DEXSCREENER_ICONS[currency];
+  }
+
+  // 3. Check local fallback icons
+  if (LOCAL_TOKEN_ICONS[fullKey]) {
+    return LOCAL_TOKEN_ICONS[fullKey];
   }
 
   if (!issuer) {
@@ -125,30 +166,36 @@ export function getTokenIconUrl(currency: string, issuer?: string): string {
 }
 
 /**
- * Get multiple icon URLs to try (LOCAL FIRST, then CDN fallbacks)
+ * Get multiple icon URLs to try (DexScreener FIRST, then local, then CDN fallbacks)
  */
 export function getTokenIconUrls(currency: string, issuer?: string): string[] {
   if (currency === 'XRP') {
     return ['/tokens/xrp.svg'];
   }
 
-  const localKey = `${currency}:${issuer}`;
+  const fullKey = `${currency}:${issuer}`;
   const urls: string[] = [];
 
-  // LOCAL ICON FIRST (always works!)
-  if (LOCAL_TOKEN_ICONS[localKey]) {
-    urls.push(LOCAL_TOKEN_ICONS[localKey]);
+  // 1. DexScreener CDN first (real icons like First Ledger!)
+  if (DEXSCREENER_ICONS[fullKey]) {
+    urls.push(DEXSCREENER_ICONS[fullKey]);
+  } else if (DEXSCREENER_ICONS[currency]) {
+    urls.push(DEXSCREENER_ICONS[currency]);
+  }
+
+  // 2. Local fallback icons
+  if (LOCAL_TOKEN_ICONS[fullKey]) {
+    urls.push(LOCAL_TOKEN_ICONS[fullKey]);
   }
 
   if (!issuer) {
     return urls;
   }
 
-  // Then try CDNs as fallback for tokens without local icons
+  // 3. External CDNs as last resort
   urls.push(
     `${XRPL_META_API}/token/${currency}:${issuer}/icon`,
     `${BITHOMP_CDN}/token/${currency}.${issuer}.png`,
-    `https://cdn.xrplmeta.org/icon/${currency}:${issuer}`,
   );
 
   return urls;
