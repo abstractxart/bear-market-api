@@ -261,12 +261,13 @@ const SwapCard: React.FC = () => {
       </AnimatePresence>
 
       {/* Input token */}
-      <div className="bg-bear-dark-800 rounded-xl p-4 mb-2">
+      <div className="bg-bear-dark-800 rounded-3xl p-4 mb-2">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm text-gray-400">You pay</span>
           <button
             onClick={handleMaxClick}
-            className="text-xs text-bear-purple-400 hover:text-bear-purple-300 font-medium"
+            className="text-xs font-black px-3 py-1 rounded-full"
+            style={{ background: 'var(--color-bearpark-gold)', color: '#000' }}
           >
             MAX
           </button>
@@ -313,16 +314,21 @@ const SwapCard: React.FC = () => {
       <div className="flex justify-center -my-2 relative z-10">
         <button
           onClick={handleFlipTokens}
-          className="bg-bear-dark-700 hover:bg-bear-dark-600 border border-bear-dark-500 p-2 rounded-xl transition-all hover:scale-110"
+          className="p-3 rounded-2xl transition-all hover:scale-110 border-2"
+          style={{
+            background: 'var(--color-bearpark-gold)',
+            borderColor: 'rgba(0,0,0,0.2)',
+            boxShadow: '0 4px 0 #9b7a0d'
+          }}
         >
-          <svg className="w-5 h-5 text-bear-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5" style={{ color: '#000' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
           </svg>
         </button>
       </div>
 
       {/* Output token */}
-      <div className="bg-bear-dark-800 rounded-xl p-4 mt-2">
+      <div className="bg-bear-dark-800 rounded-3xl p-4 mt-2">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm text-gray-400">You receive</span>
           {quote && (
@@ -362,7 +368,11 @@ const SwapCard: React.FC = () => {
           </div>
           <button
             onClick={() => setShowTokenSelector('output')}
-            className="flex items-center gap-2 bg-bear-dark-600 hover:bg-bear-dark-500 px-3 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-full transition-all font-black text-sm"
+            style={{
+              background: outputToken ? 'var(--color-bear-dark-600)' : 'var(--color-bearpark-gold)',
+              color: outputToken ? 'white' : '#000'
+            }}
           >
             {outputToken ? (
               <>
@@ -370,7 +380,7 @@ const SwapCard: React.FC = () => {
                 <span className="font-semibold">{outputToken.symbol}</span>
               </>
             ) : (
-              <span className="text-bear-purple-400">Select token</span>
+              <span>Select token</span>
             )}
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
