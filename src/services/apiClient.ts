@@ -86,7 +86,7 @@ export const api = {
     feeToken: string;
     swapTxHash?: string;
   }) =>
-    apiRequest('/api/trades/record', {
+    apiRequest('/api/referrals/trades/record', {
       method: 'POST',
       body: JSON.stringify(tradeData),
     }),
