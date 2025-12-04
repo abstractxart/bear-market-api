@@ -237,8 +237,54 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
     return null;
   };
 
-  // Fetch NFT metadata from Bithomp (fallback when IPFS fails)
-  const fetchNFTMetadataFromBithomp = async (tokenId: string): Promise<NFTMetadata | null> => {
+  // Fetch NFT metadata from external APIs (fallback when IPFS fails)
+  const fetchNFTMetadataFromAPIs = async (tokenId: string): Promise<NFTMetadata | null> => {
+    // Try XRP.cafe first - they have good CORS support
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(
+        `https://api.xrp.cafe/api/nft/${tokenId}`,
+        { signal: controller.signal }
+      );
+      clearTimeout(timeout);
+
+      if (response.ok) {
+        const data = await response.json();
+        // XRP.cafe format
+        if (data?.metadata || data?.nft?.metadata) {
+          const meta = data.metadata || data.nft?.metadata;
+          // Handle if metadata is a string
+          const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
+          if (parsed?.image || parsed?.name) {
+            return {
+              name: parsed.name,
+              description: parsed.description,
+              image: parsed.image,
+              animation_url: parsed.animation_url,
+              animation: parsed.animation,
+              attributes: parsed.attributes,
+            };
+          }
+        }
+        // Try direct fields
+        if (data?.image || data?.name) {
+          return {
+            name: data.name,
+            description: data.description,
+            image: data.image,
+            animation_url: data.animation_url,
+            animation: data.animation,
+            attributes: data.attributes,
+          };
+        }
+      }
+    } catch {
+      // Continue to next API
+    }
+
+    // Try Bithomp as backup
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
@@ -249,24 +295,38 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
       );
       clearTimeout(timeout);
 
-      if (!response.ok) return null;
-
-      const data = await response.json();
-      if (data?.metadata) {
-        // Bithomp returns metadata with image URLs already resolved
-        return {
-          name: data.metadata.name || data.nftokenID?.slice(-8),
-          description: data.metadata.description,
-          image: data.metadata.image,
-          animation_url: data.metadata.animation_url,
-          animation: data.metadata.animation,
-          attributes: data.metadata.attributes,
-        };
+      if (response.ok) {
+        const data = await response.json();
+        // Bithomp can return metadata in different places
+        const meta = data?.metadata || data?.nft?.metadata || data?.nftMetadata;
+        if (meta) {
+          const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
+          return {
+            name: parsed.name || data.name,
+            description: parsed.description,
+            image: parsed.image,
+            animation_url: parsed.animation_url,
+            animation: parsed.animation,
+            attributes: parsed.attributes,
+          };
+        }
+        // Sometimes metadata is at root level
+        if (data?.image) {
+          return {
+            name: data.name,
+            description: data.description,
+            image: data.image,
+            animation_url: data.animation_url,
+            animation: data.animation,
+            attributes: data.attributes,
+          };
+        }
       }
-      return null;
     } catch {
-      return null;
+      // All APIs failed
     }
+
+    return null;
   };
 
   // Fetch collection info from XRP.cafe API
@@ -429,9 +489,9 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
               // Try to fetch as JSON metadata from IPFS first
               let meta = await fetchNFTMetadata(uri);
 
-              // If IPFS fails (CORS or 404), try Bithomp as fallback
+              // If IPFS fails (CORS or 404), try API fallbacks (XRP.cafe, Bithomp)
               if (!meta) {
-                meta = await fetchNFTMetadataFromBithomp(nft.NFTokenID);
+                meta = await fetchNFTMetadataFromAPIs(nft.NFTokenID);
               }
 
               if (meta) {
