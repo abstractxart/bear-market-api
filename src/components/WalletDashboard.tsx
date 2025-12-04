@@ -24,13 +24,20 @@ interface NFTMetadata {
   name?: string;
   description?: string;
   image?: string;
+  animation_url?: string;  // For animated content (GIFs, videos, audio)
+  video?: string;          // Direct video URL
+  audio?: string;          // Direct audio URL
   attributes?: Array<{ trait_type: string; value: string }>;
 }
+
+type MediaType = 'image' | 'gif' | 'video' | 'audio' | 'unknown';
 
 interface NFTData {
   id: string;
   name: string;
   image: string;
+  animationUrl?: string;   // For animated content
+  mediaType: MediaType;    // What type of media this NFT has
   issuer: string;
   taxon: number;
   uri?: string;
@@ -170,10 +177,26 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
           if (json.image) {
             json.image = ipfsToHttp(json.image, gatewayIdx);
           }
+          // Convert animation_url, video, audio URLs
+          if (json.animation_url) {
+            json.animation_url = ipfsToHttp(json.animation_url, gatewayIdx);
+          }
+          if (json.video) {
+            json.video = ipfsToHttp(json.video, gatewayIdx);
+          }
+          if (json.audio) {
+            json.audio = ipfsToHttp(json.audio, gatewayIdx);
+          }
           return json;
         } else if (contentType?.includes('image')) {
           // URI points directly to image
           return { image: httpUri };
+        } else if (contentType?.includes('video')) {
+          // URI points directly to video
+          return { animation_url: httpUri };
+        } else if (contentType?.includes('audio')) {
+          // URI points directly to audio
+          return { audio: httpUri };
         }
 
         // Try parsing as JSON anyway
@@ -182,6 +205,15 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
           const json = JSON.parse(text);
           if (json.image) {
             json.image = ipfsToHttp(json.image, gatewayIdx);
+          }
+          if (json.animation_url) {
+            json.animation_url = ipfsToHttp(json.animation_url, gatewayIdx);
+          }
+          if (json.video) {
+            json.video = ipfsToHttp(json.video, gatewayIdx);
+          }
+          if (json.audio) {
+            json.audio = ipfsToHttp(json.audio, gatewayIdx);
           }
           return json;
         } catch {
@@ -320,10 +352,23 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
 
         const rawNfts = allRawNfts;
 
+        // Helper to detect media type from URL
+        const detectMediaType = (url: string): MediaType => {
+          if (!url) return 'unknown';
+          const lower = url.toLowerCase();
+          if (/\.gif(\?|$)/i.test(lower)) return 'gif';
+          if (/\.(mp4|webm|mov|avi|mkv)(\?|$)/i.test(lower)) return 'video';
+          if (/\.(mp3|wav|ogg|m4a|flac|aac)(\?|$)/i.test(lower)) return 'audio';
+          if (/\.(jpg|jpeg|png|webp|svg|avif)(\?|$)/i.test(lower)) return 'image';
+          return 'unknown';
+        };
+
         // First pass: Create NFT objects with basic info
         const nftDataPromises = rawNfts.map(async (nft: any) => {
           const uri = nft.URI ? hexToString(nft.URI) : '';
           let image = '';
+          let animationUrl: string | undefined;
+          let mediaType: MediaType = 'unknown';
           let name = `#${nft.NFTokenID.slice(-8).toUpperCase()}`;
           let metadata: NFTMetadata | undefined;
 
@@ -331,9 +376,14 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
           if (uri) {
             const httpUri = ipfsToHttp(uri);
 
-            // If URI looks like an image, use it directly
-            if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(httpUri)) {
+            // Check if URI looks like a direct media file
+            const directMediaType = detectMediaType(httpUri);
+            if (directMediaType === 'image' || directMediaType === 'gif') {
               image = httpUri;
+              mediaType = directMediaType;
+            } else if (directMediaType === 'video' || directMediaType === 'audio') {
+              animationUrl = httpUri;
+              mediaType = directMediaType;
             } else {
               // Try to fetch as JSON metadata
               const meta = await fetchNFTMetadata(uri);
@@ -341,6 +391,28 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                 metadata = meta;
                 if (meta.image) {
                   image = ipfsToHttp(meta.image);
+                  mediaType = detectMediaType(image) || 'image';
+                }
+                // Check for animation_url (video/GIF/audio)
+                if (meta.animation_url) {
+                  animationUrl = ipfsToHttp(meta.animation_url);
+                  const animType = detectMediaType(animationUrl);
+                  if (animType !== 'unknown') {
+                    mediaType = animType;
+                  } else {
+                    // Default to video if animation_url exists but type unknown
+                    mediaType = 'video';
+                  }
+                }
+                // Check for explicit video field
+                if (meta.video) {
+                  animationUrl = ipfsToHttp(meta.video);
+                  mediaType = 'video';
+                }
+                // Check for explicit audio field
+                if (meta.audio) {
+                  animationUrl = ipfsToHttp(meta.audio);
+                  mediaType = 'audio';
                 }
                 if (meta.name) {
                   name = meta.name;
@@ -349,10 +421,17 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
             }
           }
 
+          // Default to image if we have an image but couldn't detect type
+          if (image && mediaType === 'unknown') {
+            mediaType = 'image';
+          }
+
           return {
             id: nft.NFTokenID,
             name,
             image,
+            animationUrl,
+            mediaType,
             issuer: nft.Issuer,
             taxon: nft.NFTokenTaxon,
             uri,
@@ -998,7 +1077,22 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                               className="group bg-gray-800/50 rounded-xl overflow-hidden border border-gray-700/50 hover:border-purple-500/50 transition-all hover:shadow-lg hover:shadow-purple-500/10"
                             >
                               <div className="aspect-square bg-gradient-to-br from-gray-700/50 to-gray-800/50 relative overflow-hidden">
-                                {nft.image ? (
+                                {/* For GIF media type with animationUrl, use animationUrl; otherwise use image */}
+                                {(nft.mediaType === 'gif' && nft.animationUrl) ? (
+                                  <img
+                                    src={nft.animationUrl}
+                                    alt={nft.name}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    onError={(e) => {
+                                      // Fallback to static image if animation fails
+                                      if (nft.image) {
+                                        (e.target as HTMLImageElement).src = nft.image;
+                                      } else {
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                      }
+                                    }}
+                                  />
+                                ) : nft.image ? (
                                   <img
                                     src={nft.image}
                                     alt={nft.name}
@@ -1012,9 +1106,32 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                                     <span className="text-4xl">🖼️</span>
                                   </div>
                                 )}
+                                {/* Media type badge for video/audio */}
+                                {(nft.mediaType === 'video' || nft.mediaType === 'audio') && (
+                                  <div className="absolute top-2 right-2 px-2 py-1 bg-black/70 rounded-full flex items-center gap-1">
+                                    {nft.mediaType === 'video' ? (
+                                      <svg className="w-3 h-3 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M8 5v14l11-7z"/>
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-3 h-3 text-pink-400" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                                      </svg>
+                                    )}
+                                    <span className="text-[10px] text-white font-medium uppercase">{nft.mediaType}</span>
+                                  </div>
+                                )}
+                                {/* GIF badge */}
+                                {nft.mediaType === 'gif' && (
+                                  <div className="absolute top-2 right-2 px-2 py-1 bg-black/70 rounded-full">
+                                    <span className="text-[10px] text-green-400 font-bold">GIF</span>
+                                  </div>
+                                )}
                                 {/* Hover overlay */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-2">
-                                  <span className="text-xs text-white/80 font-medium">View Details</span>
+                                  <span className="text-xs text-white/80 font-medium">
+                                    {nft.mediaType === 'video' ? 'Play Video' : nft.mediaType === 'audio' ? 'Play Audio' : 'View Details'}
+                                  </span>
                                 </div>
                               </div>
                               <div className="p-2.5">
@@ -1066,11 +1183,37 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative w-full max-w-sm bg-gradient-to-b from-gray-800 to-gray-900 rounded-2xl overflow-hidden border border-gray-700 shadow-2xl"
+                        className="relative w-full max-w-sm bg-gradient-to-b from-gray-800 to-gray-900 rounded-2xl overflow-hidden border border-gray-700 shadow-2xl max-h-[85vh] overflow-y-auto"
                       >
-                        {/* NFT Image */}
+                        {/* NFT Media - Image/GIF/Video */}
                         <div className="aspect-square bg-gray-900 relative">
-                          {selectedNFT.image ? (
+                          {/* Video Player */}
+                          {selectedNFT.mediaType === 'video' && selectedNFT.animationUrl ? (
+                            <video
+                              src={selectedNFT.animationUrl}
+                              poster={selectedNFT.image || undefined}
+                              controls
+                              autoPlay
+                              loop
+                              playsInline
+                              className="w-full h-full object-contain"
+                            >
+                              Your browser does not support video playback.
+                            </video>
+                          ) : /* GIF - use animation URL if available */
+                          selectedNFT.mediaType === 'gif' && selectedNFT.animationUrl ? (
+                            <img
+                              src={selectedNFT.animationUrl}
+                              alt={selectedNFT.name}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                if (selectedNFT.image) {
+                                  (e.target as HTMLImageElement).src = selectedNFT.image;
+                                }
+                              }}
+                            />
+                          ) : /* Static image */
+                          selectedNFT.image ? (
                             <img
                               src={selectedNFT.image}
                               alt={selectedNFT.name}
@@ -1084,13 +1227,69 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                           {/* Close button */}
                           <button
                             onClick={() => setSelectedNFT(null)}
-                            className="absolute top-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-colors"
+                            className="absolute top-3 right-3 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-colors z-10"
                           >
                             <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                           </button>
+                          {/* Media type badge */}
+                          {selectedNFT.mediaType !== 'image' && selectedNFT.mediaType !== 'unknown' && (
+                            <div className="absolute top-3 left-3 px-2 py-1 bg-black/70 rounded-full flex items-center gap-1 z-10">
+                              {selectedNFT.mediaType === 'video' ? (
+                                <svg className="w-3 h-3 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M8 5v14l11-7z"/>
+                                </svg>
+                              ) : selectedNFT.mediaType === 'audio' ? (
+                                <svg className="w-3 h-3 text-pink-400" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                                </svg>
+                              ) : (
+                                <span className="text-green-400 text-[10px] font-bold">GIF</span>
+                              )}
+                              {selectedNFT.mediaType !== 'gif' && (
+                                <span className="text-[10px] text-white font-medium uppercase">{selectedNFT.mediaType}</span>
+                              )}
+                            </div>
+                          )}
                         </div>
+
+                        {/* Audio Player Section - shown below image for audio NFTs */}
+                        {selectedNFT.mediaType === 'audio' && selectedNFT.animationUrl && (
+                          <div className="px-4 py-3 bg-gradient-to-r from-pink-500/10 to-purple-500/10 border-b border-gray-700">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                                </svg>
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-white">Audio NFT</div>
+                                <div className="text-xs text-gray-400">Play or download the audio</div>
+                              </div>
+                              {/* Download button */}
+                              <a
+                                href={selectedNFT.animationUrl}
+                                download={`${selectedNFT.name.replace(/[^a-zA-Z0-9]/g, '_')}.mp3`}
+                                className="p-2 bg-pink-500/20 hover:bg-pink-500/30 rounded-lg transition-colors"
+                                title="Download Audio"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <svg className="w-5 h-5 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                              </a>
+                            </div>
+                            <audio
+                              src={selectedNFT.animationUrl}
+                              controls
+                              className="w-full h-10"
+                              style={{ filter: 'invert(1) hue-rotate(180deg)' }}
+                            >
+                              Your browser does not support audio playback.
+                            </audio>
+                          </div>
+                        )}
 
                         {/* NFT Info */}
                         <div className="p-4">
@@ -1143,6 +1342,19 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                             >
                               View on Bithomp
                             </a>
+                            {/* Download button for video */}
+                            {selectedNFT.mediaType === 'video' && selectedNFT.animationUrl && (
+                              <a
+                                href={selectedNFT.animationUrl}
+                                download={`${selectedNFT.name.replace(/[^a-zA-Z0-9]/g, '_')}.mp4`}
+                                className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl transition-colors flex items-center gap-2"
+                                title="Download Video"
+                              >
+                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                              </a>
+                            )}
                           </div>
                         </div>
                       </motion.div>
