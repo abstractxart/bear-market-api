@@ -11,6 +11,10 @@ import { getFeeRate } from './nftService';
 
 const ONTHEDEX_API = 'https://api.onthedex.live/public/v1';
 
+// BEAR Treasury wallet - ALL swap fees go here
+// TODO: Replace with actual BEAR treasury address
+export const BEAR_TREASURY_WALLET = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
+
 /**
  * Convert currency code to XRPL-compatible format
  * - 3-char codes stay as-is (USD, EUR, etc)
@@ -437,17 +441,53 @@ function xrpToDrops(xrp: string): string {
 }
 
 /**
- * Execute a swap transaction
+ * Swap execution result
+ */
+export interface SwapResult {
+  success: boolean;
+  swapTxHash?: string;
+  feeTxHash?: string;
+  error?: string;
+}
+
+/**
+ * Execute a swap with fee collection
+ *
+ * TWO TRANSACTIONS in ONE USER ACTION:
+ * 1. Swap transaction (self-payment through DEX)
+ * 2. Fee transaction (XRP to BEAR Treasury)
+ *
+ * User signs both back-to-back, then both are submitted.
+ * Fee is ALWAYS in XRP regardless of trade direction.
  */
 export async function executeSwap(
   client: Client,
   quote: SwapQuote,
   senderAddress: string,
-  signTransaction: (tx: any) => Promise<any>
-): Promise<{ success: boolean; txHash?: string; error?: string }> {
+  signTransaction: (tx: any) => Promise<any>,
+  onStatus?: (status: string) => void
+): Promise<SwapResult> {
+  const feeAmountXRP = parseFloat(quote.feeAmount);
+  const isInputXRP = quote.inputToken.currency === 'XRP';
+
   try {
-    // Build Payment transaction with pathfinding
-    const tx: any = {
+    onStatus?.('Preparing transactions...');
+
+    // ===== TRANSACTION 1: THE SWAP =====
+    // For XRP → Token: reduce SendMax by fee amount (user sends less XRP)
+    // For Token → XRP: user gets full swap, fee is separate
+
+    let swapSendMax: string;
+    if (isInputXRP) {
+      // XRP → Token: Deduct fee from input, so we send (inputAmount - fee) for the swap
+      const swapInputXRP = parseFloat(quote.inputAmount) - feeAmountXRP;
+      swapSendMax = xrpToDrops(swapInputXRP.toFixed(6));
+    } else {
+      // Token → XRP: Full token amount for swap
+      swapSendMax = quote.inputAmount;
+    }
+
+    const swapTx: any = {
       TransactionType: 'Payment',
       Account: senderAddress,
       Destination: senderAddress, // Self-payment for swap
@@ -459,38 +499,84 @@ export async function executeSwap(
             value: quote.minimumReceived,
           },
       SendMax: quote.inputToken.currency === 'XRP'
-        ? xrpToDrops(quote.inputAmount)
+        ? swapSendMax
         : {
             currency: toXRPLCurrency(quote.inputToken.currency),
             issuer: quote.inputToken.issuer!,
-            value: quote.inputAmount,
+            value: swapSendMax,
           },
       Flags: 131072, // tfPartialPayment
     };
 
-    // Autofill (adds Fee, Sequence, LastLedgerSequence)
-    const prepared = await client.autofill(tx);
+    // ===== TRANSACTION 2: FEE PAYMENT =====
+    // Always send XRP fee to BEAR Treasury
+    const feeTx: any = {
+      TransactionType: 'Payment',
+      Account: senderAddress,
+      Destination: BEAR_TREASURY_WALLET,
+      Amount: xrpToDrops(feeAmountXRP.toFixed(6)), // Fee in drops
+      // Add memo so it's clear what this is for
+      Memos: [{
+        Memo: {
+          MemoType: Buffer.from('BEAR_SWAP_FEE', 'utf8').toString('hex').toUpperCase(),
+          MemoData: Buffer.from(`Fee for swap: ${quote.inputToken.currency} → ${quote.outputToken.currency}`, 'utf8').toString('hex').toUpperCase(),
+        }
+      }],
+    };
 
-    // Sign transaction
-    const signed = await signTransaction(prepared);
+    // Autofill both transactions (adds Sequence, Fee, LastLedgerSequence)
+    onStatus?.('Getting transaction details...');
+    const [preparedSwap, preparedFee] = await Promise.all([
+      client.autofill(swapTx),
+      client.autofill(feeTx),
+    ]);
 
-    // Submit transaction
-    const result = await client.submitAndWait(signed.tx_blob);
+    // Ensure fee tx has sequence AFTER swap tx
+    preparedFee.Sequence = preparedSwap.Sequence! + 1;
 
-    if (result.result.meta && typeof result.result.meta !== 'string') {
-      const meta = result.result.meta as any;
-      if (meta.TransactionResult === 'tesSUCCESS') {
-        return {
-          success: true,
-          txHash: result.result.hash,
-        };
-      }
+    // ===== SIGN BOTH TRANSACTIONS =====
+    onStatus?.('Please sign the swap transaction...');
+    const signedSwap = await signTransaction(preparedSwap);
+
+    onStatus?.('Please sign the fee transaction...');
+    const signedFee = await signTransaction(preparedFee);
+
+    // ===== SUBMIT BOTH TRANSACTIONS =====
+    onStatus?.('Submitting swap...');
+    const swapResult = await client.submitAndWait(signedSwap.tx_blob);
+
+    // Check swap success
+    let swapSuccess = false;
+    if (swapResult.result.meta && typeof swapResult.result.meta !== 'string') {
+      const meta = swapResult.result.meta as any;
+      swapSuccess = meta.TransactionResult === 'tesSUCCESS';
     }
 
+    if (!swapSuccess) {
+      return {
+        success: false,
+        error: 'Swap transaction failed',
+      };
+    }
+
+    // Submit fee transaction
+    onStatus?.('Collecting fee...');
+    const feeResult = await client.submitAndWait(signedFee.tx_blob);
+
+    let feeSuccess = false;
+    if (feeResult.result.meta && typeof feeResult.result.meta !== 'string') {
+      const meta = feeResult.result.meta as any;
+      feeSuccess = meta.TransactionResult === 'tesSUCCESS';
+    }
+
+    // Even if fee fails, swap succeeded
     return {
-      success: false,
-      error: 'Transaction failed',
+      success: true,
+      swapTxHash: swapResult.result.hash,
+      feeTxHash: feeSuccess ? feeResult.result.hash : undefined,
+      error: feeSuccess ? undefined : 'Fee collection failed (swap still succeeded)',
     };
+
   } catch (error: any) {
     console.error('Swap execution error:', error);
     return {

@@ -3,10 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useWallet } from '../context/WalletContext';
 import type { Token, SwapQuote } from '../types';
 import { XRP_TOKEN } from '../types';
-import { getSwapQuote, executeSwap } from '../services/swapService';
+import { getSwapQuote, executeSwap, BEAR_TREASURY_WALLET } from '../services/swapService';
 import { formatFeePercent } from '../services/nftService';
 import TokenSelector, { TokenIcon } from './TokenSelector';
 import SlippageSlider from './SlippageSlider';
+
+// Shorten address for display
+const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
 const SwapCard: React.FC = () => {
   const { wallet, xrplClient, signTransaction, refreshBalance } = useWallet();
@@ -21,9 +24,11 @@ const SwapCard: React.FC = () => {
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [isSwapping, setIsSwapping] = useState(false);
+  const [swapStatus, setSwapStatus] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showTokenSelector, setShowTokenSelector] = useState<'input' | 'output' | null>(null);
+  const [swapSuccess, setSwapSuccess] = useState<{ swapHash?: string; feeHash?: string } | null>(null);
 
   // Debounced quote fetching
   useEffect(() => {
@@ -71,22 +76,31 @@ const SwapCard: React.FC = () => {
     if (!quote || !xrplClient || !wallet.address) return;
 
     setIsSwapping(true);
+    setSwapStatus('');
     setError(null);
+    setSwapSuccess(null);
 
     try {
       const result = await executeSwap(
         xrplClient,
         quote,
         wallet.address,
-        signTransaction
+        signTransaction,
+        (status) => setSwapStatus(status) // Status callback
       );
 
       if (result.success) {
-        // Success! Clear form and refresh balance
+        // Success! Show results and clear form
+        setSwapSuccess({
+          swapHash: result.swapTxHash,
+          feeHash: result.feeTxHash,
+        });
         setInputAmount('');
         setQuote(null);
         await refreshBalance();
-        // TODO: Show success toast with tx hash
+
+        // Auto-clear success message after 10 seconds
+        setTimeout(() => setSwapSuccess(null), 10000);
       } else {
         setError(result.error || 'Swap failed');
       }
@@ -94,6 +108,7 @@ const SwapCard: React.FC = () => {
       setError(err.message);
     } finally {
       setIsSwapping(false);
+      setSwapStatus('');
     }
   };
 
@@ -287,6 +302,17 @@ const SwapCard: React.FC = () => {
               <span>Fee ({formatFeePercent(wallet.feeTier)})</span>
               <span className="text-white">{quote.feeAmount} XRP</span>
             </div>
+            <div className="flex justify-between text-gray-400 text-xs">
+              <span>Fee goes to</span>
+              <a
+                href={`https://xrpscan.com/account/${BEAR_TREASURY_WALLET}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-bear-purple-400 hover:text-bear-purple-300 underline"
+              >
+                BEAR Treasury ({shortenAddress(BEAR_TREASURY_WALLET)})
+              </a>
+            </div>
             <div className="flex justify-between text-gray-400">
               <span>Minimum received</span>
               <span className="text-white">{quote.minimumReceived} {outputToken?.symbol}</span>
@@ -300,6 +326,65 @@ const SwapCard: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Swap status */}
+      {isSwapping && swapStatus && (
+        <div className="mt-4 p-3 bg-bear-purple-500/10 border border-bear-purple-500/30 rounded-xl text-bear-purple-400 text-sm flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-bear-purple-400/30 border-t-bear-purple-400 rounded-full animate-spin" />
+          {swapStatus}
+        </div>
+      )}
+
+      {/* Success message */}
+      {swapSuccess && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl text-sm"
+        >
+          <div className="flex items-center gap-2 text-green-400 font-semibold mb-2">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Swap Successful!
+          </div>
+          {swapSuccess.swapHash && (
+            <div className="text-gray-400 text-xs mb-1">
+              Swap TX:{' '}
+              <a
+                href={`https://xrpscan.com/tx/${swapSuccess.swapHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-bear-purple-400 hover:underline"
+              >
+                {swapSuccess.swapHash.slice(0, 8)}...{swapSuccess.swapHash.slice(-8)}
+              </a>
+            </div>
+          )}
+          {swapSuccess.feeHash && (
+            <div className="text-gray-400 text-xs">
+              Fee TX:{' '}
+              <a
+                href={`https://xrpscan.com/tx/${swapSuccess.feeHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-bear-purple-400 hover:underline"
+              >
+                {swapSuccess.feeHash.slice(0, 8)}...{swapSuccess.feeHash.slice(-8)}
+              </a>
+              {' → '}
+              <a
+                href={`https://xrpscan.com/account/${BEAR_TREASURY_WALLET}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-green-400 hover:underline"
+              >
+                BEAR Treasury
+              </a>
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Error message */}
       {error && (
