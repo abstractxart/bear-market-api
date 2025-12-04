@@ -116,13 +116,7 @@ const DEXSCREENER_ICONS: Record<string, string> = {
   'scrap': 'https://cdn.dexscreener.com/cms/images/26837eb3fc7c1d2f7f060adad69e1aa50b3c2ffcba72b760ac6d9b97359450b9',
   'XDawgs': 'https://cdn.dexscreener.com/cms/images/795c5d8e76b2e0df8c48740e1f37a6104695dfbca8a99eeef4aa83b0c2fc28b6',
   'COBALT': 'https://cdn.dexscreener.com/cms/images/394986e68744d2f78f1a83dccb13a8e91adace7e51ec700c93ec44ec52327177',
-  // User requested tokens - XMagnetic CDN URLs (more reliable)
-  'SPIFFY:rZ4yugfiQQMWx1a2ZxvzskL75TZeGgMFp': 'https://img.xmagnetic.org/u/rZ4yugfiQQMWx1a2ZxvzskL75TZeGgMFp_SPIFFY.webp',
-  'SPIFFY': 'https://img.xmagnetic.org/u/rZ4yugfiQQMWx1a2ZxvzskL75TZeGgMFp_SPIFFY.webp',
-  'PUPPET:rJfQFeHTZcnRsY4Ba5sJVKUhLs48E9apBn': 'https://img.xmagnetic.org/u/rJfQFeHTZcnRsY4Ba5sJVKUhLs48E9apBn_PUPPET.webp',
-  'PUPPET': 'https://img.xmagnetic.org/u/rJfQFeHTZcnRsY4Ba5sJVKUhLs48E9apBn_PUPPET.webp',
   'XRPLOL:rMDfsTapNvFSo7irSe6gYpPmYj3EjqbcqF': 'https://cdn.dexscreener.com/cms/images/b1f9818e13175906a8178a4933a2eddfe52f5daf411cb58937fe985284c682c1',
-  // FARM uses XMagnetic CDN fallback with actual issuer from API
 };
 
 // Dynamic icon cache from DexScreener API
@@ -196,9 +190,10 @@ const LOCAL_TOKEN_ICONS: Record<string, string> = {
   'USDC:rGm7uYknXfn7RhNzEuvwu4p98f3hkRzWhE': '/tokens/usdc.svg',
   'EUROP:rMkEJxjXRV7SvDaGP3tX4MQ3pWyvnfLLjg': '/tokens/europ.svg',
   // User requested tokens
-  'SPIFFY': '/tokens/spiffy.svg',
-  'FARM': '/tokens/farm.svg',
-  'PUPPET': '/tokens/puppet.svg',
+  'SPIFFY:rZ4yugfiQQMWx1a2ZxvzskL75TZeGgMFp': '/tokens/spiffy.webp',
+  'SPIFFY': '/tokens/spiffy.webp',
+  'PUPPET:rJfQFeHTZcnRsY4Ba5sJVKUhLs48E9apBn': '/tokens/puppet.webp',
+  'PUPPET': '/tokens/puppet.webp',
 };
 
 // ==================== HELPER FUNCTIONS ====================
