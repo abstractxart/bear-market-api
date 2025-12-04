@@ -16,6 +16,7 @@ import {
   getTokenIconUrl,
   getTokenIconUrls,
   formatCurrencyCode,
+  fetchDexScreenerIcon,
   COMMON_TOKENS,
   XRP_TOKEN,
   type XRPLToken,
@@ -31,9 +32,11 @@ interface TokenSelectorProps {
   excludeToken?: Token | null;
 }
 
-// Token icon component with fallback - tries multiple icon sources
+// Token icon component with fallback - tries multiple icon sources + DexScreener API
 const TokenIcon = ({ token, size = 40 }: { token: Token | XRPLToken; size?: number }) => {
   const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
+  const [dynamicUrl, setDynamicUrl] = useState<string | null>(null);
+  const [fetchingDynamic, setFetchingDynamic] = useState(false);
   const [allFailed, setAllFailed] = useState(false);
 
   // Get list of URLs to try
@@ -42,18 +45,30 @@ const TokenIcon = ({ token, size = 40 }: { token: Token | XRPLToken; size?: numb
     return getTokenIconUrls(token.currency, token.issuer);
   }, [token.currency, token.issuer, token.icon]);
 
-  const currentUrl = iconUrls[currentUrlIndex];
+  const currentUrl = dynamicUrl || iconUrls[currentUrlIndex];
 
   // Reset when token changes
   useEffect(() => {
     setCurrentUrlIndex(0);
+    setDynamicUrl(null);
+    setFetchingDynamic(false);
     setAllFailed(false);
   }, [token.currency, token.issuer]);
 
-  // Handle image load error - try next URL
-  const handleError = () => {
+  // Handle image load error - try next URL or fetch from DexScreener
+  const handleError = async () => {
     if (currentUrlIndex < iconUrls.length - 1) {
       setCurrentUrlIndex(prev => prev + 1);
+    } else if (!fetchingDynamic && !dynamicUrl) {
+      // Try fetching from DexScreener API
+      setFetchingDynamic(true);
+      const icon = await fetchDexScreenerIcon(token.symbol || token.currency);
+      if (icon) {
+        setDynamicUrl(icon);
+      } else {
+        setAllFailed(true);
+      }
+      setFetchingDynamic(false);
     } else {
       setAllFailed(true);
     }

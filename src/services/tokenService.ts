@@ -106,13 +106,73 @@ const DEXSCREENER_ICONS: Record<string, string> = {
   'SEAL': 'https://cdn.dexscreener.com/cms/images/69878be5f14ae0e0cbaaa45178d3190ae38b97d51ab2882b60ba8ef2349dd2f9',
   'CBIRD': 'https://cdn.dexscreener.com/cms/images/c63349105d407605fd2908c1bbc34af4dea74b68e50fdda51ee2b65c78d34212',
   'FLIPPY': 'https://cdn.dexscreener.com/cms/images/c7dfd777f4c7ba098acbaa9bb63816a6b86c6aa8ac1321bfdd3fab4b891f28e3',
+  '$FLIPPY': 'https://cdn.dexscreener.com/cms/images/c7dfd777f4c7ba098acbaa9bb63816a6b86c6aa8ac1321bfdd3fab4b891f28e3',
   'BERT': 'https://cdn.dexscreener.com/cms/images/d85a51a786ac61c7668ae38c256eab88a77dc87b3af7acd1c82e3145a45df1b3',
   'PIGEONS': 'https://cdn.dexscreener.com/cms/images/5fa79ec7f125929e17daa181f8c297898712d973679cfc3227edcb299c36259c',
   'ATM': 'https://cdn.dexscreener.com/cms/images/b912ada213e37a79135c3ee3c8ca21818b5c4dce5db5f8909fd4654fcc850caf',
   'Horizon': 'https://cdn.dexscreener.com/cms/images/f911fea0b87e05aa260aab697dfd7e8e12f6816297d048e9afa3512b6ca74d0e',
   'Opulence': 'https://cdn.dexscreener.com/cms/images/2e378aded56e20773293e584bc61c915c8e8c8972545d568b14aed250af28c87',
   'bull': 'https://cdn.dexscreener.com/cms/images/364494165161887247a37fafc7691d300191ad605b9408faf5aeefea82c75a00',
+  'scrap': 'https://cdn.dexscreener.com/cms/images/26837eb3fc7c1d2f7f060adad69e1aa50b3c2ffcba72b760ac6d9b97359450b9',
+  'XDawgs': 'https://cdn.dexscreener.com/cms/images/795c5d8e76b2e0df8c48740e1f37a6104695dfbca8a99eeef4aa83b0c2fc28b6',
+  'COBALT': 'https://cdn.dexscreener.com/cms/images/394986e68744d2f78f1a83dccb13a8e91adace7e51ec700c93ec44ec52327177',
 };
+
+// Dynamic icon cache from DexScreener API
+const dynamicIconCache: Record<string, string | null> = {};
+const pendingIconFetches: Record<string, Promise<string | null>> = {};
+
+/**
+ * Fetch icon from DexScreener API dynamically
+ */
+async function fetchDexScreenerIcon(currency: string): Promise<string | null> {
+  const cacheKey = currency;
+
+  // Return cached result
+  if (cacheKey in dynamicIconCache) {
+    return dynamicIconCache[cacheKey];
+  }
+
+  // Return pending fetch if exists
+  if (cacheKey in pendingIconFetches) {
+    return pendingIconFetches[cacheKey];
+  }
+
+  // Start new fetch
+  pendingIconFetches[cacheKey] = (async () => {
+    try {
+      const response = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(currency)}`);
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      const pairs = data.pairs || [];
+
+      // Find XRPL pair with matching currency
+      for (const pair of pairs) {
+        if (pair.chainId === 'xrpl' && pair.info?.imageUrl) {
+          const symbol = pair.baseToken?.symbol?.toUpperCase();
+          if (symbol === currency.toUpperCase()) {
+            dynamicIconCache[cacheKey] = pair.info.imageUrl;
+            return pair.info.imageUrl;
+          }
+        }
+      }
+
+      dynamicIconCache[cacheKey] = null;
+      return null;
+    } catch {
+      dynamicIconCache[cacheKey] = null;
+      return null;
+    } finally {
+      delete pendingIconFetches[cacheKey];
+    }
+  })();
+
+  return pendingIconFetches[cacheKey];
+}
+
+// Export for use in components
+export { fetchDexScreenerIcon };
 
 /**
  * Local fallback SVG icons (for XRP and tokens without DexScreener icons)
