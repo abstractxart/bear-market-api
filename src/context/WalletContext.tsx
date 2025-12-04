@@ -197,8 +197,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // Register referral if there's a stored referral code
       const storedRefCode = getStoredReferralCode();
       if (storedRefCode) {
-        registerReferral(address, storedRefCode);
-        console.log(`[Wallet] Registered referral from code: ${storedRefCode}`);
+        registerReferral(address, storedRefCode)
+          .then(result => {
+            if (result) {
+              console.log(`[Wallet] Registered referral from code: ${storedRefCode}`);
+            }
+          })
+          .catch(error => {
+            console.error(`[Wallet] Failed to register referral:`, error);
+          });
       }
 
     } catch (err: any) {
@@ -240,8 +247,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     // Register referral if there's a stored referral code
     const storedRefCode = getStoredReferralCode();
     if (storedRefCode) {
-      registerReferral(address, storedRefCode);
-      console.log(`[Wallet] Registered referral from code: ${storedRefCode}`);
+      registerReferral(address, storedRefCode)
+        .then(result => {
+          if (result) {
+            console.log(`[Wallet] Registered referral from code: ${storedRefCode}`);
+          }
+        })
+        .catch(error => {
+          console.error(`[Wallet] Failed to register referral:`, error);
+        });
     }
   }, [xrplClient]);
 

@@ -1,20 +1,28 @@
 /**
  * Referral System Service
  *
- * Phase 1: Client-side tracking with manual claim
+ * Phase 2: Backend API integration with automatic payouts
  * - Captures referral codes from URL
- * - Stores relationships in localStorage
- * - Generates unique referral codes
+ * - Registers with backend API
+ * - Falls back to localStorage if API unavailable
  */
+
+import { api } from './apiClient';
 
 const REFERRAL_STORAGE_KEY = 'bear_market_referral';
 const REFERRER_STORAGE_KEY = 'bear_market_referrer';
 
 export interface ReferralData {
   referralCode: string;      // User's own referral code
-  referredBy: string | null; // Wallet address of who referred them
+  referredBy: string | null; // Referral code of who referred them
   referralLink: string;       // Full referral link to share
   timestamp: number;          // When the referral was recorded
+}
+
+export interface ReferralStats {
+  totalReferrals: number;
+  totalEarned: string; // XRP amount
+  pendingPayouts: string; // XRP amount
 }
 
 /**
@@ -61,41 +69,87 @@ export function clearStoredReferralCode(): void {
 
 /**
  * Register a referral relationship (when wallet connects)
+ * Phase 2: Registers with backend API
  */
-export function registerReferral(
+export async function registerReferral(
   userWallet: string,
-  referrerCode: string
-): ReferralData | null {
-  // Don't allow self-referral
+  referrerCode: string | null
+): Promise<ReferralData | null> {
   const userCode = generateReferralCode(userWallet);
-  if (userCode === referrerCode) {
+
+  // Don't allow self-referral
+  if (referrerCode && userCode === referrerCode) {
     console.warn('[Referral] Self-referral not allowed');
     return null;
   }
 
-  const referralData: ReferralData = {
-    referralCode: userCode,
-    referredBy: referrerCode,
-    referralLink: `${window.location.origin}?ref=${userCode}`,
-    timestamp: Date.now(),
-  };
+  try {
+    // Register with backend API
+    const response = await api.registerReferral(userWallet, referrerCode);
 
-  // Store in localStorage (Phase 1)
-  localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify(referralData));
+    if (response.success && response.data) {
+      const referralData: ReferralData = {
+        referralCode: response.data.referralCode,
+        referredBy: response.data.referredBy,
+        referralLink: response.data.referralLink,
+        timestamp: Date.now(),
+      };
 
-  // Clear the stored referrer code since we've registered it
-  clearStoredReferralCode();
+      // Also store locally for offline access
+      localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify(referralData));
+      clearStoredReferralCode();
 
-  console.log('[Referral] Registered:', referralData);
-  return referralData;
+      console.log('[Referral] Registered with API:', referralData);
+      return referralData;
+    } else {
+      throw new Error(response.error || 'API registration failed');
+    }
+  } catch (error) {
+    console.error('[Referral] API registration failed, using localStorage fallback:', error);
+
+    // Fallback to localStorage (Phase 1 behavior)
+    const referralData: ReferralData = {
+      referralCode: userCode,
+      referredBy: referrerCode,
+      referralLink: `${window.location.origin}?ref=${userCode}`,
+      timestamp: Date.now(),
+    };
+
+    localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify(referralData));
+    clearStoredReferralCode();
+
+    return referralData;
+  }
 }
 
 /**
  * Get user's referral data
+ * Phase 2: Fetches from API if possible
  */
-export function getUserReferralData(walletAddress: string): ReferralData {
-  const stored = localStorage.getItem(REFERRAL_STORAGE_KEY);
+export async function getUserReferralData(walletAddress: string): Promise<ReferralData> {
+  try {
+    // Try to fetch from API first
+    const response = await api.getReferralData(walletAddress);
 
+    if (response.success && response.data) {
+      const referralData: ReferralData = {
+        referralCode: response.data.referralCode,
+        referredBy: response.data.referredBy,
+        referralLink: response.data.referralLink,
+        timestamp: Date.now(),
+      };
+
+      // Cache in localStorage
+      localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify(referralData));
+
+      return referralData;
+    }
+  } catch (error) {
+    console.error('[Referral] Failed to fetch from API, using localStorage:', error);
+  }
+
+  // Fallback to localStorage
+  const stored = localStorage.getItem(REFERRAL_STORAGE_KEY);
   if (stored) {
     try {
       return JSON.parse(stored) as ReferralData;
@@ -130,22 +184,27 @@ export function wasReferred(): boolean {
 }
 
 /**
- * Get referral stats (placeholder for Phase 2 backend integration)
+ * Get referral stats from backend API
  */
-export interface ReferralStats {
-  totalReferrals: number;
-  totalEarned: string; // XRP amount
-  pendingPayouts: string; // XRP amount
-}
+export async function getReferralStats(walletAddress: string): Promise<ReferralStats> {
+  try {
+    const response = await api.getReferralStats(walletAddress);
 
-export function getReferralStats(): ReferralStats {
-  // Phase 1: Return mock data
-  // Phase 2: This will fetch from backend API
-  return {
-    totalReferrals: 0,
-    totalEarned: '0',
-    pendingPayouts: '0',
-  };
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new Error(response.error || 'Failed to fetch stats');
+  } catch (error) {
+    console.error('[Referral] Failed to fetch stats:', error);
+
+    // Return zeros if API fails
+    return {
+      totalReferrals: 0,
+      totalEarned: '0',
+      pendingPayouts: '0',
+    };
+  }
 }
 
 /**

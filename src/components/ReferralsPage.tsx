@@ -1,10 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWallet } from '../context/WalletContext';
-import { getUserReferralData, copyReferralLink, getReferralStats } from '../services/referralService';
+import { getUserReferralData, copyReferralLink, getReferralStats, type ReferralData, type ReferralStats } from '../services/referralService';
 
 const ReferralsPage: React.FC = () => {
   const { wallet } = useWallet();
   const [copySuccess, setCopySuccess] = useState(false);
+  const [referralData, setReferralData] = useState<ReferralData | null>(null);
+  const [stats, setStats] = useState<ReferralStats>({ totalReferrals: 0, totalEarned: '0', pendingPayouts: '0' });
+  const [loading, setLoading] = useState(true);
+
+  // Fetch referral data when wallet connects
+  useEffect(() => {
+    if (wallet.isConnected && wallet.address) {
+      setLoading(true);
+      Promise.all([
+        getUserReferralData(wallet.address),
+        getReferralStats(wallet.address)
+      ])
+        .then(([data, statsData]) => {
+          setReferralData(data);
+          setStats(statsData);
+        })
+        .catch(error => {
+          console.error('[Referrals] Failed to fetch data:', error);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [wallet.isConnected, wallet.address]);
 
   if (!wallet.isConnected || !wallet.address) {
     return (
@@ -20,8 +44,16 @@ const ReferralsPage: React.FC = () => {
     );
   }
 
-  const referralData = getUserReferralData(wallet.address);
-  const stats = getReferralStats();
+  if (loading || !referralData) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20">
+        <div className="glass-card p-12 text-center">
+          <div className="w-16 h-16 mx-auto mb-6 border-4 border-bear-purple-500/30 border-t-bear-purple-500 rounded-full animate-spin"></div>
+          <p className="text-gray-400">Loading your referral data...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleCopy = async () => {
     const success = await copyReferralLink(referralData.referralLink);
