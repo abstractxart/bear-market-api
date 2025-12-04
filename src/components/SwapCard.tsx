@@ -4,7 +4,7 @@ import { useWallet } from '../context/WalletContext';
 import type { Token, SwapQuote } from '../types';
 import { XRP_TOKEN } from '../types';
 import { getSwapQuote, executeSwap, BEAR_TREASURY_WALLET } from '../services/swapService';
-import { formatFeePercent } from '../services/nftService';
+import { formatFeePercent, getFeeRate } from '../services/nftService';
 import { findTokenBalance } from '../utils/currency';
 import TokenSelector, { TokenIcon } from './TokenSelector';
 import SlippageSlider from './SlippageSlider';
@@ -77,7 +77,7 @@ const SwapCard: React.FC = () => {
           if (rate > 0) {
             const desiredOutput = parseFloat(outputAmount);
             // Account for fees - we need slightly more input
-            const feeMultiplier = 1 + (wallet.feeTier === 'ultra_rare' ? 0.00321 : wallet.feeTier === 'pixel_bear' ? 0.00485 : 0.00589);
+            const feeMultiplier = 1 + getFeeRate(wallet.feeTier);
             const estimatedInput = (desiredOutput / rate) * feeMultiplier;
             const roundedInput = estimatedInput.toFixed(6);
 
