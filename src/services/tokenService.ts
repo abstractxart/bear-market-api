@@ -547,30 +547,34 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
         const baseToken = pair.baseToken;
         if (!baseToken) continue;
 
-        // Parse the address - format is "CURRENCY.issuer" or hex
+        // Parse the address - DexScreener format: "hexCurrency.rIssuerAddress"
         const address = baseToken.address || '';
-        let currency = baseToken.symbol || '';
         let issuer = '';
 
-        // Extract issuer from address (format: "hex.issuer" or "SYMBOL.issuer")
+        // Extract issuer from address (the part after the dot starting with 'r')
         if (address.includes('.')) {
-          const parts = address.split('.');
-          issuer = parts[1] || '';
+          const dotIndex = address.lastIndexOf('.');
+          const possibleIssuer = address.substring(dotIndex + 1);
+          // XRPL addresses start with 'r' and are ~25-35 chars
+          if (possibleIssuer.startsWith('r') && possibleIssuer.length >= 25) {
+            issuer = possibleIssuer;
+          }
         }
 
         if (!issuer) continue;
 
-        // Decode hex currency if needed
-        currency = formatCurrencyCode(currency);
+        // Use the symbol from baseToken (DexScreener already decodes it)
+        const symbol = baseToken.symbol || '';
+        const name = baseToken.name || symbol;
 
         const token: XRPLToken = {
-          currency: baseToken.symbol || currency,
+          currency: symbol,
           issuer,
-          name: baseToken.name || currency,
-          symbol: baseToken.symbol || currency,
-          icon: getTokenIconUrl(baseToken.symbol || currency, issuer),
+          name: name,
+          symbol: symbol,
+          icon: getTokenIconUrl(symbol, issuer),
           decimals: 15,
-          price: pair.priceUsd ? parseFloat(pair.priceUsd) : undefined,
+          price: pair.priceNative ? parseFloat(pair.priceNative) : undefined, // Use native XRP price
           volume24h: pair.volume?.h24 || 0,
           priceChange24h: pair.priceChange?.h24,
         };
@@ -957,6 +961,23 @@ export const COMMON_TOKENS: XRPLToken[] = [
     name: 'XMeme',
     symbol: 'XMEME',
     icon: getTokenIconUrl('XMEME', 'rMeMEz93gAbQfs5LB9bR9XFXBC9u6NEVYt'),
+    decimals: 15,
+  },
+  // User-requested tokens
+  {
+    currency: 'SPIFFY',
+    issuer: 'rZ4yugfiQQMWx1a2ZxvzskL75TZeGgMFp',
+    name: 'SPIFFY',
+    symbol: 'SPIFFY',
+    icon: getTokenIconUrl('SPIFFY', 'rZ4yugfiQQMWx1a2ZxvzskL75TZeGgMFp'),
+    decimals: 15,
+  },
+  {
+    currency: 'PUPPET',
+    issuer: 'rJfQFeHTZcnRsY4Ba5sJVKUhLs48E9apBn',
+    name: 'PUPPET',
+    symbol: 'PUPPET',
+    icon: getTokenIconUrl('PUPPET', 'rJfQFeHTZcnRsY4Ba5sJVKUhLs48E9apBn'),
     decimals: 15,
   },
 ];
