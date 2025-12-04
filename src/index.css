@@ -137,8 +137,19 @@ body {
 /* ===== Component Classes ===== */
 .glass-card {
   background: linear-gradient(180deg, rgba(237, 183, 35, 0.12), rgba(237, 183, 35, 0.08));
-  border: 5px solid transparent;
-  border-image: linear-gradient(
+  border-radius: 2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  position: relative;
+  padding: 5px;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 2rem;
+  padding: 5px;
+  background: linear-gradient(
     to right,
     var(--color-bearpark-purple) 0%,
     var(--color-bearpark-purple) 33.33%,
@@ -146,20 +157,32 @@ body {
     var(--color-bearpark-yellow) 66.66%,
     var(--color-bearpark-green) 66.66%,
     var(--color-bearpark-green) 100%
-  ) 1;
-  border-radius: 2rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  position: relative;
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: -1;
 }
 
 .btn-primary {
   background: var(--color-bearpark-accent);
   color: white;
   font-weight: 900;
-  padding: 0.875rem 2rem;
+  padding: calc(0.875rem + 4px) calc(2rem + 4px);
   border-radius: 1.375rem;
-  border: 4px solid transparent;
-  border-image: linear-gradient(
+  box-shadow: 0 8px 0 #7b2a20, 0 12px 20px rgba(0, 0, 0, 0.35);
+  transition: all 0.12s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 1.375rem;
+  padding: 4px;
+  background: linear-gradient(
     to right,
     var(--color-bearpark-purple) 0%,
     var(--color-bearpark-purple) 33.33%,
@@ -167,10 +190,11 @@ body {
     var(--color-bearpark-yellow) 66.66%,
     var(--color-bearpark-green) 66.66%,
     var(--color-bearpark-green) 100%
-  ) 1;
-  box-shadow: 0 8px 0 #7b2a20, 0 12px 20px rgba(0, 0, 0, 0.35);
-  transition: all 0.12s ease;
-  cursor: pointer;
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: -1;
 }
 
 .btn-primary:hover {
@@ -201,10 +225,21 @@ body {
   background: var(--color-bearpark-gold);
   color: #000;
   font-weight: 900;
-  padding: 0.875rem 2rem;
+  padding: calc(0.875rem + 4px) calc(2rem + 4px);
   border-radius: 1.375rem;
-  border: 4px solid transparent;
-  border-image: linear-gradient(
+  box-shadow: 0 8px 0 #9b7a0d, 0 12px 20px rgba(0, 0, 0, 0.35);
+  transition: all 0.12s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.btn-honey::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 1.375rem;
+  padding: 4px;
+  background: linear-gradient(
     to right,
     var(--color-bearpark-purple) 0%,
     var(--color-bearpark-purple) 33.33%,
@@ -212,10 +247,11 @@ body {
     var(--color-bearpark-yellow) 66.66%,
     var(--color-bearpark-green) 66.66%,
     var(--color-bearpark-green) 100%
-  ) 1;
-  box-shadow: 0 8px 0 #9b7a0d, 0 12px 20px rgba(0, 0, 0, 0.35);
-  transition: all 0.12s ease;
-  cursor: pointer;
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: -1;
 }
 
 .btn-honey:hover {
@@ -231,10 +267,22 @@ body {
   background: var(--color-bearpark-green);
   color: white;
   font-weight: 900;
-  padding: 1rem 2rem;
+  padding: calc(1rem + 4px) calc(2rem + 4px);
   border-radius: 1.375rem;
-  border: 4px solid transparent;
-  border-image: linear-gradient(
+  box-shadow: 0 8px 0 #055a06, 0 12px 20px rgba(0, 0, 0, 0.35);
+  transition: all 0.12s ease;
+  cursor: pointer;
+  animation: var(--animate-pulse-glow);
+  position: relative;
+}
+
+.btn-bear-attack::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 1.375rem;
+  padding: 4px;
+  background: linear-gradient(
     to right,
     var(--color-bearpark-purple) 0%,
     var(--color-bearpark-purple) 33.33%,
@@ -242,11 +290,11 @@ body {
     var(--color-bearpark-yellow) 66.66%,
     var(--color-bearpark-green) 66.66%,
     var(--color-bearpark-green) 100%
-  ) 1;
-  box-shadow: 0 8px 0 #055a06, 0 12px 20px rgba(0, 0, 0, 0.35);
-  transition: all 0.12s ease;
-  cursor: pointer;
-  animation: var(--animate-pulse-glow);
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: -1;
 }
 
 .btn-bear-attack:hover {
@@ -260,8 +308,23 @@ body {
 
 .input-field {
   background: linear-gradient(180deg, rgba(237, 183, 35, 0.08), rgba(237, 183, 35, 0.04));
-  border: 3px solid transparent;
-  border-image: linear-gradient(
+  border-radius: 0.75rem;
+  padding: calc(0.75rem + 3px) calc(1rem + 3px);
+  color: white;
+  transition: all 0.2s;
+  outline: none;
+  width: 100%;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+  position: relative;
+}
+
+.input-field::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  padding: 3px;
+  background: linear-gradient(
     to right,
     var(--color-bearpark-purple) 0%,
     var(--color-bearpark-purple) 33.33%,
@@ -269,14 +332,11 @@ body {
     var(--color-bearpark-yellow) 66.66%,
     var(--color-bearpark-green) 66.66%,
     var(--color-bearpark-green) 100%
-  ) 1;
-  border-radius: 0.75rem;
-  padding: 0.75rem 1rem;
-  color: white;
-  transition: all 0.2s;
-  outline: none;
-  width: 100%;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: -1;
 }
 
 .input-field::placeholder {
