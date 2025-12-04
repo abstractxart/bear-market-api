@@ -12,8 +12,7 @@ import { getFeeRate } from './nftService';
 const ONTHEDEX_API = 'https://api.onthedex.live/public/v1';
 
 // BEAR Treasury wallet - ALL swap fees go here
-// TODO: Replace with actual BEAR treasury address
-export const BEAR_TREASURY_WALLET = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
+export const BEAR_TREASURY_WALLET = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 
 /**
  * Convert currency code to XRPL-compatible format
