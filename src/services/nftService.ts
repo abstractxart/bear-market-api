@@ -24,14 +24,27 @@ export async function checkPixelBearNFTs(
   try {
     console.log(`[NFT Check] Checking wallet: ${address}`);
 
-    // Fetch account NFTs
-    const response = await client.request({
-      command: 'account_nfts',
-      account: address,
-      ledger_index: 'validated',
-    });
+    // Fetch ALL account NFTs (with pagination support)
+    let accountNfts: AccountNFT[] = [];
+    let marker: any = undefined;
 
-    const accountNfts = response.result.account_nfts as AccountNFT[];
+    do {
+      const response = await client.request({
+        command: 'account_nfts',
+        account: address,
+        ledger_index: 'validated',
+        limit: 400, // Max per request
+        marker: marker,
+      });
+
+      accountNfts.push(...(response.result.account_nfts as AccountNFT[]));
+      marker = response.result.marker;
+
+      if (marker) {
+        console.log(`[NFT Check] Fetching more NFTs... (got ${accountNfts.length} so far)`);
+      }
+    } while (marker);
+
     console.log(`[NFT Check] Total NFTs found: ${accountNfts.length}`);
 
     // Log all unique issuers found
