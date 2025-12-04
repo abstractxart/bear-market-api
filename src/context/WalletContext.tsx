@@ -52,9 +52,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Initialize XRPL client
   useEffect(() => {
+    console.log(`[XRPL Client] Connecting to: ${XRPL_ENDPOINT}`);
+    console.log(`[XRPL Client] Environment: ${import.meta.env.PROD ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+
     const client = new Client(XRPL_ENDPOINT);
 
     client.connect().then(() => {
+      console.log(`[XRPL Client] Connected successfully to ${XRPL_ENDPOINT}`);
       setXrplClient(client);
     }).catch((err) => {
       console.error('Failed to connect to XRPL:', err);

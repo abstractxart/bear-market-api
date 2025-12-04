@@ -22,6 +22,8 @@ export async function checkPixelBearNFTs(
   address: string
 ): Promise<NFTCheckResult> {
   try {
+    console.log(`[NFT Check] Checking wallet: ${address}`);
+
     // Fetch account NFTs
     const response = await client.request({
       command: 'account_nfts',
@@ -30,6 +32,12 @@ export async function checkPixelBearNFTs(
     });
 
     const accountNfts = response.result.account_nfts as AccountNFT[];
+    console.log(`[NFT Check] Total NFTs found: ${accountNfts.length}`);
+
+    // Log all unique issuers found
+    const uniqueIssuers = [...new Set(accountNfts.map(nft => nft.Issuer))];
+    console.log(`[NFT Check] Unique issuers:`, uniqueIssuers);
+    console.log(`[NFT Check] Looking for Pixel BEAR issuer: ${BEAR_ECOSYSTEM.PIXEL_BEAR_ISSUER}`);
 
     // Filter for Pixel Bear NFTs
     const pixelBears: PixelBearNFT[] = accountNfts
@@ -41,8 +49,14 @@ export async function checkPixelBearNFTs(
         imageUrl: nft.URI ? hexToString(nft.URI) : undefined,
       }));
 
+    console.log(`[NFT Check] Pixel BEARs found: ${pixelBears.length}`);
+    if (pixelBears.length > 0) {
+      console.log(`[NFT Check] Taxons:`, pixelBears.map(pb => pb.taxon));
+    }
+
     // Determine tier
     if (pixelBears.length === 0) {
+      console.log(`[NFT Check] No Pixel BEARs found → tier: regular`);
       return {
         tier: 'regular',
         nfts: [],
@@ -51,15 +65,19 @@ export async function checkPixelBearNFTs(
     }
 
     const hasUltraRare = pixelBears.some((nft) => nft.isUltraRare);
+    const tier = hasUltraRare ? 'ultra_rare' : 'pixel_bear';
+    console.log(`[NFT Check] Has Ultra Rare: ${hasUltraRare} → tier: ${tier}`);
 
     return {
-      tier: hasUltraRare ? 'ultra_rare' : 'pixel_bear',
+      tier,
       nfts: pixelBears,
       hasUltraRare,
     };
   } catch (error: any) {
+    console.error(`[NFT Check] Error:`, error);
     // Account might not exist or have no NFTs
     if (error.data?.error === 'actNotFound') {
+      console.log(`[NFT Check] Account not found → tier: regular`);
       return {
         tier: 'regular',
         nfts: [],
