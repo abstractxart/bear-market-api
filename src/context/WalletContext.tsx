@@ -21,7 +21,7 @@ interface WalletContextType {
 
   // Connection methods
   connectWithSecret: (secret: string) => Promise<void>;
-  connectWithAddress: (address: string) => void;
+  connectWithAddress: (address: string) => Promise<void>;
   disconnect: () => void;
 
   // Wallet operations
@@ -136,10 +136,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Check NFT holdings for fee tier
   const refreshFeeTier = useCallback(async () => {
-    if (!xrplClient || !wallet.address) return;
+    if (!xrplClient || !wallet.address) {
+      console.warn('Fee tier check skipped: client or address not ready');
+      return;
+    }
 
     try {
       const nftResult = await checkPixelBearNFTs(xrplClient, wallet.address);
+      console.log(`Fee tier detected: ${nftResult.tier}`);
       setWallet((prev) => ({
         ...prev,
         feeTier: nftResult.tier,
@@ -155,6 +159,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
+      // WAIT for XRPL client to be ready
+      if (!xrplClient) {
+        throw new Error('XRPL client not ready. Please wait a moment and try again.');
+      }
+
       const keyManager = getKeyManager();
       const { address } = await keyManager.initializeSessionOnly(secret);
 
@@ -162,11 +171,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         address: address,
         connectionType: 'manual',
         isConnected: true,
-        feeTier: 'regular', // Will be updated after NFT check
+        feeTier: 'regular', // Will be updated by NFT check below
         balance: { xrp: '0', tokens: [] },
         honeyPoints: 0,
       });
-      // Balance refresh is handled by the useEffect
+
+      // Immediately trigger fee tier check (don't rely on useEffect timing)
+      if (xrplClient && address) {
+        try {
+          const nftResult = await checkPixelBearNFTs(xrplClient, address);
+          setWallet((prev) => ({
+            ...prev,
+            feeTier: nftResult.tier,
+          }));
+        } catch (err) {
+          console.error('Failed to check NFT tier during connection:', err);
+        }
+      }
 
     } catch (err: any) {
       console.error('Failed to connect wallet:', err);
@@ -174,10 +195,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsConnecting(false);
     }
-  }, []);
+  }, [xrplClient]);
 
   // Connect with just address (from SecureWalletConnect)
-  const connectWithAddress = useCallback((address: string) => {
+  const connectWithAddress = useCallback(async (address: string) => {
+    if (!xrplClient) {
+      console.warn('XRPL client not ready, fee tier check will be delayed');
+    }
+
     setWallet({
       address: address,
       connectionType: 'manual',
@@ -186,8 +211,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       balance: { xrp: '0', tokens: [] },
       honeyPoints: 0,
     });
-    // Balance refresh is handled by the useEffect below
-  }, []);
+
+    // Immediately check fee tier
+    if (xrplClient && address) {
+      try {
+        const nftResult = await checkPixelBearNFTs(xrplClient, address);
+        setWallet((prev) => ({
+          ...prev,
+          feeTier: nftResult.tier,
+        }));
+      } catch (err) {
+        console.error('Failed to check NFT tier during connection:', err);
+      }
+    }
+  }, [xrplClient]);
 
   // Auto-refresh balance when wallet address changes
   useEffect(() => {

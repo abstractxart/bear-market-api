@@ -27,22 +27,6 @@ const App: React.FC = () => {
                 Swap XRP tokens with fees as low as <span className="text-bear-gold-400 font-semibold">0.321%</span>.
                 All fees support the BEAR ecosystem.
               </p>
-
-              {/* Stats */}
-              <div className="flex justify-center gap-8 mt-8">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-white font-mono">$0</div>
-                  <div className="text-sm text-gray-500">24h Volume</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-white font-mono">0</div>
-                  <div className="text-sm text-gray-500">Total Trades</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-bear-green-400 font-mono">0.321%</div>
-                  <div className="text-sm text-gray-500">Lowest Fee</div>
-                </div>
-              </div>
             </div>
 
             {/* Swap card */}

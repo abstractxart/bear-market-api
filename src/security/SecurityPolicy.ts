@@ -135,10 +135,9 @@ export const logSecurityEvent = (event: string, details?: string): void => {
     securityLog.shift();
   }
 
-  // In development, also log to console
-  if (isDevelopment) {
-    console.log(`[SECURITY] ${event}`, details || '');
-  }
+  // REMOVED: Development console logging
+  // Security events should NEVER be logged to console as they may contain sensitive data
+  // Use getSecurityLog() API for debugging instead
 };
 
 export const getSecurityLog = (): typeof securityLog => {
@@ -146,6 +145,16 @@ export const getSecurityLog = (): typeof securityLog => {
     return [];
   }
   return [...securityLog];
+};
+
+/**
+ * Safe debugging - only log event names, never details
+ * Use this for development debugging when you need console visibility
+ */
+export const logSecurityEventSafe = (event: string): void => {
+  if (isDevelopment) {
+    console.log(`[SECURITY EVENT] ${event}`);  // Event name only, no details
+  }
 };
 
 /**
