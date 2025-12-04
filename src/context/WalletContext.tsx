@@ -70,16 +70,33 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (!xrplClient || !wallet.address) return;
 
     try {
-      // Get XRP balance
-      const accountInfo = await xrplClient.request({
-        command: 'account_info',
-        account: wallet.address,
-        ledger_index: 'validated',
-      });
+      // Get XRP balance and server state for reserve calculation
+      const [accountInfo, serverState] = await Promise.all([
+        xrplClient.request({
+          command: 'account_info',
+          account: wallet.address,
+          ledger_index: 'validated',
+        }),
+        xrplClient.request({
+          command: 'server_state',
+        }),
+      ]);
 
       const xrpBalance = accountInfo.result.account_data.Balance;
-      const xrpInDrops = BigInt(xrpBalance);
-      const xrpFormatted = (Number(xrpInDrops) / 1_000_000).toFixed(6);
+      const ownerCount = accountInfo.result.account_data.OwnerCount || 0;
+
+      // Get reserve requirements from server state (in drops)
+      const validatedLedger = serverState.result.state.validated_ledger;
+      const baseReserveDrops = validatedLedger?.reserve_base || 10_000_000; // 10 XRP default
+      const ownerReserveDrops = validatedLedger?.reserve_inc || 2_000_000; // 2 XRP default
+
+      // Calculate total reserved and spendable XRP
+      const totalDrops = BigInt(xrpBalance);
+      const reservedDrops = BigInt(baseReserveDrops) + BigInt(ownerReserveDrops) * BigInt(ownerCount);
+      const spendableDrops = totalDrops > reservedDrops ? totalDrops - reservedDrops : BigInt(0);
+
+      // Show SPENDABLE balance only (not locked reserves)
+      const xrpFormatted = (Number(spendableDrops) / 1_000_000).toFixed(6);
 
       // Get token balances
       const accountLines = await xrplClient.request({
