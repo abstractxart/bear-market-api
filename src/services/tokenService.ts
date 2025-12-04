@@ -122,7 +122,7 @@ const DEXSCREENER_ICONS: Record<string, string> = {
   'PUPPET:rJfQFeHTZcnRsY4Ba5sJVKUhLs48E9apBn': 'https://img.xmagnetic.org/u/rJfQFeHTZcnRsY4Ba5sJVKUhLs48E9apBn_PUPPET.webp',
   'PUPPET': 'https://img.xmagnetic.org/u/rJfQFeHTZcnRsY4Ba5sJVKUhLs48E9apBn_PUPPET.webp',
   'XRPLOL:rMDfsTapNvFSo7irSe6gYpPmYj3EjqbcqF': 'https://cdn.dexscreener.com/cms/images/b1f9818e13175906a8178a4933a2eddfe52f5daf411cb58937fe985284c682c1',
-  'FARM': 'https://img.xmagnetic.org/u/rfarms5a1B9fXmxVVi3cKqQVKdPcVEuij_FARM.webp',
+  // FARM uses XMagnetic CDN fallback with actual issuer from API
 };
 
 // Dynamic icon cache from DexScreener API
