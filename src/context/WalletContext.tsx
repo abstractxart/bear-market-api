@@ -5,6 +5,7 @@ import type { WalletState, TokenBalance } from '../types';
 import { checkPixelBearNFTs } from '../services/nftService';
 import { getKeyManager } from '../security/SecureKeyManager';
 import { normalizeCurrency } from '../utils/currency';
+import { getStoredReferralCode, registerReferral } from '../services/referralService';
 
 // XRPL Client Configuration
 const XRPL_MAINNET = 'wss://xrplcluster.com';
@@ -193,6 +194,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Register referral if there's a stored referral code
+      const storedRefCode = getStoredReferralCode();
+      if (storedRefCode) {
+        registerReferral(address, storedRefCode);
+        console.log(`[Wallet] Registered referral from code: ${storedRefCode}`);
+      }
+
     } catch (err: any) {
       console.error('Failed to connect wallet:', err);
       setError(err.message || 'Invalid secret key');
@@ -227,6 +235,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('Failed to check NFT tier during connection:', err);
       }
+    }
+
+    // Register referral if there's a stored referral code
+    const storedRefCode = getStoredReferralCode();
+    if (storedRefCode) {
+      registerReferral(address, storedRefCode);
+      console.log(`[Wallet] Registered referral from code: ${storedRefCode}`);
     }
   }, [xrplClient]);
 

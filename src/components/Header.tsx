@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useWallet } from '../context/WalletContext';
 import { getFeeTierName } from '../services/nftService';
@@ -25,30 +26,31 @@ const Header: React.FC = () => {
       <header className="fixed top-0 left-0 right-0 z-40 bg-bear-dark-900/80 backdrop-blur-xl border-b border-bear-dark-700">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           {/* Logo */}
-          <motion.a
-            href="/"
-            className="flex items-center gap-3"
-            whileHover={{ scale: 1.02 }}
-          >
-            {/* Bear icon */}
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-bear-purple-500 to-bear-green-500 flex items-center justify-center">
-              <span className="text-2xl">🐻</span>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold font-display text-gradient-bear">
-                BEAR MARKET
-              </h1>
-              <p className="text-xs text-gray-500 -mt-0.5">
-                We thrive in the Bear Market
-              </p>
-            </div>
-          </motion.a>
+          <Link to="/" className="flex items-center gap-3">
+            <motion.div whileHover={{ scale: 1.02 }} className="flex items-center gap-3">
+              {/* Bear icon */}
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-bear-purple-500 to-bear-green-500 flex items-center justify-center">
+                <span className="text-2xl">🐻</span>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold font-display text-gradient-bear">
+                  BEAR MARKET
+                </h1>
+                <p className="text-xs text-gray-500 -mt-0.5">
+                  We thrive in the Bear Market
+                </p>
+              </div>
+            </motion.div>
+          </Link>
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center gap-6">
-            <a href="#swap" className="text-gray-300 hover:text-white transition-colors font-medium">
+            <Link to="/" className="text-gray-300 hover:text-white transition-colors font-medium">
               Swap
-            </a>
+            </Link>
+            <Link to="/referrals" className="text-gray-400 hover:text-white transition-colors">
+              Referrals
+            </Link>
             <a href="#leaderboard" className="text-gray-400 hover:text-white transition-colors">
               Leaderboard
             </a>
