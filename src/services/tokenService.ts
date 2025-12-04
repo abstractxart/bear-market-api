@@ -451,7 +451,7 @@ async function fetchOnTheDexTokens(): Promise<XRPLToken[]> {
 }
 
 /**
- * Search tokens - fetches ALL traded tokens and filters locally
+ * Search tokens using DexScreener API - finds ALL XRPL tokens!
  */
 export async function searchTokens(query: string): Promise<XRPLToken[]> {
   if (!query || query.length < 2) {
@@ -482,22 +482,78 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
     return matchesCurrency || matchesName || matchesSymbol || matchesIssuer || matchesDomain;
   };
 
-  // 1. ALWAYS search COMMON_TOKENS first
+  // 1. DexScreener API FIRST - has ALL XRPL tokens!
+  try {
+    const response = await fetch(
+      `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(query)}`
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      const pairs = data.pairs || [];
+
+      for (const pair of pairs) {
+        // Only XRPL tokens
+        if (pair.chainId !== 'xrpl') continue;
+
+        const baseToken = pair.baseToken;
+        if (!baseToken) continue;
+
+        // Parse the address - format is "CURRENCY.issuer" or hex
+        const address = baseToken.address || '';
+        let currency = baseToken.symbol || '';
+        let issuer = '';
+
+        // Extract issuer from address (format: "hex.issuer" or "SYMBOL.issuer")
+        if (address.includes('.')) {
+          const parts = address.split('.');
+          issuer = parts[1] || '';
+        }
+
+        if (!issuer) continue;
+
+        // Decode hex currency if needed
+        currency = formatCurrencyCode(currency);
+
+        const token: XRPLToken = {
+          currency: baseToken.symbol || currency,
+          issuer,
+          name: baseToken.name || currency,
+          symbol: baseToken.symbol || currency,
+          icon: getTokenIconUrl(baseToken.symbol || currency, issuer),
+          decimals: 15,
+          price: pair.priceUsd ? parseFloat(pair.priceUsd) : undefined,
+          volume24h: pair.volume?.h24 || 0,
+          priceChange24h: pair.priceChange?.h24,
+        };
+
+        addToken(token);
+      }
+    }
+  } catch (error) {
+    console.error('DexScreener search error:', error);
+  }
+
+  // 2. Also search COMMON_TOKENS
   for (const token of COMMON_TOKENS) {
     if (matchesQuery(token)) {
       addToken(token);
     }
   }
 
-  // 2. Fetch and search ALL OnTheDex tokens
-  const onTheDexTokens = await fetchOnTheDexTokens();
-  for (const token of onTheDexTokens) {
-    if (matchesQuery(token)) {
-      addToken(token);
+  // 3. Fetch and search OnTheDex tokens
+  try {
+    const onTheDexTokens = await fetchOnTheDexTokens();
+    for (const token of onTheDexTokens) {
+      if (matchesQuery(token)) {
+        addToken(token);
+      }
     }
+  } catch (error) {
+    console.error('OnTheDex search error:', error);
   }
 
-  // 3. Also try XRPL Meta API for additional tokens
+  // 4. Try XRPL Meta API for additional tokens
   try {
     const response = await fetch(
       `${XRPL_META_API}/tokens?search=${encodeURIComponent(query)}&limit=50`
@@ -518,7 +574,7 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
     console.error('XRPL Meta search error:', error);
   }
 
-  // 4. Try XRPScan API for even more tokens
+  // 5. Try XRPScan API for even more tokens
   try {
     const response = await fetch(`${XRPSCAN_API}/names/${encodeURIComponent(query)}`);
     if (response.ok) {
