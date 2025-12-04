@@ -134,13 +134,14 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
     }
   };
 
-  // IPFS gateways - ordered by reliability (cloudflare is DOWN as of Dec 2024)
+  // IPFS gateways - ordered by speed and reliability (Dec 2024)
   const IPFS_GATEWAYS = [
-    'https://nftstorage.link/ipfs/',
-    'https://ipfs.io/ipfs/',
-    'https://dweb.link/ipfs/',
-    'https://gateway.pinata.cloud/ipfs/',
-    'https://cf-ipfs.com/ipfs/',
+    'https://w3s.link/ipfs/',           // Web3.Storage - very fast
+    'https://nftstorage.link/ipfs/',    // NFT.Storage - reliable
+    'https://ipfs.io/ipfs/',            // Protocol Labs - standard
+    'https://gateway.pinata.cloud/ipfs/', // Pinata - popular
+    'https://4everland.io/ipfs/',       // 4everland - fast CDN
+    'https://dweb.link/ipfs/',          // Protocol Labs alt
   ];
 
   // Convert IPFS to HTTP gateway - uses first gateway by default
@@ -165,7 +166,7 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
         if (!httpUri.startsWith('http')) return null;
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 12000); // 12 second timeout for slow IPFS
+        const timeout = setTimeout(() => controller.abort(), 6000); // 6 second timeout - fail fast, try next gateway
 
         const response = await fetch(httpUri, { signal: controller.signal });
         clearTimeout(timeout);
