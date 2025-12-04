@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import referralRoutes from './routes/referrals';
+import { rateLimiter } from './middleware/rateLimiter';
 
 // Load environment variables
 dotenv.config();
@@ -10,7 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '10kb' })); // Limit request size to prevent DOS
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -18,6 +19,9 @@ app.use(cors({
   ],
   credentials: true,
 }));
+
+// Rate limiting (CRITICAL for security)
+app.use(rateLimiter);
 
 // Request logging
 app.use((req, res, next) => {

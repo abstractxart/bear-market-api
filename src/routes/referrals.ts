@@ -6,6 +6,11 @@ import {
   generateReferralCode,
 } from '../services/referralService';
 import { recordTradeAndPayout, getPayoutHistory } from '../services/payoutService';
+import {
+  verifyXRPLTransaction,
+  isValidXRPLAddress,
+  isValidAmount
+} from '../services/verificationService';
 
 const router = Router();
 
@@ -123,32 +128,89 @@ router.get('/:wallet/payouts', async (req, res) => {
 /**
  * POST /api/referrals/trades/record
  * Record a trade and trigger automatic payout
+ *
+ * 🛡️ SECURITY HARDENED - Verifies ALL data against XRPL ledger
  */
 router.post('/trades/record', async (req, res) => {
   try {
-    const tradeData = req.body;
+    const { traderWallet, swapTxHash } = req.body;
 
-    // Validate required fields
-    const required = ['traderWallet', 'inputToken', 'outputToken', 'inputAmount', 'outputAmount', 'feeAmount', 'feeToken'];
-    for (const field of required) {
-      if (!tradeData[field]) {
-        return res.status(400).json({ error: `${field} is required` });
-      }
+    // 1. CRITICAL: Require transaction hash (not optional anymore!)
+    if (!swapTxHash || typeof swapTxHash !== 'string') {
+      return res.status(400).json({
+        error: 'swapTxHash is required',
+        message: 'Transaction hash must be provided for verification'
+      });
     }
 
-    // Record trade and trigger payout (async, don't wait)
-    recordTradeAndPayout(tradeData).catch(error => {
+    // 2. Validate wallet address format
+    if (!traderWallet || !isValidXRPLAddress(traderWallet)) {
+      return res.status(400).json({
+        error: 'Invalid wallet address',
+        message: 'traderWallet must be a valid XRPL address (starts with "r")'
+      });
+    }
+
+    console.log(`[API] Trade record request: ${traderWallet} - ${swapTxHash}`);
+
+    // 3. VERIFY TRANSACTION ON XRPL LEDGER (prevents fake trades!)
+    const verified = await verifyXRPLTransaction(swapTxHash, traderWallet);
+
+    if (!verified.isValid) {
+      console.warn(`[API] Transaction verification failed: ${verified.error}`);
+      return res.status(400).json({
+        error: 'Transaction verification failed',
+        message: verified.error,
+        details: {
+          txHash: swapTxHash,
+          wallet: traderWallet
+        }
+      });
+    }
+
+    // 4. Validate amounts from VERIFIED data
+    if (!isValidAmount(verified.feeAmount)) {
+      return res.status(400).json({
+        error: 'Invalid fee amount',
+        message: `Fee amount must be between 0 and 1,000,000 XRP`
+      });
+    }
+
+    // 5. Use VERIFIED data (not client-reported!)
+    const verifiedTradeData = {
+      traderWallet: verified.traderWallet,
+      inputToken: verified.inputToken,
+      outputToken: verified.outputToken,
+      inputAmount: verified.inputAmount,
+      outputAmount: verified.outputAmount,
+      feeAmount: verified.feeAmount,  // ← CRITICAL: Use on-chain fee, not client claim!
+      feeToken: verified.feeToken,
+      swapTxHash: verified.txHash
+    };
+
+    console.log(`[API] ✓ Transaction verified - Fee: ${verified.feeAmount} XRP`);
+
+    // 6. Record trade and trigger payout (async, don't wait)
+    recordTradeAndPayout(verifiedTradeData).catch(error => {
       console.error('[API] Payout error (async):', error);
     });
 
-    // Return immediately
+    // Return immediately with success
     res.json({
       success: true,
-      message: 'Trade recorded, payout processing',
+      message: 'Trade verified and recorded, payout processing',
+      data: {
+        txHash: verified.txHash,
+        feeAmount: verified.feeAmount,
+        ledgerIndex: verified.ledgerIndex
+      }
     });
   } catch (error: any) {
     console.error('[API] Record trade error:', error);
-    res.status(500).json({ error: error.message || 'Failed to record trade' });
+    res.status(500).json({
+      error: error.message || 'Failed to record trade',
+      message: 'Internal server error'
+    });
   }
 });
 
