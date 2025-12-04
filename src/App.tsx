@@ -24,7 +24,7 @@ const App: React.FC = () => {
                 <span className="text-white">Lowest Fees on XRPL</span>
               </h1>
               <p className="text-lg text-gray-400 max-w-xl mx-auto">
-                Swap XRP tokens with fees as low as <span className="text-bear-gold-400 font-semibold">0.321%</span>.
+                Swap XRP tokens with fees as low as <span className="text-bear-gold-400 font-semibold">0.5%</span>.
                 All fees support the BEAR ecosystem.
               </p>
             </div>
@@ -46,7 +46,7 @@ const App: React.FC = () => {
                     <span className="text-2xl">👤</span>
                   </div>
                   <h3 className="font-semibold text-white mb-1">Regular</h3>
-                  <div className="text-2xl font-bold text-gray-300 mb-2">0.589%</div>
+                  <div className="text-2xl font-bold text-gray-300 mb-2">0.8%</div>
                   <p className="text-sm text-gray-500">Default rate for all users</p>
                 </div>
 
@@ -56,7 +56,7 @@ const App: React.FC = () => {
                     <span className="text-2xl">🐻</span>
                   </div>
                   <h3 className="font-semibold text-bear-purple-400 mb-1">Pixel Bear</h3>
-                  <div className="text-2xl font-bold text-bear-purple-300 mb-2">0.485%</div>
+                  <div className="text-2xl font-bold text-bear-purple-300 mb-2">0.65%</div>
                   <p className="text-sm text-gray-500">Hold any Pixel Bear NFT</p>
                 </div>
 
@@ -66,7 +66,7 @@ const App: React.FC = () => {
                     <span className="text-2xl">👑</span>
                   </div>
                   <h3 className="font-semibold text-bear-gold-400 mb-1">Ultra Rare</h3>
-                  <div className="text-2xl font-bold text-bear-gold-300 mb-2">0.321%</div>
+                  <div className="text-2xl font-bold text-bear-gold-300 mb-2">0.5%</div>
                   <p className="text-sm text-gray-500">Hold an Ultra Rare Pixel Bear</p>
                 </div>
               </div>
