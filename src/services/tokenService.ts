@@ -396,6 +396,54 @@ let onTheDexCache: XRPLToken[] | null = null;
 let onTheDexCacheTime = 0;
 const ONTHEDEX_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 
+// Cache for BEAR price from DexScreener
+let bearPriceCache: { price?: number; volume24h?: number; priceChange24h?: number } | null = null;
+let bearPriceCacheTime = 0;
+
+/**
+ * Fetch BEAR token price from DexScreener API
+ * OnTheDex doesn't have BEAR, so we use DexScreener
+ */
+async function fetchBearPriceFromDexScreener(): Promise<{ price?: number; volume24h?: number; priceChange24h?: number }> {
+  // Return cache if valid (30 seconds)
+  if (bearPriceCache && Date.now() - bearPriceCacheTime < 30000) {
+    return bearPriceCache;
+  }
+
+  try {
+    const response = await fetch('https://api.dexscreener.com/latest/dex/search?q=BEAR%20xrpl');
+    if (!response.ok) return {};
+
+    const data = await response.json();
+    const pairs = data.pairs || [];
+
+    // Find BEAR on XRPL
+    for (const pair of pairs) {
+      if (pair.chainId === 'xrpl') {
+        const baseToken = pair.baseToken;
+        if (baseToken?.symbol?.toUpperCase() === 'BEAR') {
+          // Check if it's our BEAR token (issuer contains 'rBEARGU')
+          const address = baseToken.address || '';
+          if (address.includes('rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW')) {
+            bearPriceCache = {
+              price: pair.priceNative ? parseFloat(pair.priceNative) : undefined,
+              volume24h: pair.volume?.h24 || 0,
+              priceChange24h: pair.priceChange?.h24,
+            };
+            bearPriceCacheTime = Date.now();
+            return bearPriceCache;
+          }
+        }
+      }
+    }
+
+    return {};
+  } catch (error) {
+    console.error('Failed to fetch BEAR price from DexScreener:', error);
+    return {};
+  }
+}
+
 /**
  * Fetch ALL traded tokens from OnTheDex daily pairs
  */
@@ -660,7 +708,7 @@ export async function getAllTokens(): Promise<XRPLToken[]> {
 
 /**
  * Get popular/featured tokens - Top tokens by 24h volume from OnTheDex
- * BEAR token is ALWAYS at the top!
+ * BEAR token is ALWAYS at the top with price from DexScreener!
  */
 export async function getPopularTokens(): Promise<XRPLToken[]> {
   // Use short cache for popular tokens (30 seconds)
@@ -669,8 +717,11 @@ export async function getPopularTokens(): Promise<XRPLToken[]> {
   }
 
   try {
-    // Fetch ALL traded tokens from OnTheDex
-    const onTheDexTokens = await fetchOnTheDexTokens();
+    // Fetch ALL traded tokens from OnTheDex AND BEAR price from DexScreener
+    const [onTheDexTokens, bearPrice] = await Promise.all([
+      fetchOnTheDexTokens(),
+      fetchBearPriceFromDexScreener(),
+    ]);
 
     // Sort by 24h volume (highest first) - this gives us the most active tokens
     const sortedByVolume = [...onTheDexTokens].sort((a, b) => {
@@ -682,18 +733,15 @@ export async function getPopularTokens(): Promise<XRPLToken[]> {
       .filter(t => !(t.currency === 'BEAR' && t.issuer === 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW'))
       .slice(0, 49);
 
-    // Get BEAR token - merge COMMON_TOKENS info with OnTheDex price data
-    const bearFromList = sortedByVolume.find(
-      t => t.currency === 'BEAR' && t.issuer === 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW'
-    );
+    // Get BEAR token - use COMMON_TOKENS info with DexScreener price data
     const bearBase = COMMON_TOKENS.find(t => t.currency === 'BEAR')!;
 
-    // Merge: use nice name/icon from COMMON_TOKENS, but price data from OnTheDex
+    // Merge: use nice name/icon from COMMON_TOKENS, but price data from DexScreener
     const bearToken: XRPLToken = {
       ...bearBase,
-      price: bearFromList?.price,
-      volume24h: bearFromList?.volume24h,
-      priceChange24h: bearFromList?.priceChange24h,
+      price: bearPrice.price,
+      volume24h: bearPrice.volume24h,
+      priceChange24h: bearPrice.priceChange24h,
     };
 
     // BEAR always at top!
@@ -805,7 +853,7 @@ export const COMMON_TOKENS: XRPLToken[] = [
   {
     currency: 'BEAR',
     issuer: 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW',
-    name: 'BEAR Token',
+    name: 'BEAR',
     symbol: 'BEAR',
     icon: getTokenIconUrl('BEAR', 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW'),
     decimals: 15,
