@@ -1,7 +1,6 @@
 import { Client } from 'xrpl';
 import type { Token, SwapQuote, FeeTier } from '../types';
 import { getFeeRate } from './nftService';
-import { BEAR_ECOSYSTEM } from '../types/xrpl';
 
 /**
  * BEAR MARKET Swap Service
@@ -53,16 +52,13 @@ export async function getSwapQuote(
 
   // Calculate output amount
   let outputBeforeFee: number;
-  let marketRate: number;
 
   if (isInputXRP) {
     // XRP → Token: output = input / price
     outputBeforeFee = inputAmountNum / priceInXRP;
-    marketRate = 1 / priceInXRP;
   } else {
     // Token → XRP: output = input * price
     outputBeforeFee = inputAmountNum * priceInXRP;
-    marketRate = priceInXRP;
   }
 
   // Calculate fee - ALWAYS IN XRP
@@ -351,22 +347,6 @@ function matchesPool(token: Token, poolAmount: any): boolean {
     poolAmount.currency === token.currency &&
     poolAmount.issuer === token.issuer
   );
-}
-
-/**
- * Calculate price impact percentage
- */
-function calculatePriceImpact(
-  inputAmount: number,
-  outputAmount: number,
-  marketRate: number
-): number {
-  if (marketRate === 0) return 0;
-
-  const executionRate = outputAmount / inputAmount;
-  const impact = ((marketRate - executionRate) / marketRate) * 100;
-
-  return Math.max(0, impact);
 }
 
 /**
