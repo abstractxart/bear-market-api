@@ -54,6 +54,7 @@
 
   /* Animations */
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-pulse-slow: pulse-slow 3s ease-in-out infinite;
   --animate-slide-up: slide-up 0.3s ease-out;
   --animate-fade-in: fade-in 0.2s ease-out;
 }
@@ -61,6 +62,17 @@
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.5); }
   50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.8); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
+    border-color: rgba(249, 115, 22, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.7);
+    border-color: rgba(249, 115, 22, 0.8);
+  }
 }
 
 @keyframes slide-up {

@@ -108,6 +108,7 @@ export const SecureWalletConnect = ({
   const [newWallet, setNewWallet] = useState<{ address: string; seed: string } | null>(null);
   const [seedAcknowledged, setSeedAcknowledged] = useState(false);
   const [seedCopied, setSeedCopied] = useState(false);
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 
   // Import method states
   type ImportMethod = 'family-seed' | 'mnemonic' | 'private-key' | 'xaman-numbers';
@@ -148,6 +149,7 @@ export const SecureWalletConnect = ({
       setNewWallet(null);
       setSeedAcknowledged(false);
       setSeedCopied(false);
+      setShowSaveConfirmation(false);
       setImportMethod('family-seed');
       setAlgorithm('secp256k1');
       setMnemonicWords('');
@@ -261,7 +263,7 @@ export const SecureWalletConnect = ({
     }
   };
 
-  // Complete instant wallet and go to save step
+  // Complete instant wallet - shows confirmation first
   const handleInstantConnect = async () => {
     if (!newWallet) return;
 
@@ -269,6 +271,16 @@ export const SecureWalletConnect = ({
       setError('Please confirm you saved your secret key');
       return;
     }
+
+    // Show confirmation modal before proceeding
+    setShowSaveConfirmation(true);
+  };
+
+  // Actually proceed after confirmation
+  const handleConfirmedProceed = () => {
+    if (!newWallet) return;
+
+    setShowSaveConfirmation(false);
 
     // Go to save wallet step
     setPendingSecret(newWallet.seed);
@@ -731,6 +743,61 @@ export const SecureWalletConnect = ({
   // INSTANT WALLET screen
   const renderInstantWallet = () => (
     <div className="space-y-4">
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {showSaveConfirmation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setShowSaveConfirmation(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-gradient-to-b from-gray-900 to-black border-2 border-orange-500/50 rounded-2xl p-6 max-w-sm w-full shadow-2xl shadow-orange-500/20"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-orange-500/20 flex items-center justify-center text-4xl animate-pulse">
+                  ⚠️
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Are You Sure?</h3>
+                <p className="text-sm text-gray-300 mb-6">
+                  Did you <span className="text-orange-400 font-bold">really save your secret key</span>?
+                  <br />
+                  <span className="text-gray-400 text-xs mt-2 block">
+                    Without it, you will lose access to your funds forever. There is NO recovery option.
+                  </span>
+                </p>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={handleConfirmedProceed}
+                    className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 rounded-xl font-bold text-white transition-all"
+                  >
+                    Yes, I Saved My Key
+                  </button>
+                  <button
+                    onClick={() => setShowSaveConfirmation(false)}
+                    className="w-full py-3 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-xl font-medium text-gray-300 transition-all"
+                  >
+                    ← Go Back & Save It
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="text-center">
         <motion.div
           initial={{ scale: 0 }}
@@ -766,8 +833,20 @@ export const SecureWalletConnect = ({
         </p>
       </div>
 
-      <div className="p-4 bg-purple-500/10 rounded-xl border border-purple-500/20">
-        <label className="flex items-start gap-3 cursor-pointer">
+      {/* Enhanced Glowing Checkbox Area */}
+      <div className={`relative p-4 rounded-xl transition-all duration-300 ${
+        seedAcknowledged
+          ? 'bg-green-500/10 border-2 border-green-500/50'
+          : 'bg-orange-500/10 border-2 border-orange-500/50 shadow-lg shadow-orange-500/20 animate-pulse-slow'
+      }`}>
+        {/* READ CAREFULLY Banner */}
+        {!seedAcknowledged && (
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-orange-500 text-white text-xs font-bold uppercase tracking-wider rounded-full shadow-lg">
+            ⚠️ READ CAREFULLY ⚠️
+          </div>
+        )}
+
+        <label className="flex items-start gap-3 cursor-pointer mt-2">
           <input
             type="checkbox"
             checked={seedAcknowledged}
@@ -775,12 +854,16 @@ export const SecureWalletConnect = ({
               setSeedAcknowledged(e.target.checked);
               setError(null);
             }}
-            className="mt-1 w-5 h-5 rounded border-2 border-purple-500 bg-black/50 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 flex-shrink-0"
+            className={`mt-1 w-6 h-6 rounded border-2 bg-black/50 focus:ring-offset-0 flex-shrink-0 transition-all ${
+              seedAcknowledged
+                ? 'border-green-500 text-green-500 focus:ring-green-500'
+                : 'border-orange-500 text-orange-500 focus:ring-orange-500'
+            }`}
           />
-          <span className="text-sm text-gray-300 leading-relaxed">
-            I understand this is a <span className="text-white font-semibold">self-custody wallet</span>.
-            If I lose my secret key, I will permanently lose access to my funds.
-            <span className="text-purple-400"> BEAR MARKET cannot recover lost keys.</span>
+          <span className="text-sm text-gray-200 leading-relaxed">
+            I understand this is a <span className="text-white font-bold">self-custody wallet</span>.
+            If I lose my secret key, I will <span className="text-red-400 font-bold">permanently lose access</span> to my funds.
+            <span className="text-orange-400 font-semibold"> BEAR MARKET cannot recover lost keys.</span>
           </span>
         </label>
       </div>
