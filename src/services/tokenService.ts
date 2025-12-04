@@ -76,43 +76,82 @@ let priceCache: PriceCache | null = null;
 let popularTokensCache: XRPLToken[] | null = null;
 let popularTokensCacheTime: number = 0;
 
+// ==================== LOCAL ICONS ====================
+
+/**
+ * Map of tokens with local SVG icons (hosted on our server)
+ * These are guaranteed to work - no external CDN dependencies!
+ */
+const LOCAL_TOKEN_ICONS: Record<string, string> = {
+  'XRP': '/tokens/xrp.svg',
+  'BEAR:rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW': '/tokens/bear.svg',
+  'RLUSD:rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De': '/tokens/rlusd.svg',
+  'SOLO:rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz': '/tokens/solo.svg',
+  'CORE:rcoreNywaoz2ZCQ8Lg2EbSLnGuRBmun6D': '/tokens/core.svg',
+  'XRPH:rNmKNMsHnpLmLXKL3bvwnqsr6MwxfPGvJf': '/tokens/xrph.svg',
+  'FUZZY:rhCAT4hRdi1J4fh1LK5qcUTsVcGWxNpVjh': '/tokens/fuzzy.svg',
+  'ARMY:rGG3wQ4kfSgJgHRpWPAu5NxVA18q6gcSnZ': '/tokens/army.svg',
+  'DROP:rszenFJoDdicWqfK2F9U9VWTxqEfB2HNJ6': '/tokens/drop.svg',
+  'VGB:rhcyBrowwApgNonehVqrg6JgzqaM1DLRv8': '/tokens/vgb.svg',
+  'MAG:rXmagwMmnFtVet3uL26Q2iwk287SxYHov': '/tokens/mag.svg',
+  'XPM:rXPMxBeefHGxx3Z3CMFqwzGi3Vt19LHvCR': '/tokens/xpm.svg',
+  'XMEME:rMeMEz93gAbQfs5LB9bR9XFXBC9u6NEVYt': '/tokens/xmeme.svg',
+  'USDC:rGm7uYknXfn7RhNzEuvwu4p98f3hkRzWhE': '/tokens/usdc.svg',
+  'EUROP:rMkEJxjXRV7SvDaGP3tX4MQ3pWyvnfLLjg': '/tokens/europ.svg',
+};
+
 // ==================== HELPER FUNCTIONS ====================
 
 /**
- * Get token icon URL - tries multiple sources
- * Priority: XRPL Meta > Bithomp > XRP Scan > First Ledger
+ * Get token icon URL - LOCAL FIRST, then CDN fallback
  */
 export function getTokenIconUrl(currency: string, issuer?: string): string {
+  // Check for local icon first (always works!)
   if (currency === 'XRP') {
     return '/tokens/xrp.svg';
+  }
+
+  const localKey = `${currency}:${issuer}`;
+  if (LOCAL_TOKEN_ICONS[localKey]) {
+    return LOCAL_TOKEN_ICONS[localKey];
   }
 
   if (!issuer) {
     return '';
   }
 
-  // Use XRPL Meta icon service (most reliable for XRPL tokens)
+  // Fallback to CDN
   return `${XRPL_META_API}/token/${currency}:${issuer}/icon`;
 }
 
 /**
- * Get multiple icon URLs to try (for fallback in components)
+ * Get multiple icon URLs to try (LOCAL FIRST, then CDN fallbacks)
  */
 export function getTokenIconUrls(currency: string, issuer?: string): string[] {
   if (currency === 'XRP') {
     return ['/tokens/xrp.svg'];
   }
 
-  if (!issuer) {
-    return [];
+  const localKey = `${currency}:${issuer}`;
+  const urls: string[] = [];
+
+  // LOCAL ICON FIRST (always works!)
+  if (LOCAL_TOKEN_ICONS[localKey]) {
+    urls.push(LOCAL_TOKEN_ICONS[localKey]);
   }
 
-  // Try multiple sources in order of reliability
-  return [
+  if (!issuer) {
+    return urls;
+  }
+
+  // Then try CDNs as fallback for tokens without local icons
+  urls.push(
     `${XRPL_META_API}/token/${currency}:${issuer}/icon`,
     `${BITHOMP_CDN}/token/${currency}.${issuer}.png`,
     `https://cdn.xrplmeta.org/icon/${currency}:${issuer}`,
-  ];
+  );
+
+  return urls;
 }
 
 /**

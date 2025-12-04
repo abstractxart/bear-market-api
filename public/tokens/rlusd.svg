@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="rlusdGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0066CC"/>
+      <stop offset="100%" style="stop-color:#003D7A"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#rlusdGrad)" stroke="#0080FF" stroke-width="2"/>
+  <text x="50" y="62" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="white" text-anchor="middle">$</text>
+  <text x="50" y="82" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#80BFFF" text-anchor="middle">RLUSD</text>
+</svg>

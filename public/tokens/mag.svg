@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="magGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9945FF"/>
+      <stop offset="100%" style="stop-color:#6622CC"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#magGrad)" stroke="#AA66FF" stroke-width="2"/>
+  <!-- Magnet shape -->
+  <path d="M30 35 L30 60 Q30 75 50 75 Q70 75 70 60 L70 35" fill="none" stroke="white" stroke-width="8" stroke-linecap="round"/>
+  <rect x="26" y="30" width="12" height="15" fill="#FF4444" rx="2"/>
+  <rect x="62" y="30" width="12" height="15" fill="#4444FF" rx="2"/>
+</svg>

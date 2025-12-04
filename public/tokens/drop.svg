@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="dropGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00BFFF"/>
+      <stop offset="100%" style="stop-color:#0080AA"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#dropGrad)" stroke="#00DDFF" stroke-width="2"/>
+  <!-- Water drop -->
+  <path d="M50 20 Q70 50 50 75 Q30 50 50 20" fill="white"/>
+  <ellipse cx="45" cy="45" rx="5" ry="8" fill="#00BFFF" opacity="0.5"/>
+</svg>

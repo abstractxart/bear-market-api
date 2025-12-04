@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bearGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B4513"/>
+      <stop offset="100%" style="stop-color:#5D3A1A"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#bearGrad)" stroke="#A0522D" stroke-width="2"/>
+  <!-- Ears -->
+  <circle cx="25" cy="25" r="12" fill="#8B4513" stroke="#A0522D" stroke-width="2"/>
+  <circle cx="75" cy="25" r="12" fill="#8B4513" stroke="#A0522D" stroke-width="2"/>
+  <circle cx="25" cy="25" r="6" fill="#D2691E"/>
+  <circle cx="75" cy="25" r="6" fill="#D2691E"/>
+  <!-- Face -->
+  <ellipse cx="50" cy="60" rx="20" ry="15" fill="#D2691E"/>
+  <!-- Eyes -->
+  <circle cx="35" cy="45" r="6" fill="#1a1a1a"/>
+  <circle cx="65" cy="45" r="6" fill="#1a1a1a"/>
+  <circle cx="37" cy="43" r="2" fill="white"/>
+  <circle cx="67" cy="43" r="2" fill="white"/>
+  <!-- Nose -->
+  <ellipse cx="50" cy="58" rx="8" ry="6" fill="#1a1a1a"/>
+  <ellipse cx="50" cy="56" rx="3" ry="2" fill="#444"/>
+</svg>

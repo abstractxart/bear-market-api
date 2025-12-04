@@ -51,7 +51,7 @@ const SwapCard: React.FC = () => {
       } finally {
         setIsLoading(false);
       }
-    }, 500);
+    }, 150); // FAST: 150ms debounce (OnTheDex API is quick!)
 
     return () => clearTimeout(timer);
   }, [inputAmount, inputToken, outputToken, slippage, wallet.feeTier, xrplClient]);
@@ -285,7 +285,7 @@ const SwapCard: React.FC = () => {
             </div>
             <div className="flex justify-between text-gray-400">
               <span>Fee ({formatFeePercent(wallet.feeTier)})</span>
-              <span className="text-white">{quote.feeAmount} {outputToken?.symbol}</span>
+              <span className="text-white">{quote.feeAmount} XRP</span>
             </div>
             <div className="flex justify-between text-gray-400">
               <span>Minimum received</span>

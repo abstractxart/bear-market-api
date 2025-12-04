@@ -6,9 +6,15 @@ import { BEAR_ECOSYSTEM } from '../types/xrpl';
 /**
  * BEAR MARKET Swap Service
  *
- * Handles quote generation and swap execution.
- * Fee is baked into the exchange rate (no separate transaction needed).
+ * FAST quotes using OnTheDex API (pre-computed prices)
+ * Fee is ALWAYS collected in XRP (0.589% of XRP amount in trade).
  */
+
+const ONTHEDEX_API = 'https://api.onthedex.live/public/v1';
+
+// Price cache for instant quotes (5 second TTL)
+const priceCache = new Map<string, { price: number; timestamp: number }>();
+const PRICE_CACHE_TTL = 5000;
 
 interface QuoteParams {
   inputToken: Token;
@@ -19,10 +25,11 @@ interface QuoteParams {
 }
 
 /**
- * Get a swap quote with fee calculation
+ * Get a swap quote with fee calculation - FAST using OnTheDex!
  *
- * The fee is extracted by adjusting the output amount.
- * Server-side quote manipulation ensures atomic fee collection.
+ * FEE IS ALWAYS IN XRP:
+ * - XRP → Token: Fee = 0.589% of input XRP
+ * - Token → XRP: Fee = 0.589% of output XRP
  */
 export async function getSwapQuote(
   client: Client,
@@ -31,40 +38,62 @@ export async function getSwapQuote(
   const { inputToken, outputToken, inputAmount, slippage, feeTier } = params;
 
   // Validate that XRP is on one side
-  const hasXRP = inputToken.currency === 'XRP' || outputToken.currency === 'XRP';
-  if (!hasXRP) {
+  const isInputXRP = inputToken.currency === 'XRP';
+  const isOutputXRP = outputToken.currency === 'XRP';
+
+  if (!isInputXRP && !isOutputXRP) {
     throw new Error('XRP must be on one side of every trade');
   }
 
-  // Get path and best rate from XRPL
-  const pathFindResult = await findBestPath(client, params);
+  const inputAmountNum = parseFloat(inputAmount);
 
-  // Calculate output before fee
-  const outputBeforeFee = parseFloat(pathFindResult.outputAmount);
+  // Get price from OnTheDex (FAST!) with XRPL fallback
+  const tokenToPrice = isInputXRP ? outputToken : inputToken;
+  const priceInXRP = await getTokenPriceInXRP(tokenToPrice, client, params);
 
-  // Apply fee
+  // Calculate output amount
+  let outputBeforeFee: number;
+  let marketRate: number;
+
+  if (isInputXRP) {
+    // XRP → Token: output = input / price
+    outputBeforeFee = inputAmountNum / priceInXRP;
+    marketRate = 1 / priceInXRP;
+  } else {
+    // Token → XRP: output = input * price
+    outputBeforeFee = inputAmountNum * priceInXRP;
+    marketRate = priceInXRP;
+  }
+
+  // Calculate fee - ALWAYS IN XRP
   const feeRate = getFeeRate(feeTier);
-  const feeAmount = outputBeforeFee * feeRate;
-  const outputAfterFee = outputBeforeFee - feeAmount;
+  let xrpFeeAmount: number;
+  let outputAfterFee: number;
+
+  if (isInputXRP) {
+    // Selling XRP for tokens: fee from input XRP
+    xrpFeeAmount = inputAmountNum * feeRate;
+    outputAfterFee = outputBeforeFee;
+  } else {
+    // Selling tokens for XRP: fee from output XRP
+    xrpFeeAmount = outputBeforeFee * feeRate;
+    outputAfterFee = outputBeforeFee - xrpFeeAmount;
+  }
 
   // Calculate minimum received with slippage
   const slippageMultiplier = 1 - slippage / 100;
   const minimumReceived = outputAfterFee * slippageMultiplier;
 
-  // Calculate price impact
-  const priceImpact = calculatePriceImpact(
-    parseFloat(inputAmount),
-    outputBeforeFee,
-    pathFindResult.marketRate
-  );
+  // Estimate price impact (simplified - based on amount vs typical volume)
+  const priceImpact = estimatePriceImpact(inputAmountNum, isInputXRP);
 
   return {
     inputToken,
     outputToken,
     inputAmount,
     outputAmount: outputAfterFee.toFixed(6),
-    exchangeRate: (outputAfterFee / parseFloat(inputAmount)).toFixed(6),
-    feeAmount: feeAmount.toFixed(6),
+    exchangeRate: (outputAfterFee / inputAmountNum).toFixed(6),
+    feeAmount: xrpFeeAmount.toFixed(6), // Always in XRP!
     feeTier,
     priceImpact,
     slippage,
@@ -74,38 +103,85 @@ export async function getSwapQuote(
   };
 }
 
-interface PathFindResult {
-  outputAmount: string;
-  marketRate: number;
-  paths: any[];
+/**
+ * Get token price in XRP - FAST using OnTheDex ticker API
+ */
+async function getTokenPriceInXRP(
+  token: Token,
+  client: Client,
+  params: QuoteParams
+): Promise<number> {
+  const cacheKey = `${token.currency}:${token.issuer}`;
+
+  // Check cache first (5 second TTL)
+  const cached = priceCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < PRICE_CACHE_TTL) {
+    return cached.price;
+  }
+
+  try {
+    // Try OnTheDex ticker API first (INSTANT!)
+    const tickerUrl = `${ONTHEDEX_API}/ticker/XRP/${token.currency}:${token.issuer}`;
+    const response = await fetch(tickerUrl, {
+      signal: AbortSignal.timeout(3000), // 3 second timeout
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      // OnTheDex returns price as how many tokens per XRP
+      // We want price of 1 token in XRP, so we invert
+      if (data.last && parseFloat(data.last) > 0) {
+        const pricePerXRP = parseFloat(data.last);
+        const priceInXRP = 1 / pricePerXRP;
+
+        // Cache it
+        priceCache.set(cacheKey, { price: priceInXRP, timestamp: Date.now() });
+        return priceInXRP;
+      }
+    }
+  } catch (error) {
+    console.warn('OnTheDex ticker failed, falling back to order book:', error);
+  }
+
+  // Fallback to XRPL order book (slower but reliable)
+  const quoteResult = await getQuoteFromOrderBook(client, params);
+  const price = parseFloat(quoteResult.outputAmount) / parseFloat(params.inputAmount);
+
+  // Cache the fallback result too
+  priceCache.set(cacheKey, { price, timestamp: Date.now() });
+  return price;
 }
 
 /**
- * Find the best swap path on XRPL
+ * Estimate price impact (simplified calculation)
  */
-async function findBestPath(
+function estimatePriceImpact(amountXRP: number, isInputXRP: boolean): number {
+  // Simple heuristic: larger trades have more impact
+  // < 100 XRP: ~0.1%, < 1000 XRP: ~0.5%, < 10000 XRP: ~1%, > 10000: ~2%+
+  const xrpAmount = isInputXRP ? amountXRP : amountXRP;
+  if (xrpAmount < 100) return 0.1;
+  if (xrpAmount < 1000) return 0.3;
+  if (xrpAmount < 5000) return 0.7;
+  if (xrpAmount < 10000) return 1.2;
+  return 2.0 + (xrpAmount - 10000) / 50000;
+}
+
+interface QuoteResult {
+  outputAmount: string;
+  marketRate: number;
+}
+
+/**
+ * Get quote directly from order book (FAST - single API call)
+ */
+async function getQuoteFromOrderBook(
   client: Client,
   params: QuoteParams
-): Promise<PathFindResult> {
+): Promise<QuoteResult> {
   const { inputToken, outputToken, inputAmount } = params;
 
   try {
-    // Use ripple_path_find for best path
-    const pathResult = await client.request({
-      command: 'ripple_path_find',
-      source_account: BEAR_ECOSYSTEM.FEE_WALLET, // Use fee wallet for path finding
-      destination_account: BEAR_ECOSYSTEM.FEE_WALLET,
-      source_currencies: [
-        inputToken.currency === 'XRP'
-          ? { currency: 'XRP' }
-          : { currency: inputToken.currency, issuer: inputToken.issuer }
-      ],
-      destination_amount: outputToken.currency === 'XRP'
-        ? xrpToDrops('1000000') // Large amount to get best rate
-        : { currency: outputToken.currency, issuer: outputToken.issuer!, value: '1000000' },
-    });
-
-    // Get book offers for market rate
+    // Single API call to get order book
     const bookResult = await client.request({
       command: 'book_offers',
       taker_gets: inputToken.currency === 'XRP'
@@ -114,20 +190,34 @@ async function findBestPath(
       taker_pays: outputToken.currency === 'XRP'
         ? { currency: 'XRP' }
         : { currency: outputToken.currency, issuer: outputToken.issuer! },
-      limit: 10,
+      limit: 20, // Get more offers for better pricing
     });
 
-    // Calculate expected output from order book
     const offers = bookResult.result.offers || [];
-    const { output, rate } = calculateOutputFromOffers(offers, parseFloat(inputAmount), inputToken.currency === 'XRP');
+
+    if (offers.length === 0) {
+      // No order book, try AMM
+      return getAMMQuote(client, params);
+    }
+
+    // Calculate expected output from order book
+    const { output, rate } = calculateOutputFromOffers(
+      offers,
+      parseFloat(inputAmount),
+      inputToken.currency === 'XRP'
+    );
+
+    if (output === 0) {
+      // Order book empty or insufficient, try AMM
+      return getAMMQuote(client, params);
+    }
 
     return {
       outputAmount: output.toFixed(6),
       marketRate: rate,
-      paths: pathResult.result.alternatives?.[0]?.paths_computed || [],
     };
   } catch (error) {
-    console.error('Path finding error:', error);
+    console.error('Order book error:', error);
     // Fallback to AMM-only pricing
     return getAMMQuote(client, params);
   }
@@ -139,7 +229,7 @@ async function findBestPath(
 async function getAMMQuote(
   client: Client,
   params: QuoteParams
-): Promise<PathFindResult> {
+): Promise<QuoteResult> {
   const { inputToken, outputToken, inputAmount } = params;
 
   try {
@@ -180,7 +270,6 @@ async function getAMMQuote(
     return {
       outputAmount: outputAfterAMMFee.toFixed(6),
       marketRate: outputPool / inputPool,
-      paths: [],
     };
   } catch (error) {
     console.error('AMM quote error:', error);
