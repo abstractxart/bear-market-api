@@ -25,6 +25,7 @@ interface NFTMetadata {
   description?: string;
   image?: string;
   animation_url?: string;  // For animated content (GIFs, videos, audio)
+  animation?: string;      // Alternative field name used by some NFTs (e.g., BEAR)
   video?: string;          // Direct video URL
   audio?: string;          // Direct audio URL
   attributes?: Array<{ trait_type: string; value: string }>;
@@ -178,9 +179,12 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
           if (json.image) {
             json.image = ipfsToHttp(json.image, gatewayIdx);
           }
-          // Convert animation_url, video, audio URLs
+          // Convert animation_url, animation, video, audio URLs
           if (json.animation_url) {
             json.animation_url = ipfsToHttp(json.animation_url, gatewayIdx);
+          }
+          if (json.animation) {
+            json.animation = ipfsToHttp(json.animation, gatewayIdx);
           }
           if (json.video) {
             json.video = ipfsToHttp(json.video, gatewayIdx);
@@ -209,6 +213,9 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
           }
           if (json.animation_url) {
             json.animation_url = ipfsToHttp(json.animation_url, gatewayIdx);
+          }
+          if (json.animation) {
+            json.animation = ipfsToHttp(json.animation, gatewayIdx);
           }
           if (json.video) {
             json.video = ipfsToHttp(json.video, gatewayIdx);
@@ -402,6 +409,17 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                     mediaType = animType;
                   } else {
                     // Default to video if animation_url exists but type unknown
+                    mediaType = 'video';
+                  }
+                }
+                // Check for animation field (alternative field name used by BEAR and others)
+                if (meta.animation && !animationUrl) {
+                  animationUrl = ipfsToHttp(meta.animation);
+                  const animType = detectMediaType(animationUrl);
+                  if (animType !== 'unknown') {
+                    mediaType = animType;
+                  } else {
+                    // Default to video if animation exists but type unknown
                     mediaType = 'video';
                   }
                 }
