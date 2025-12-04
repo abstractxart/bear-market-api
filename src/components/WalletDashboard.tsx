@@ -1009,8 +1009,8 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                                         className="w-10 h-10 rounded-md overflow-hidden bg-gray-700/50 flex-shrink-0 border border-gray-600/30"
                                         style={{ opacity: 1 - (idx * 0.15) }}
                                       >
-                                        {nft.image ? (
-                                          <img src={nft.image} alt="" className="w-full h-full object-cover" />
+                                        {(nft.image || nft.animationUrl) ? (
+                                          <img src={nft.image || nft.animationUrl} alt="" className="w-full h-full object-cover" />
                                         ) : (
                                           <div className="w-full h-full flex items-center justify-center text-sm">🖼️</div>
                                         )}
