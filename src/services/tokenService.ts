@@ -116,6 +116,10 @@ const DEXSCREENER_ICONS: Record<string, string> = {
   'scrap': 'https://cdn.dexscreener.com/cms/images/26837eb3fc7c1d2f7f060adad69e1aa50b3c2ffcba72b760ac6d9b97359450b9',
   'XDawgs': 'https://cdn.dexscreener.com/cms/images/795c5d8e76b2e0df8c48740e1f37a6104695dfbca8a99eeef4aa83b0c2fc28b6',
   'COBALT': 'https://cdn.dexscreener.com/cms/images/394986e68744d2f78f1a83dccb13a8e91adace7e51ec700c93ec44ec52327177',
+  // User requested tokens
+  'PUPPET:rJfQFeHTZcnRsY4Ba5sJVKUhLs48E9apBn': 'https://cdn.dexscreener.com/cms/images/fb0642b40219520722bd58d7c4af7411ea542e16795eb063648ba307a50f38a8',
+  'PUPPET': 'https://cdn.dexscreener.com/cms/images/fb0642b40219520722bd58d7c4af7411ea542e16795eb063648ba307a50f38a8',
+  'XRPLOL:rMDfsTapNvFSo7irSe6gYpPmYj3EjqbcqF': 'https://cdn.dexscreener.com/cms/images/b1f9818e13175906a8178a4933a2eddfe52f5daf411cb58937fe985284c682c1',
 };
 
 // Dynamic icon cache from DexScreener API
@@ -200,7 +204,7 @@ const LOCAL_TOKEN_ICONS: Record<string, string> = {
 const XMAGNETIC_CDN = 'https://img.xmagnetic.org/u';
 
 /**
- * Get token icon URL - XMagnetic CDN (predictable pattern!) then fallbacks
+ * Get token icon URL - checks multiple sources in priority order
  */
 export function getTokenIconUrl(currency: string, issuer?: string): string {
   // XRP always uses local
@@ -210,7 +214,15 @@ export function getTokenIconUrl(currency: string, issuer?: string): string {
 
   const fullKey = `${currency}:${issuer}`;
 
-  // 1. Check local icons first (fastest)
+  // 1. Check dynamic cache (from DexScreener API searches)
+  if (dynamicIconCache[fullKey]) {
+    return dynamicIconCache[fullKey]!;
+  }
+  if (dynamicIconCache[currency]) {
+    return dynamicIconCache[currency]!;
+  }
+
+  // 2. Check local icons (fastest)
   if (LOCAL_TOKEN_ICONS[fullKey]) {
     return LOCAL_TOKEN_ICONS[fullKey];
   }
@@ -218,7 +230,7 @@ export function getTokenIconUrl(currency: string, issuer?: string): string {
     return LOCAL_TOKEN_ICONS[currency];
   }
 
-  // 2. Check hardcoded DexScreener icons
+  // 3. Check hardcoded DexScreener icons
   if (DEXSCREENER_ICONS[fullKey]) {
     return DEXSCREENER_ICONS[fullKey];
   }
@@ -226,7 +238,7 @@ export function getTokenIconUrl(currency: string, issuer?: string): string {
     return DEXSCREENER_ICONS[currency];
   }
 
-  // 3. XMagnetic CDN - predictable pattern for ANY token with issuer!
+  // 4. XMagnetic CDN - predictable pattern for ANY token with issuer!
   if (issuer) {
     return `${XMAGNETIC_CDN}/${issuer}_${currency}.webp`;
   }
@@ -235,7 +247,7 @@ export function getTokenIconUrl(currency: string, issuer?: string): string {
 }
 
 /**
- * Get multiple icon URLs to try - XMagnetic FIRST (works for most XRPL tokens!)
+ * Get multiple icon URLs to try - priority order with all sources
  */
 export function getTokenIconUrls(currency: string, issuer?: string): string[] {
   if (currency === 'XRP') {
@@ -245,30 +257,37 @@ export function getTokenIconUrls(currency: string, issuer?: string): string[] {
   const fullKey = `${currency}:${issuer}`;
   const urls: string[] = [];
 
-  // 1. XMagnetic CDN FIRST - predictable pattern, works for most tokens!
-  if (issuer) {
-    urls.push(`${XMAGNETIC_CDN}/${issuer}_${currency}.webp`);
+  // 1. Dynamic cache FIRST (from DexScreener API searches - most reliable!)
+  if (dynamicIconCache[fullKey]) {
+    urls.push(dynamicIconCache[fullKey]!);
+  } else if (dynamicIconCache[currency]) {
+    urls.push(dynamicIconCache[currency]!);
   }
 
-  // 2. Local fallback icons
-  if (LOCAL_TOKEN_ICONS[fullKey]) {
-    urls.push(LOCAL_TOKEN_ICONS[fullKey]);
-  } else if (LOCAL_TOKEN_ICONS[currency]) {
-    urls.push(LOCAL_TOKEN_ICONS[currency]);
-  }
-
-  // 3. DexScreener CDN (hardcoded)
+  // 2. Hardcoded DexScreener icons (verified working)
   if (DEXSCREENER_ICONS[fullKey]) {
     urls.push(DEXSCREENER_ICONS[fullKey]);
   } else if (DEXSCREENER_ICONS[currency]) {
     urls.push(DEXSCREENER_ICONS[currency]);
   }
 
+  // 3. XMagnetic CDN - predictable pattern, works for most tokens!
+  if (issuer) {
+    urls.push(`${XMAGNETIC_CDN}/${issuer}_${currency}.webp`);
+  }
+
+  // 4. Local fallback icons
+  if (LOCAL_TOKEN_ICONS[fullKey]) {
+    urls.push(LOCAL_TOKEN_ICONS[fullKey]);
+  } else if (LOCAL_TOKEN_ICONS[currency]) {
+    urls.push(LOCAL_TOKEN_ICONS[currency]);
+  }
+
   if (!issuer) {
     return urls;
   }
 
-  // 4. Other CDNs as last resort
+  // 5. Other CDNs as last resort
   urls.push(
     `${XRPL_META_API}/token/${currency}:${issuer}/icon`,
     `${BITHOMP_CDN}/token/${currency}.${issuer}.png`,
@@ -594,12 +613,20 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
         }
         if (!issuer) continue;
 
+        // Get icon from DexScreener API response - this is the key!
+        const dexScreenerIcon = pair.info?.imageUrl;
+        // Cache it for future use if found
+        if (dexScreenerIcon) {
+          const cacheKey = baseToken.symbol || '';
+          dynamicIconCache[cacheKey] = dexScreenerIcon;
+        }
+
         addToken({
           currency: baseToken.symbol || '',
           issuer,
           name: baseToken.name || baseToken.symbol || '',
           symbol: baseToken.symbol || '',
-          icon: getTokenIconUrl(baseToken.symbol || '', issuer),
+          icon: dexScreenerIcon || getTokenIconUrl(baseToken.symbol || '', issuer),
           decimals: 15,
           price: pair.priceNative ? parseFloat(pair.priceNative) : undefined,
           volume24h: pair.volume?.h24 || 0,
