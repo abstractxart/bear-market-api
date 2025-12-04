@@ -25,10 +25,15 @@ export function generateReferralCode(walletAddress: string): string {
 
 /**
  * Register a new referral relationship
+ *
+ * @param walletAddress - The wallet address to register
+ * @param referrerCode - The referral code of who referred this wallet (optional)
+ * @param verified - Whether this registration has signature verification (default: false)
  */
 export async function registerReferral(
   walletAddress: string,
-  referrerCode: string | null
+  referrerCode: string | null,
+  verified: boolean = false
 ): Promise<ReferralData> {
   const referralCode = generateReferralCode(walletAddress);
 
@@ -68,16 +73,17 @@ export async function registerReferral(
     }
   }
 
-  // Insert new referral
+  // Insert new referral with verified flag
   const result = await pool.query(
-    `INSERT INTO referrals (wallet_address, referral_code, referred_by_code)
-     VALUES ($1, $2, $3)
+    `INSERT INTO referrals (wallet_address, referral_code, referred_by_code, verified)
+     VALUES ($1, $2, $3, $4)
      RETURNING *`,
-    [walletAddress, referralCode, referrerCode]
+    [walletAddress, referralCode, referrerCode, verified]
   );
 
   const row = result.rows[0];
-  console.log(`[Referral] Registered: ${walletAddress} (referred by: ${referrerCode || 'none'})`);
+  const verifiedStatus = verified ? '✓ VERIFIED' : 'unverified';
+  console.log(`[Referral] Registered [${verifiedStatus}]: ${walletAddress} (referred by: ${referrerCode || 'none'})`);
 
   return {
     walletAddress: row.wallet_address,

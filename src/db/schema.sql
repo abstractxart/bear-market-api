@@ -6,12 +6,14 @@ CREATE TABLE IF NOT EXISTS referrals (
   wallet_address VARCHAR(64) NOT NULL UNIQUE,
   referral_code VARCHAR(16) NOT NULL UNIQUE,
   referred_by_code VARCHAR(16),
+  verified BOOLEAN DEFAULT FALSE, -- TRUE if registered with signature verification
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_referral_code ON referrals(referral_code);
 CREATE INDEX idx_referred_by ON referrals(referred_by_code);
+CREATE INDEX idx_verified ON referrals(verified);
 
 -- Trades table: Records all trades for referral tracking
 CREATE TABLE IF NOT EXISTS trades (
@@ -64,6 +66,19 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 );
 
 CREATE INDEX idx_rate_limit_lookup ON rate_limits(identifier, endpoint, window_start);
+
+-- Authentication challenges table
+-- Stores temporary challenges for wallet ownership proof
+-- NOTE: In production, use Redis instead of database for better performance
+CREATE TABLE IF NOT EXISTS auth_challenges (
+  wallet_address VARCHAR(64) PRIMARY KEY CHECK (wallet_address ~ '^r[1-9A-HJ-NP-Za-km-z]{24,34}$'),
+  nonce VARCHAR(128) NOT NULL,
+  timestamp BIGINT NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_challenge_expiry ON auth_challenges(expires_at);
 
 -- Stats view for easy querying
 CREATE OR REPLACE VIEW referral_stats AS

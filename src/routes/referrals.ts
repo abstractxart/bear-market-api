@@ -11,25 +11,150 @@ import {
   isValidXRPLAddress,
   isValidAmount
 } from '../services/verificationService';
+import {
+  generateChallenge,
+  constructChallengeMessage,
+  verifySignature,
+  Challenge
+} from '../services/authService';
 
 const router = Router();
 
 /**
- * POST /api/referrals/register
- * Register a new referral relationship
+ * In-memory challenge store
+ * TODO: Move to Redis in production for horizontal scaling
  */
-router.post('/register', async (req, res) => {
-  try {
-    const { walletAddress, referrerCode } = req.body;
+const challenges = new Map<string, Challenge>();
 
-    if (!walletAddress) {
-      return res.status(400).json({ error: 'walletAddress is required' });
+/**
+ * GET /api/referrals/challenge/:wallet
+ * Request an authentication challenge for wallet ownership proof
+ *
+ * SECURITY: First step of challenge-response authentication
+ */
+router.get('/challenge/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+
+    // Validate wallet address format
+    if (!isValidXRPLAddress(wallet)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid wallet address'
+      });
     }
 
-    const result = await registerReferral(walletAddress, referrerCode || null);
+    // Generate cryptographically secure challenge
+    const challenge = generateChallenge();
+
+    // Store challenge with 5-minute automatic cleanup
+    challenges.set(wallet, challenge);
+    setTimeout(() => {
+      challenges.delete(wallet);
+      console.log(`[Auth] Challenge expired and deleted for ${wallet}`);
+    }, 5 * 60 * 1000);
+
+    // Construct the message that must be signed
+    const message = constructChallengeMessage(wallet, challenge.nonce, challenge.timestamp);
+
+    console.log(`[Auth] Challenge issued for wallet: ${wallet}`);
 
     res.json({
       success: true,
+      data: {
+        nonce: challenge.nonce,
+        timestamp: challenge.timestamp,
+        message, // The exact string to sign
+        expiresAt: challenge.expiresAt
+      }
+    });
+  } catch (error: any) {
+    console.error('[API] Challenge generation error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to generate challenge'
+    });
+  }
+});
+
+/**
+ * POST /api/referrals/register
+ * Register a new referral relationship with signature verification
+ *
+ * SECURITY: Requires cryptographic proof of wallet ownership
+ * Prevents wallet impersonation attacks (David Schwartz approved)
+ */
+router.post('/register', async (req, res) => {
+  try {
+    const { walletAddress, referrerCode, signature, nonce, timestamp } = req.body;
+
+    // 1. Validate required fields for signature verification
+    if (!walletAddress || !signature || !nonce || timestamp === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        required: ['walletAddress', 'signature', 'nonce', 'timestamp'],
+        message: 'You must complete the challenge-response authentication. Request a challenge first.'
+      });
+    }
+
+    // 2. Verify wallet address format
+    if (!isValidXRPLAddress(walletAddress)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid wallet address format'
+      });
+    }
+
+    // 3. Verify challenge exists for this wallet
+    const challenge = challenges.get(walletAddress);
+    if (!challenge) {
+      return res.status(400).json({
+        success: false,
+        error: 'No challenge found',
+        message: 'Request a challenge first using GET /api/referrals/challenge/:wallet'
+      });
+    }
+
+    // 4. Verify challenge matches (prevent challenge substitution)
+    if (challenge.nonce !== nonce || challenge.timestamp !== timestamp) {
+      return res.status(400).json({
+        success: false,
+        error: 'Challenge mismatch',
+        message: 'The provided nonce/timestamp do not match the issued challenge'
+      });
+    }
+
+    // 5. CRITICAL: Verify cryptographic signature
+    let isValid = false;
+    try {
+      isValid = await verifySignature(walletAddress, signature, nonce, timestamp);
+    } catch (error: any) {
+      return res.status(401).json({
+        success: false,
+        error: 'Signature verification failed',
+        message: error.message || 'Invalid signature. You must own this wallet to register.'
+      });
+    }
+
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid signature',
+        message: 'Signature verification failed. You must own this wallet to register.'
+      });
+    }
+
+    // 6. Delete used challenge (prevent replay attacks)
+    challenges.delete(walletAddress);
+    console.log(`[Auth] ✓ Wallet verified and challenge consumed: ${walletAddress}`);
+
+    // 7. NOW we can trust the wallet address! Register with verified=true
+    const result = await registerReferral(walletAddress, referrerCode || null, true);
+
+    res.json({
+      success: true,
+      message: 'Wallet verified and referral registered',
       data: {
         walletAddress: result.walletAddress,
         referralCode: result.referralCode,
@@ -40,7 +165,10 @@ router.post('/register', async (req, res) => {
     });
   } catch (error: any) {
     console.error('[API] Register error:', error);
-    res.status(500).json({ error: error.message || 'Failed to register referral' });
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to register referral'
+    });
   }
 });
 
