@@ -676,23 +676,25 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
       return (url: string, gatewayIdx: number): string => {
         if (!url) return '';
 
-        // Extract IPFS hash from any format
-        let hash = '';
+        // Extract IPFS path (hash + any path after it) from any format
+        let ipfsPath = '';
 
         if (url.startsWith('ipfs://')) {
-          hash = url.replace('ipfs://', '');
+          // ipfs://QmXXX/path/to/file.png -> QmXXX/path/to/file.png
+          ipfsPath = url.replace('ipfs://', '');
         } else if (url.includes('/ipfs/')) {
-          // Already an HTTP gateway URL - extract hash
-          const match = url.match(/\/ipfs\/([^/?#]+)/);
-          if (match) hash = match[1];
+          // https://gateway.com/ipfs/QmXXX/path/file.png -> QmXXX/path/file.png
+          const match = url.match(/\/ipfs\/(.+)/);
+          if (match) ipfsPath = match[1];
         } else if (url.startsWith('Qm') || url.startsWith('baf')) {
-          hash = url;
+          // Raw hash or hash with path
+          ipfsPath = url;
         }
 
-        if (hash) {
+        if (ipfsPath) {
           // Use the gateway at the specified index
           const gateway = IPFS_GATEWAYS[gatewayIdx] || IPFS_GATEWAYS[0];
-          return `${gateway}${hash}`;
+          return `${gateway}${ipfsPath}`;
         }
 
         // Not an IPFS URL, return as-is
