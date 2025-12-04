@@ -554,8 +554,18 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
 
         const collectionList = await Promise.all(collectionPromises);
 
-        // Sort by collection size (most NFTs first)
-        collectionList.sort((a, b) => b.nfts.length - a.nfts.length);
+        // Sort: named collections first (by NFT count), then unnamed "Collection xxx..." at bottom
+        collectionList.sort((a, b) => {
+          const aIsUnnamed = a.name.startsWith('Collection ');
+          const bIsUnnamed = b.name.startsWith('Collection ');
+
+          // Unnamed collections go to bottom
+          if (aIsUnnamed && !bIsUnnamed) return 1;
+          if (!aIsUnnamed && bIsUnnamed) return -1;
+
+          // Within same category, sort by NFT count (most first)
+          return b.nfts.length - a.nfts.length;
+        });
         setCollections(collectionList);
         setNftLoadProgress('');
 
