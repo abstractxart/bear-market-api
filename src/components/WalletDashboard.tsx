@@ -255,44 +255,51 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
       if (response.ok) {
         const data = await response.json();
 
-        // Log the structure to understand what we're getting
+        // XRP.cafe returns: { nft: { nftokenId, issuer, metadata, name, image, etc } }
+        const nftData = data?.nft || data;
+
         console.log(`XRP.cafe for ${tokenId.slice(-8)}:`, {
-          hasMetadata: !!data?.metadata,
           hasNft: !!data?.nft,
-          hasName: !!data?.name,
-          hasImage: !!data?.image,
-          topLevelKeys: Object.keys(data || {}),
-          metadataType: typeof data?.metadata,
-          fullData: data, // Log everything so we can see the structure
+          nftDataKeys: Object.keys(nftData || {}),
+          hasMetadata: !!nftData?.metadata,
+          hasName: !!nftData?.name,
+          hasImage: !!nftData?.image,
+          metadataType: typeof nftData?.metadata,
+          fullNftData: nftData,
         });
 
-        // XRP.cafe format - check multiple locations
-        if (data?.metadata || data?.nft?.metadata) {
-          const meta = data.metadata || data.nft?.metadata;
-          // Handle if metadata is a string
-          const parsed = typeof meta === 'string' ? JSON.parse(meta) : meta;
-          console.log(`Parsed metadata for ${tokenId.slice(-8)}:`, parsed);
-          if (parsed?.image || parsed?.name) {
-            return {
-              name: parsed.name,
-              description: parsed.description,
-              image: parsed.image,
-              animation_url: parsed.animation_url,
-              animation: parsed.animation,
-              attributes: parsed.attributes,
-            };
+        // Try metadata field first (could be string or object)
+        if (nftData?.metadata) {
+          let parsed: any;
+          try {
+            parsed = typeof nftData.metadata === 'string' ? JSON.parse(nftData.metadata) : nftData.metadata;
+            console.log(`Parsed metadata for ${tokenId.slice(-8)}:`, parsed);
+
+            if (parsed?.image || parsed?.name) {
+              return {
+                name: parsed.name || nftData.name,
+                description: parsed.description || nftData.description,
+                image: parsed.image || nftData.image,
+                animation_url: parsed.animation_url || parsed.animation,
+                animation: parsed.animation,
+                attributes: parsed.attributes,
+              };
+            }
+          } catch (err) {
+            console.log(`Failed to parse metadata for ${tokenId.slice(-8)}:`, err);
           }
         }
-        // Try direct fields
-        if (data?.image || data?.name) {
-          console.log(`Using direct fields for ${tokenId.slice(-8)}`);
+
+        // Try direct fields on nftData
+        if (nftData?.image || nftData?.name) {
+          console.log(`Using direct nftData fields for ${tokenId.slice(-8)}`);
           return {
-            name: data.name,
-            description: data.description,
-            image: data.image,
-            animation_url: data.animation_url,
-            animation: data.animation,
-            attributes: data.attributes,
+            name: nftData.name,
+            description: nftData.description,
+            image: nftData.image,
+            animation_url: nftData.animation_url || nftData.animation,
+            animation: nftData.animation,
+            attributes: nftData.attributes,
           };
         }
 
