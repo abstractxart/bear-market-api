@@ -24,16 +24,20 @@ export async function checkPixelBearNFTs(
   try {
     console.log(`[NFT Check] Checking wallet: ${address}`);
 
-    // Fetch ALL account NFTs (with pagination support)
+    // Fetch ALL account NFTs (with pagination support - up to 10,000 NFTs)
     let accountNfts: AccountNFT[] = [];
     let marker: any = undefined;
+    let pageCount = 0;
+    const MAX_PAGES = 25; // 25 pages × 400 NFTs = 10,000 max
 
     do {
+      pageCount++;
+
       const response = await client.request({
         command: 'account_nfts',
         account: address,
         ledger_index: 'validated',
-        limit: 400, // Max per request
+        limit: 400, // Max per request (XRPL limit)
         marker: marker,
       });
 
@@ -41,11 +45,17 @@ export async function checkPixelBearNFTs(
       marker = response.result.marker;
 
       if (marker) {
-        console.log(`[NFT Check] Fetching more NFTs... (got ${accountNfts.length} so far)`);
+        console.log(`[NFT Check] Page ${pageCount}: Fetching more NFTs... (got ${accountNfts.length} so far)`);
+      }
+
+      // Safety: prevent infinite loops
+      if (pageCount >= MAX_PAGES) {
+        console.warn(`[NFT Check] Reached max pages (${MAX_PAGES}), stopping pagination`);
+        break;
       }
     } while (marker);
 
-    console.log(`[NFT Check] Total NFTs found: ${accountNfts.length}`);
+    console.log(`[NFT Check] Total NFTs found: ${accountNfts.length} (${pageCount} pages)`);
 
     // Log all unique issuers found
     const uniqueIssuers = [...new Set(accountNfts.map(nft => nft.Issuer))];
