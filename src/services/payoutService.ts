@@ -124,6 +124,25 @@ async function sendXRPPayout(
     const hotWallet = Wallet.fromSeed(hotWalletSeed);
     console.log(`[Payout] Using hot wallet: ${hotWallet.address}`);
 
+    // Check if hot wallet has sufficient balance
+    const balance = await client.getXrpBalance(hotWallet.address);
+    const minimumRequired = amount + 0.01; // Include transaction fee buffer
+
+    if (balance < minimumRequired) {
+      const error = `Insufficient hot wallet balance: ${balance} XRP (need ${minimumRequired} XRP)`;
+      console.error('[Payout]', error);
+
+      await pool.query(
+        `INSERT INTO payouts (trade_id, referrer_wallet, amount, token, status, error_message, created_at)
+         VALUES ($1, $2, $3, 'XRP', 'failed', $4, NOW())`,
+        [tradeId, referrerWallet, amount, error]
+      );
+
+      return;
+    }
+
+    console.log(`[Payout] Hot wallet balance: ${balance} XRP (sufficient)`);
+
     // Prepare payment transaction
     const payment = {
       TransactionType: 'Payment' as const,

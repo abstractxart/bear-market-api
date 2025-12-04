@@ -121,7 +121,7 @@ router.get('/:wallet/payouts', async (req, res) => {
 });
 
 /**
- * POST /api/trades/record
+ * POST /api/referrals/trades/record
  * Record a trade and trigger automatic payout
  */
 router.post('/trades/record', async (req, res) => {
