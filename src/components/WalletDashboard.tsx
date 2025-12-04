@@ -68,9 +68,13 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Known collection names on XRPL
+  // Known collection names on XRPL - use issuer:taxon format for specific collections
   const KNOWN_COLLECTIONS: Record<string, string> = {
-    'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF': 'Pixel Bears',
+    // BEAR collections - different taxons = different collections!
+    'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF:0': 'Ultra Rare Bears',  // Taxon 0 = Ultra Rare
+    'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF:1': 'Pixel Bears',       // Taxon 1 = Pixel Bears
+    'rBEARbo4Prn33894evmvYcAf9yAQjp4VJF:2': 'Pixel Bears',       // Taxon 2 = Pixel Bears
+    // Other known collections
     'rPdvC6ccq8hCdPKSPJkPmyZ4Mi1oG2FFkT': 'xPunks',
     'rJzaNhosn5sgL3H5MxkFGpN6PEoAffPnhL': 'Bored Apes XRP',
     'rDzn8G4bH6bKrj4K2Wy2n2pKQViuxFQnxx': 'XRP Punks',
@@ -92,51 +96,74 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
     }
   };
 
-  // Convert IPFS to HTTP gateway
-  const ipfsToHttp = (url: string): string => {
+  // IPFS gateways - try faster ones first
+  const IPFS_GATEWAYS = [
+    'https://cloudflare-ipfs.com/ipfs/',
+    'https://gateway.pinata.cloud/ipfs/',
+    'https://dweb.link/ipfs/',
+    'https://ipfs.io/ipfs/',
+  ];
+
+  // Convert IPFS to HTTP gateway - uses first gateway by default
+  const ipfsToHttp = (url: string, gatewayIndex = 0): string => {
     if (!url) return '';
+    const gateway = IPFS_GATEWAYS[gatewayIndex] || IPFS_GATEWAYS[0];
     if (url.startsWith('ipfs://')) {
-      return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
+      return url.replace('ipfs://', gateway);
     }
     if (url.startsWith('Qm') || url.startsWith('baf')) {
-      return `https://ipfs.io/ipfs/${url}`;
+      return `${gateway}${url}`;
     }
     return url;
   };
 
-  // Fetch NFT metadata from URI
+  // Fetch NFT metadata from URI - tries multiple gateways
   const fetchNFTMetadata = async (uri: string): Promise<NFTMetadata | null> => {
-    try {
-      const httpUri = ipfsToHttp(uri);
-      if (!httpUri.startsWith('http')) return null;
-
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-
-      const response = await fetch(httpUri, { signal: controller.signal });
-      clearTimeout(timeout);
-
-      if (!response.ok) return null;
-
-      const contentType = response.headers.get('content-type');
-      if (contentType?.includes('application/json')) {
-        return await response.json();
-      } else if (contentType?.includes('image')) {
-        // URI points directly to image
-        return { image: httpUri };
-      }
-
-      // Try parsing as JSON anyway
-      const text = await response.text();
+    // Try each gateway until one works
+    for (let gatewayIdx = 0; gatewayIdx < IPFS_GATEWAYS.length; gatewayIdx++) {
       try {
-        return JSON.parse(text);
+        const httpUri = ipfsToHttp(uri, gatewayIdx);
+        if (!httpUri.startsWith('http')) return null;
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+        const response = await fetch(httpUri, { signal: controller.signal });
+        clearTimeout(timeout);
+
+        if (!response.ok) continue; // Try next gateway
+
+        const contentType = response.headers.get('content-type');
+        if (contentType?.includes('application/json')) {
+          const json = await response.json();
+          // Convert image URL to use same gateway that worked
+          if (json.image) {
+            json.image = ipfsToHttp(json.image, gatewayIdx);
+          }
+          return json;
+        } else if (contentType?.includes('image')) {
+          // URI points directly to image
+          return { image: httpUri };
+        }
+
+        // Try parsing as JSON anyway
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          if (json.image) {
+            json.image = ipfsToHttp(json.image, gatewayIdx);
+          }
+          return json;
+        } catch {
+          // Maybe it's a direct image URL
+          return { image: httpUri };
+        }
       } catch {
-        // Maybe it's a direct image URL
-        return { image: httpUri };
+        // Try next gateway
+        continue;
       }
-    } catch {
-      return null;
     }
+    return null;
   };
 
   // Fetch collection info from XRP.cafe API
@@ -167,8 +194,14 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
     }
   };
 
-  // localStorage key for collection name cache
-  const COLLECTION_CACHE_KEY = 'bear_market_collection_names';
+  // localStorage key for collection name cache - version 2 uses issuer:taxon keys
+  const COLLECTION_CACHE_KEY = 'bear_market_collection_names_v2';
+
+  // Clear old cache on first load (one-time migration)
+  useEffect(() => {
+    // Remove old v1 cache that used wrong keys
+    localStorage.removeItem('bear_market_collection_names');
+  }, []);
 
   // Load cached collection names from localStorage
   const loadCollectionCache = (): Record<string, { name: string; image?: string }> => {
