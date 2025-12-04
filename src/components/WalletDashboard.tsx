@@ -419,8 +419,9 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                   if (animType !== 'unknown') {
                     mediaType = animType;
                   } else {
-                    // Default to video if animation exists but type unknown
-                    mediaType = 'video';
+                    // Default to GIF for animation field without extension
+                    // Most XRPL NFT animations are GIFs (like BEAR collection)
+                    mediaType = 'gif';
                   }
                 }
                 // Check for explicit video field
