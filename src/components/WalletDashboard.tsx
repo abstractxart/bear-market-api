@@ -255,55 +255,31 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
       if (response.ok) {
         const data = await response.json();
 
-        // XRP.cafe returns: { nft: { nftokenId, issuer, metadata, name, image, etc } }
+        // XRP.cafe returns: { nft: { item_name, media_url, item_desc, etc } }
         const nftData = data?.nft || data;
 
-        console.log(`XRP.cafe for ${tokenId.slice(-8)}:`, {
-          hasNft: !!data?.nft,
-          nftDataKeys: Object.keys(nftData || {}),
-          hasMetadata: !!nftData?.metadata,
-          hasName: !!nftData?.name,
-          hasImage: !!nftData?.image,
-          metadataType: typeof nftData?.metadata,
-          fullNftData: nftData,
-        });
+        // XRP.cafe uses these field names:
+        // - item_name (not name)
+        // - media_url (not image)
+        // - item_desc (not description)
+        if (nftData?.item_name || nftData?.media_url) {
+          console.log(`✓ Found XRP.cafe data for ${tokenId.slice(-8)}:`, {
+            name: nftData.item_name,
+            image: nftData.media_url,
+          });
 
-        // Try metadata field first (could be string or object)
-        if (nftData?.metadata) {
-          let parsed: any;
-          try {
-            parsed = typeof nftData.metadata === 'string' ? JSON.parse(nftData.metadata) : nftData.metadata;
-            console.log(`Parsed metadata for ${tokenId.slice(-8)}:`, parsed);
-
-            if (parsed?.image || parsed?.name) {
-              return {
-                name: parsed.name || nftData.name,
-                description: parsed.description || nftData.description,
-                image: parsed.image || nftData.image,
-                animation_url: parsed.animation_url || parsed.animation,
-                animation: parsed.animation,
-                attributes: parsed.attributes,
-              };
-            }
-          } catch (err) {
-            console.log(`Failed to parse metadata for ${tokenId.slice(-8)}:`, err);
-          }
-        }
-
-        // Try direct fields on nftData
-        if (nftData?.image || nftData?.name) {
-          console.log(`Using direct nftData fields for ${tokenId.slice(-8)}`);
           return {
-            name: nftData.name,
-            description: nftData.description,
-            image: nftData.image,
-            animation_url: nftData.animation_url || nftData.animation,
-            animation: nftData.animation,
-            attributes: nftData.attributes,
+            name: nftData.item_name,
+            description: nftData.item_desc,
+            image: nftData.media_url || nftData.media_url_sm || nftData.original_media_url,
+            animation_url: undefined, // XRP.cafe doesn't separate animated content
+            animation: undefined,
+            attributes: undefined, // Attributes not in this API response
           };
         }
 
-        console.log(`No usable metadata found for ${tokenId.slice(-8)}`);
+        console.log(`✗ No XRP.cafe data for ${tokenId.slice(-8)}`);
+
       } else {
         console.log('XRP.cafe failed:', response.status, response.statusText);
       }
