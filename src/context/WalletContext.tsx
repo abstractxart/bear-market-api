@@ -86,9 +86,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const ownerCount = accountInfo.result.account_data.OwnerCount || 0;
 
       // Get reserve requirements from server state (in drops)
+      // As of Dec 2024: base = 1 XRP, owner = 0.2 XRP per object
       const validatedLedger = serverState.result.state.validated_ledger;
-      const baseReserveDrops = validatedLedger?.reserve_base || 10_000_000; // 10 XRP default
-      const ownerReserveDrops = validatedLedger?.reserve_inc || 2_000_000; // 2 XRP default
+      const baseReserveDrops = validatedLedger?.reserve_base || 1_000_000; // 1 XRP default (Dec 2024)
+      const ownerReserveDrops = validatedLedger?.reserve_inc || 200_000; // 0.2 XRP default (Dec 2024)
 
       // Calculate total reserved and spendable XRP
       const totalDrops = BigInt(xrpBalance);
