@@ -64,6 +64,7 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
   const [selectedNFT, setSelectedNFT] = useState<NFTData | null>(null);
   const [history, setHistory] = useState<TxHistory[]>([]);
   const [loadingNfts, setLoadingNfts] = useState(false);
+  const [nftLoadProgress, setNftLoadProgress] = useState<string>('');
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -138,6 +139,67 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
     }
   };
 
+  // Fetch collection info from XRP.cafe API
+  const fetchCollectionFromXrpCafe = async (issuer: string, taxon?: number): Promise<{ name: string; image?: string } | null> => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+
+      // XRP.cafe collections API
+      const response = await fetch(
+        `https://api.xrp.cafe/api/collections/${issuer}${taxon !== undefined ? `?taxon=${taxon}` : ''}`,
+        { signal: controller.signal }
+      );
+      clearTimeout(timeout);
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      if (data?.name) {
+        return {
+          name: data.name,
+          image: data.image || data.cover_image || data.thumbnail,
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  // localStorage key for collection name cache
+  const COLLECTION_CACHE_KEY = 'bear_market_collection_names';
+
+  // Load cached collection names from localStorage
+  const loadCollectionCache = (): Record<string, { name: string; image?: string }> => {
+    try {
+      const cached = localStorage.getItem(COLLECTION_CACHE_KEY);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (err) {
+      console.warn('Failed to load collection cache:', err);
+    }
+    return {};
+  };
+
+  // Save collection name to localStorage cache
+  const saveToCollectionCache = (issuer: string, data: { name: string; image?: string }) => {
+    try {
+      const cache = loadCollectionCache();
+      cache[issuer] = data;
+      localStorage.setItem(COLLECTION_CACHE_KEY, JSON.stringify(cache));
+    } catch (err) {
+      console.warn('Failed to save to collection cache:', err);
+    }
+  };
+
+  // Get cached collection name (returns null if not cached)
+  const getCachedCollectionName = (issuer: string): { name: string; image?: string } | null => {
+    const cache = loadCollectionCache();
+    return cache[issuer] || null;
+  };
+
   // Format address for display
   const formatAddress = (address: string): string => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -159,13 +221,40 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
 
       setLoadingNfts(true);
       try {
-        const response = await xrplClient.request({
-          command: 'account_nfts',
-          account: wallet.address,
-          limit: 100,
-        });
+        // Fetch ALL NFTs with pagination - no limits!
+        const allRawNfts: any[] = [];
+        let marker: string | undefined = undefined;
+        let pageCount = 0;
+        const MAX_PAGES = 1000; // Safety limit (1000 pages * 400 = 400,000 NFTs max)
 
-        const rawNfts = response.result.account_nfts;
+        do {
+          setNftLoadProgress(`Fetching NFTs... (${allRawNfts.length} found)`);
+
+          const request: any = {
+            command: 'account_nfts',
+            account: wallet.address,
+            limit: 400, // Max per request
+          };
+
+          if (marker) {
+            request.marker = marker;
+          }
+
+          const response = await xrplClient.request(request);
+          const result = response.result as any;
+          const pageNfts = result.account_nfts || [];
+          allRawNfts.push(...pageNfts);
+
+          // Get next page marker
+          marker = result.marker as string | undefined;
+          pageCount++;
+
+        } while (marker && pageCount < MAX_PAGES);
+
+        console.log(`Total NFTs fetched: ${allRawNfts.length} across ${pageCount} pages`);
+        setNftLoadProgress(`Processing ${allRawNfts.length} NFTs...`);
+
+        const rawNfts = allRawNfts;
 
         // First pass: Create NFT objects with basic info
         const nftDataPromises = rawNfts.map(async (nft: any) => {
@@ -218,26 +307,73 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
           collectionMap.set(nft.issuer, existing);
         });
 
-        // Create collection objects
-        const collectionList: NFTCollection[] = Array.from(collectionMap.entries()).map(([issuer, nftList]) => {
-          // Get collection name
-          const collectionName = KNOWN_COLLECTIONS[issuer] || `Collection ${issuer.slice(0, 6)}...${issuer.slice(-4)}`;
+        // Create collection objects with cached/XRP.cafe names
+        setNftLoadProgress(`Loading ${collectionMap.size} collection names...`);
 
+        const collectionPromises = Array.from(collectionMap.entries()).map(async ([issuer, nftList]) => {
           // Get first NFT with an image as collection cover
           const coverNft = nftList.find(n => n.image) || nftList[0];
+
+          let collectionName = '';
+          let collectionImage = coverNft?.image || '';
+
+          // 1. First check localStorage cache
+          const cachedInfo = getCachedCollectionName(issuer);
+          if (cachedInfo?.name) {
+            collectionName = cachedInfo.name;
+            if (cachedInfo.image) {
+              collectionImage = ipfsToHttp(cachedInfo.image);
+            }
+            console.log(`Using cached name for ${issuer}: ${collectionName}`);
+          }
+
+          // 2. Check KNOWN_COLLECTIONS hardcoded list
+          if (!collectionName) {
+            collectionName = KNOWN_COLLECTIONS[issuer];
+            if (collectionName) {
+              // Save hardcoded name to cache for consistency
+              saveToCollectionCache(issuer, { name: collectionName, image: collectionImage });
+            }
+          }
+
+          // 3. Try XRP.cafe API if still no name
+          if (!collectionName) {
+            try {
+              const xrpCafeInfo = await fetchCollectionFromXrpCafe(issuer, nftList[0]?.taxon);
+              if (xrpCafeInfo?.name) {
+                collectionName = xrpCafeInfo.name;
+                if (xrpCafeInfo.image) {
+                  collectionImage = ipfsToHttp(xrpCafeInfo.image);
+                }
+                // Save to localStorage cache for next time!
+                saveToCollectionCache(issuer, { name: collectionName, image: xrpCafeInfo.image });
+                console.log(`Cached new collection: ${issuer} -> ${collectionName}`);
+              }
+            } catch {
+              // Ignore errors, use fallback
+            }
+          }
+
+          // 4. Fallback to issuer address
+          if (!collectionName) {
+            collectionName = `Collection ${issuer.slice(0, 6)}...${issuer.slice(-4)}`;
+          }
 
           return {
             issuer,
             name: collectionName,
-            image: coverNft?.image || '',
+            image: collectionImage,
             nfts: nftList,
             taxon: nftList[0]?.taxon,
-          };
+          } as NFTCollection;
         });
+
+        const collectionList = await Promise.all(collectionPromises);
 
         // Sort by collection size (most NFTs first)
         collectionList.sort((a, b) => b.nfts.length - a.nfts.length);
         setCollections(collectionList);
+        setNftLoadProgress('');
 
       } catch (err) {
         console.error('Failed to fetch NFTs:', err);
@@ -606,7 +742,11 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
                       <div className="absolute inset-2 border-4 border-transparent border-t-pink-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }} />
                     </div>
                     <p className="text-gray-400 mt-4 font-medium">Loading your NFTs...</p>
-                    <p className="text-gray-600 text-sm mt-1">Fetching metadata from IPFS</p>
+                    {nftLoadProgress ? (
+                      <p className="text-purple-400 text-sm mt-1 font-mono">{nftLoadProgress}</p>
+                    ) : (
+                      <p className="text-gray-600 text-sm mt-1">Fetching metadata from IPFS</p>
+                    )}
                   </div>
                 ) : collections.length > 0 ? (
                   <div className="space-y-3">
