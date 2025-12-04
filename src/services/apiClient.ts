@@ -75,6 +75,7 @@ export const api = {
 
   /**
    * Record a trade and trigger payout
+   * SECURITY: swapTxHash is REQUIRED for transaction verification
    */
   recordTrade: (tradeData: {
     traderWallet: string;
@@ -84,7 +85,7 @@ export const api = {
     outputAmount: number;
     feeAmount: number;
     feeToken: string;
-    swapTxHash?: string;
+    swapTxHash: string;  // ← REQUIRED (not optional!)
   }) =>
     apiRequest('/api/referrals/trades/record', {
       method: 'POST',
