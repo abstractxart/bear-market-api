@@ -145,11 +145,11 @@ export function getFeeTierName(tier: FeeTier): string {
 export function getFeeRate(tier: FeeTier): number {
   switch (tier) {
     case 'ultra_rare':
-      return 0.00321; // 0.321%
+      return 0.005; // 0.5%
     case 'pixel_bear':
-      return 0.00485; // 0.485%
+      return 0.0065; // 0.65%
     default:
-      return 0.00589; // 0.589%
+      return 0.008; // 0.8%
   }
 }
 

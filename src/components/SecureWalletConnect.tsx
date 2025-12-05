@@ -24,7 +24,7 @@ import {
   logSecurityEvent,
   isSecureContext,
 } from '../security/SecurityPolicy';
-import { initWeb3Auth, loginWithSocial } from '../services/web3AuthService';
+import { loginWithSocial } from '../services/web3AuthService';
 
 interface SecureWalletConnectProps {
   isOpen: boolean;
@@ -117,10 +117,11 @@ export const SecureWalletConnect = ({
   const [mnemonicWords, setMnemonicWords] = useState('');
   const [xamanNumbers, setXamanNumbers] = useState<string[]>(Array(8).fill(''));
 
-  // Initialize Web3Auth on mount
-  useEffect(() => {
-    initWeb3Auth().catch(console.error);
-  }, []);
+  // Web3Auth initialization disabled until VITE_WEB3AUTH_CLIENT_ID is configured
+  // If you want to enable social login, set the client ID in .env.local
+  // useEffect(() => {
+  //   initWeb3Auth().catch(console.error);
+  // }, []);
 
   // Check for saved vault on mount
   useEffect(() => {
@@ -595,47 +596,48 @@ export const SecureWalletConnect = ({
         </p>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
-          Enter your password
-        </label>
-        <div className="relative">
-          <input
-            type={showPassword ? 'text' : 'password'}
-            value={unlockPassword}
-            onChange={(e) => {
-              setUnlockPassword(e.target.value);
-              setError(null);
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && handleUnlockWallet()}
-            placeholder="••••••••••••"
-            className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-green-500 pr-12"
-            autoComplete="current-password"
-            autoFocus
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg"
-          >
-            {showPassword ? '🙈' : '👁️'}
-          </button>
+      <form onSubmit={(e) => { e.preventDefault(); handleUnlockWallet(); }}>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Enter your password
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={unlockPassword}
+              onChange={(e) => {
+                setUnlockPassword(e.target.value);
+                setError(null);
+              }}
+              placeholder="••••••••••••"
+              className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-green-500 pr-12"
+              autoComplete="current-password"
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg"
+            >
+              {showPassword ? '🙈' : '👁️'}
+            </button>
+          </div>
         </div>
-      </div>
 
-      {error && (
-        <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300">
-          ⚠️ {error}
-        </div>
-      )}
+        {error && (
+          <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300 mt-4">
+            ⚠️ {error}
+          </div>
+        )}
 
-      <button
-        onClick={handleUnlockWallet}
-        disabled={loading || !unlockPassword}
-        className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all"
-      >
-        {loading ? 'Unlocking...' : 'Unlock Wallet'}
-      </button>
+        <button
+          type="submit"
+          disabled={loading || !unlockPassword}
+          className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all mt-4"
+        >
+          {loading ? 'Unlocking...' : 'Unlock Wallet'}
+        </button>
+      </form>
 
       <p className="text-xs text-gray-500 text-center">
         Forgot password? <button onClick={() => setMode('secret')} className="text-purple-400 hover:text-purple-300">Re-import your wallet</button>
@@ -661,71 +663,72 @@ export const SecureWalletConnect = ({
 
       <SecurityDisclosure />
 
-      <div className="space-y-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Create password (12+ characters)
-          </label>
-          <div className="relative">
+      <form onSubmit={(e) => { e.preventDefault(); handleSaveWallet(); }}>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Create password (12+ characters)
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  setError(null);
+                }}
+                placeholder="••••••••••••"
+                className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 pr-12"
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg"
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+            {newPassword.length > 0 && newPassword.length < 12 && (
+              <p className="text-xs text-yellow-400 mt-1">Password too short ({newPassword.length}/12)</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Confirm password
+            </label>
             <input
               type={showPassword ? 'text' : 'password'}
-              value={newPassword}
+              value={confirmPassword}
               onChange={(e) => {
-                setNewPassword(e.target.value);
+                setConfirmPassword(e.target.value);
                 setError(null);
               }}
               placeholder="••••••••••••"
-              className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 pr-12"
+              className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500"
               autoComplete="new-password"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg"
-            >
-              {showPassword ? '🙈' : '👁️'}
-            </button>
+            {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+              <p className="text-xs text-red-400 mt-1">Passwords don't match</p>
+            )}
           </div>
-          {newPassword.length > 0 && newPassword.length < 12 && (
-            <p className="text-xs text-yellow-400 mt-1">Password too short ({newPassword.length}/12)</p>
-          )}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Confirm password
-          </label>
-          <input
-            type={showPassword ? 'text' : 'password'}
-            value={confirmPassword}
-            onChange={(e) => {
-              setConfirmPassword(e.target.value);
-              setError(null);
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && handleSaveWallet()}
-            placeholder="••••••••••••"
-            className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500"
-            autoComplete="new-password"
-          />
-          {confirmPassword.length > 0 && newPassword !== confirmPassword && (
-            <p className="text-xs text-red-400 mt-1">Passwords don't match</p>
-          )}
-        </div>
-      </div>
+        {error && (
+          <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300 mt-4">
+            ⚠️ {error}
+          </div>
+        )}
 
-      {error && (
-        <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300">
-          ⚠️ {error}
-        </div>
-      )}
-
-      <button
-        onClick={handleSaveWallet}
-        disabled={loading || newPassword.length < 12 || newPassword !== confirmPassword}
-        className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all"
-      >
-        {loading ? 'Saving...' : 'Save & Continue'}
-      </button>
+        <button
+          type="submit"
+          disabled={loading || newPassword.length < 12 || newPassword !== confirmPassword}
+          className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all mt-4"
+        >
+          {loading ? 'Saving...' : 'Save & Continue'}
+        </button>
+      </form>
 
       <button
         onClick={handleSkipSave}
@@ -979,184 +982,187 @@ export const SecureWalletConnect = ({
           ))}
         </div>
 
-        {/* Dynamic input based on selected method */}
-        <div className="space-y-3">
-          {/* Family Seed or Private Key input */}
-          {(importMethod === 'family-seed' || importMethod === 'private-key') && (
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                {importMethod === 'family-seed' ? 'Enter your family seed' : 'Enter your private key'}
-              </label>
-              <div className="relative">
-                <input
-                  type={showSecret ? 'text' : 'password'}
-                  value={secret}
-                  onChange={handleSecretChange}
-                  onPaste={handleSecretPaste}
-                  placeholder={importMethod === 'family-seed' ? 'sXXXXXXXXXXXXXXXXXXXXXXXXXXXX' : '00112233...'}
-                  className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 pr-12"
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowSecret(!showSecret)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg"
-                >
-                  {showSecret ? '🙈' : '👁️'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Mnemonic Phrase input */}
-          {importMethod === 'mnemonic' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Enter your mnemonic phrase words
-              </label>
-              <textarea
-                value={mnemonicWords}
-                onChange={(e) => setMnemonicWords(e.target.value)}
-                placeholder="word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12"
-                rows={3}
-                className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 resize-none"
-                autoComplete="off"
-              />
-              <p className="text-xs text-gray-500 mt-1">Enter 12 or 24 words separated by spaces</p>
-            </div>
-          )}
-
-          {/* XAMAN Secret Numbers input */}
-          {importMethod === 'xaman-numbers' && (() => {
-            const activeRow = xamanNumbers.findIndex(n => n.length < 6);
-            const currentRow = activeRow === -1 ? 7 : activeRow;
-
-            return (
+        {/* Import wallet form - wrapped to prevent console exposure */}
+        <form onSubmit={(e) => { e.preventDefault(); handleSessionConnect(); }}>
+          {/* Dynamic input based on selected method */}
+          <div className="space-y-3">
+            {/* Family Seed or Private Key input */}
+            {(importMethod === 'family-seed' || importMethod === 'private-key') && (
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Enter your Secret Numbers (8 rows of 6 digits)
+                  {importMethod === 'family-seed' ? 'Enter your family seed' : 'Enter your private key'}
                 </label>
-                <div className="space-y-2">
-                  {xamanNumbers.map((num, i) => {
-                    const isComplete = num.length === 6;
-                    const isActive = i === currentRow;
-                    const isLocked = i < currentRow && isComplete;
-                    const isFuture = i > currentRow;
-
-                    return (
-                      <div key={i} className="flex items-center gap-3">
-                        <span className={`text-sm font-bold w-6 text-right ${
-                          isActive ? 'text-purple-400' : isComplete ? 'text-green-400' : 'text-gray-600'
-                        }`}>
-                          {String.fromCharCode(65 + i)}:
-                        </span>
-                        <div className="flex-1 relative">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            maxLength={6}
-                            value={isLocked ? '••••••' : num}
-                            onChange={(e) => {
-                              if (isLocked || isFuture) return;
-                              const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                              const newNums = [...xamanNumbers];
-                              newNums[i] = value;
-                              setXamanNumbers(newNums);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Backspace' && num.length === 0 && i > 0) {
-                                e.preventDefault();
-                                const newNums = [...xamanNumbers];
-                                newNums[i - 1] = newNums[i - 1].slice(0, -1);
-                                setXamanNumbers(newNums);
-                              }
-                            }}
-                            placeholder={isActive ? '000000' : ''}
-                            disabled={isLocked || isFuture}
-                            autoFocus={isActive && i === 0}
-                            className={`w-full px-4 py-2.5 rounded-xl font-mono text-lg tracking-widest text-center transition-all ${
-                              isLocked
-                                ? 'bg-green-500/10 border-2 border-green-500/30 text-green-400 cursor-not-allowed'
-                                : isActive
-                                  ? 'bg-black/60 border-2 border-purple-500 text-white focus:outline-none'
-                                  : isFuture
-                                    ? 'bg-gray-800/30 border-2 border-gray-700/50 text-gray-600 cursor-not-allowed'
-                                    : 'bg-black/60 border-2 border-gray-700 text-white'
-                            }`}
-                            autoComplete="off"
-                          />
-                          {isLocked && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newNums = [...xamanNumbers];
-                                for (let j = i; j < 8; j++) {
-                                  newNums[j] = '';
-                                }
-                                setXamanNumbers(newNums);
-                              }}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-red-400 transition-colors"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                        {isComplete && (
-                          <span className="text-green-400 text-sm">✓</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center justify-between mt-3">
-                  <p className="text-xs text-gray-500">Found in XAMAN Settings → Security → Secret Numbers</p>
-                  <p className="text-xs text-gray-400">
-                    {xamanNumbers.filter(n => n.length === 6).length}/8 entered
-                  </p>
+                <div className="relative">
+                  <input
+                    type={showSecret ? 'text' : 'password'}
+                    value={secret}
+                    onChange={handleSecretChange}
+                    onPaste={handleSecretPaste}
+                    placeholder={importMethod === 'family-seed' ? 'sXXXXXXXXXXXXXXXXXXXXXXXXXXXX' : '00112233...'}
+                    className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 pr-12"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSecret(!showSecret)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-lg"
+                  >
+                    {showSecret ? '🙈' : '👁️'}
+                  </button>
                 </div>
               </div>
-            );
-          })()}
+            )}
 
-          {/* Algorithm selection for mnemonic and Secret Numbers */}
-          {(importMethod === 'mnemonic' || importMethod === 'xaman-numbers') && (
-            <div className="flex gap-4 pt-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="algorithm"
-                  checked={algorithm === 'secp256k1'}
-                  onChange={() => setAlgorithm('secp256k1')}
-                  className="w-3 h-3 text-blue-500 bg-black border-gray-600"
+            {/* Mnemonic Phrase input */}
+            {importMethod === 'mnemonic' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Enter your mnemonic phrase words
+                </label>
+                <textarea
+                  value={mnemonicWords}
+                  onChange={(e) => setMnemonicWords(e.target.value)}
+                  placeholder="word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12"
+                  rows={3}
+                  className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 resize-none"
+                  autoComplete="off"
                 />
-                <span className="text-xs text-gray-300">ecdsa-secp256k1</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="algorithm"
-                  checked={algorithm === 'ed25519'}
-                  onChange={() => setAlgorithm('ed25519')}
-                  className="w-3 h-3 text-blue-500 bg-black border-gray-600"
-                />
-                <span className="text-xs text-gray-300">ed25519</span>
-              </label>
-            </div>
+                <p className="text-xs text-gray-500 mt-1">Enter 12 or 24 words separated by spaces</p>
+              </div>
+            )}
+
+            {/* XAMAN Secret Numbers input */}
+            {importMethod === 'xaman-numbers' && (() => {
+              const activeRow = xamanNumbers.findIndex(n => n.length < 6);
+              const currentRow = activeRow === -1 ? 7 : activeRow;
+
+              return (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Enter your Secret Numbers (8 rows of 6 digits)
+                  </label>
+                  <div className="space-y-2">
+                    {xamanNumbers.map((num, i) => {
+                      const isComplete = num.length === 6;
+                      const isActive = i === currentRow;
+                      const isLocked = i < currentRow && isComplete;
+                      const isFuture = i > currentRow;
+
+                      return (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className={`text-sm font-bold w-6 text-right ${
+                            isActive ? 'text-purple-400' : isComplete ? 'text-green-400' : 'text-gray-600'
+                          }`}>
+                            {String.fromCharCode(65 + i)}:
+                          </span>
+                          <div className="flex-1 relative">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={6}
+                              value={isLocked ? '••••••' : num}
+                              onChange={(e) => {
+                                if (isLocked || isFuture) return;
+                                const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                const newNums = [...xamanNumbers];
+                                newNums[i] = value;
+                                setXamanNumbers(newNums);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Backspace' && num.length === 0 && i > 0) {
+                                  e.preventDefault();
+                                  const newNums = [...xamanNumbers];
+                                  newNums[i - 1] = newNums[i - 1].slice(0, -1);
+                                  setXamanNumbers(newNums);
+                                }
+                              }}
+                              placeholder={isActive ? '000000' : ''}
+                              disabled={isLocked || isFuture}
+                              autoFocus={isActive && i === 0}
+                              className={`w-full px-4 py-2.5 rounded-xl font-mono text-lg tracking-widest text-center transition-all ${
+                                isLocked
+                                  ? 'bg-green-500/10 border-2 border-green-500/30 text-green-400 cursor-not-allowed'
+                                  : isActive
+                                    ? 'bg-black/60 border-2 border-purple-500 text-white focus:outline-none'
+                                    : isFuture
+                                      ? 'bg-gray-800/30 border-2 border-gray-700/50 text-gray-600 cursor-not-allowed'
+                                      : 'bg-black/60 border-2 border-gray-700 text-white'
+                              }`}
+                              autoComplete="off"
+                            />
+                            {isLocked && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newNums = [...xamanNumbers];
+                                  for (let j = i; j < 8; j++) {
+                                    newNums[j] = '';
+                                  }
+                                  setXamanNumbers(newNums);
+                                }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-red-400 transition-colors"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                          {isComplete && (
+                            <span className="text-green-400 text-sm">✓</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center justify-between mt-3">
+                    <p className="text-xs text-gray-500">Found in XAMAN Settings → Security → Secret Numbers</p>
+                    <p className="text-xs text-gray-400">
+                      {xamanNumbers.filter(n => n.length === 6).length}/8 entered
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Algorithm selection for mnemonic and Secret Numbers */}
+            {(importMethod === 'mnemonic' || importMethod === 'xaman-numbers') && (
+              <div className="flex gap-4 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="algorithm"
+                    checked={algorithm === 'secp256k1'}
+                    onChange={() => setAlgorithm('secp256k1')}
+                    className="w-3 h-3 text-blue-500 bg-black border-gray-600"
+                  />
+                  <span className="text-xs text-gray-300">ecdsa-secp256k1</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="algorithm"
+                    checked={algorithm === 'ed25519'}
+                    onChange={() => setAlgorithm('ed25519')}
+                    className="w-3 h-3 text-blue-500 bg-black border-gray-600"
+                  />
+                  <span className="text-xs text-gray-300">ed25519</span>
+                </label>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300">⚠️ {error}</div>
           )}
-        </div>
 
-        {error && (
-          <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300">⚠️ {error}</div>
-        )}
-
-        <button
-          onClick={handleSessionConnect}
-          disabled={loading || !canSubmit()}
-          className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all"
-        >
-          {loading ? 'Validating...' : 'Continue'}
-        </button>
+          <button
+            type="submit"
+            disabled={loading || !canSubmit()}
+            className="w-full py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all"
+          >
+            {loading ? 'Validating...' : 'Continue'}
+          </button>
+        </form>
       </div>
     );
   };

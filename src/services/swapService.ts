@@ -470,6 +470,69 @@ export async function executeSwap(
   const isInputXRP = quote.inputToken.currency === 'XRP';
 
   try {
+    // ===== CHECK FOR MISSING TRUSTLINE =====
+    // If buying a token (XRP → Token), check if user has trustline for output token
+    const needsTrustline = quote.outputToken.currency !== 'XRP';
+    let hasTrustline = false;
+
+    if (needsTrustline) {
+      onStatus?.('Checking trustline...');
+      try {
+        const accountLines = await client.request({
+          command: 'account_lines',
+          account: senderAddress,
+          ledger_index: 'validated',
+        });
+
+        // Check if trustline exists for this token
+        hasTrustline = accountLines.result.lines.some((line: any) =>
+          line.currency === toXRPLCurrency(quote.outputToken.currency) &&
+          line.account === quote.outputToken.issuer
+        );
+      } catch (err) {
+        console.error('Failed to check trustlines:', err);
+      }
+    }
+
+    // ===== CREATE TRUSTLINE IF NEEDED =====
+    if (needsTrustline && !hasTrustline) {
+      onStatus?.('Creating trustline for token...');
+
+      const trustSetTx: any = {
+        TransactionType: 'TrustSet',
+        Account: senderAddress,
+        LimitAmount: {
+          currency: toXRPLCurrency(quote.outputToken.currency),
+          issuer: quote.outputToken.issuer!,
+          value: '100000000000', // High trust limit
+        },
+      };
+
+      const preparedTrustSet = await client.autofill(trustSetTx);
+
+      onStatus?.('Please sign the trustline transaction...');
+      const signedTrustSet = await signTransaction(preparedTrustSet);
+
+      onStatus?.('Submitting trustline...');
+      const trustSetResult = await client.submitAndWait(signedTrustSet.tx_blob);
+
+      // Check trustline success
+      let trustSetSuccess = false;
+      if (trustSetResult.result.meta && typeof trustSetResult.result.meta !== 'string') {
+        const meta = trustSetResult.result.meta as any;
+        trustSetSuccess = meta.TransactionResult === 'tesSUCCESS';
+      }
+
+      if (!trustSetSuccess) {
+        return {
+          success: false,
+          error: 'Failed to create trustline for token',
+        };
+      }
+
+      console.log('[Swap] Trustline created successfully');
+    }
+
     onStatus?.('Preparing transactions...');
 
     // ===== TRANSACTION 1: THE SWAP =====

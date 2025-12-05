@@ -5,9 +5,10 @@ import { useWallet } from '../context/WalletContext';
 import { getFeeTierName } from '../services/nftService';
 import { SecureWalletConnect } from './SecureWalletConnect';
 import { WalletDashboard } from './WalletDashboard';
+import { getKeyManager } from '../security/SecureKeyManager';
 
 const Header: React.FC = () => {
-  const { wallet } = useWallet();
+  const { wallet, connectWithSecret } = useWallet();
   const [showWalletConnect, setShowWalletConnect] = useState(false);
   const [showWalletDashboard, setShowWalletDashboard] = useState(false);
 
@@ -17,8 +18,21 @@ const Header: React.FC = () => {
   };
 
   // Handle successful wallet connection
-  const handleConnect = () => {
-    setShowWalletConnect(false);
+  const handleConnect = async () => {
+    try {
+      // Get the decrypted secret from SecureKeyManager
+      const keyManager = getKeyManager();
+      const secret = await keyManager.getSecretForSigning();
+
+      // Connect wallet using the secret
+      await connectWithSecret(secret);
+
+      // Close the modal after successful connection
+      setShowWalletConnect(false);
+    } catch (error) {
+      console.error('[Header] Failed to connect wallet:', error);
+      // Don't close the modal on error so user can retry
+    }
   };
 
   return (

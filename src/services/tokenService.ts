@@ -16,6 +16,18 @@ const XRPL_META_API = 'https://s1.xrplmeta.org';
 const XRPSCAN_API = 'https://api.xrpscan.com/api/v1';
 const BITHOMP_CDN = 'https://cdn.bithomp.com';
 
+// Backend proxy to bypass CORS restrictions
+const API_PROXY = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+/**
+ * Fetch with CORS proxy
+ * External APIs block direct browser requests, so we route through our backend
+ */
+async function proxyFetch(url: string): Promise<Response> {
+  const proxyUrl = `${API_PROXY}/api/proxy?url=${encodeURIComponent(url)}`;
+  return fetch(proxyUrl);
+}
+
 // Cache duration: 5 minutes for tokens, 1 minute for prices
 const TOKENS_CACHE_DURATION = 5 * 60 * 1000;
 const PRICES_CACHE_DURATION = 60 * 1000;
@@ -589,7 +601,7 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
   // 4. DexScreener API - great coverage
   searchPromises.push((async () => {
     try {
-      const response = await fetch(
+      const response = await proxyFetch(
         `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(query)}`
       );
       if (!response.ok) return;
@@ -637,7 +649,7 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
   // 5. First Ledger API - comprehensive token list!
   searchPromises.push((async () => {
     try {
-      const response = await fetch(
+      const response = await proxyFetch(
         `${FIRST_LEDGER_API}/tokens/search?q=${encodeURIComponent(query)}&limit=50`
       );
       if (!response.ok) return;
@@ -665,7 +677,7 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
   // 6. Sologenic Market Index - another comprehensive source
   searchPromises.push((async () => {
     try {
-      const response = await fetch(`${SOLOGENIC_API}/tokens?search=${encodeURIComponent(query)}&limit=50`);
+      const response = await proxyFetch(`${SOLOGENIC_API}/tokens?search=${encodeURIComponent(query)}&limit=50`);
       if (!response.ok) return;
 
       const data = await response.json();
@@ -689,7 +701,7 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
   // 7. XRPL Meta API - good metadata
   searchPromises.push((async () => {
     try {
-      const response = await fetch(
+      const response = await proxyFetch(
         `${XRPL_META_API}/tokens?search=${encodeURIComponent(query)}&limit=50`
       );
       if (!response.ok) return;
@@ -717,7 +729,7 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
   // 9. XPMarket API - another good source
   searchPromises.push((async () => {
     try {
-      const response = await fetch(
+      const response = await proxyFetch(
         `https://api.xpmarket.com/api/v1/token/search?q=${encodeURIComponent(query)}`
       );
       if (!response.ok) return;
@@ -746,7 +758,7 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
     searchPromises.push((async () => {
       try {
         // Try XRPL Meta issuer endpoint
-        const response = await fetch(`${XRPL_META_API}/issuer/${query}/tokens?limit=50`);
+        const response = await proxyFetch(`${XRPL_META_API}/issuer/${query}/tokens?limit=50`);
         if (!response.ok) return;
 
         const data = await response.json();
@@ -760,7 +772,7 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
     // Also try XRPScan for issuer info
     searchPromises.push((async () => {
       try {
-        const response = await fetch(`${XRPSCAN_API}/account/${query}`);
+        const response = await proxyFetch(`${XRPSCAN_API}/account/${query}`);
         if (!response.ok) return;
 
         const data = await response.json();
@@ -785,7 +797,7 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
   // 11. XRPScan name search
   searchPromises.push((async () => {
     try {
-      const response = await fetch(`${XRPSCAN_API}/names/${encodeURIComponent(query)}`);
+      const response = await proxyFetch(`${XRPSCAN_API}/names/${encodeURIComponent(query)}`);
       if (!response.ok) return;
 
       const data = await response.json();
@@ -797,7 +809,7 @@ export async function searchTokens(query: string): Promise<XRPLToken[]> {
 
         // Fetch tokens from this issuer
         try {
-          const tokensResp = await fetch(`${XRPL_META_API}/issuer/${item.account}/tokens?limit=10`);
+          const tokensResp = await proxyFetch(`${XRPL_META_API}/issuer/${item.account}/tokens?limit=10`);
           if (!tokensResp.ok) continue;
 
           const tokensData = await tokensResp.json();

@@ -79,7 +79,7 @@ function createLocalReferralData(
   const referralData: ReferralData = {
     referralCode: userCode,
     referredBy: referrerCode,
-    referralLink: `${window.location.origin}?ref=${userCode}`,
+    referralLink: `${window.location.origin}?ref=${userWallet}`,
     timestamp: Date.now(),
   };
 
