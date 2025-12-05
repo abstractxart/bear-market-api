@@ -195,6 +195,18 @@ router.get('/:wallet', async (req, res) => {
       };
     }
 
+    // Resolve referrer code to wallet address if present
+    let referrerWalletAddress: string | null = null;
+    if (data.referredByCode) {
+      const referrerResult = await pool.query(
+        'SELECT wallet_address FROM referrals WHERE referral_code = $1',
+        [data.referredByCode]
+      );
+      if (referrerResult.rows.length > 0) {
+        referrerWalletAddress = referrerResult.rows[0].wallet_address;
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -202,6 +214,7 @@ router.get('/:wallet', async (req, res) => {
         referralCode: data.referralCode,
         referralLink: `https://trade.bearpark.xyz?ref=${data.walletAddress}`,
         referredBy: data.referredByCode,
+        referrerWallet: referrerWalletAddress, // Resolved wallet address
         createdAt: data.createdAt,
       },
     });
