@@ -176,18 +176,33 @@ export async function verifyXRPLTransaction(
     if (tx.TransactionType === 'Payment') {
       const payment = tx as Payment;
 
-      // Handle XRP amounts
-      if (typeof payment.Amount === 'string') {
-        outputAmount = parseInt(payment.Amount) / 1000000;
-        outputToken = 'XRP';
-      } else if (payment.Amount && typeof payment.Amount === 'object') {
-        const amount = payment.Amount as any;
-        outputAmount = parseFloat(amount.value || '0');
-        outputToken = amount.currency || 'UNKNOWN';
+      // For cross-currency payments, use delivered_amount from metadata (more accurate)
+      const deliveredAmount = meta.delivered_amount;
+
+      if (deliveredAmount) {
+        // delivered_amount exists - use it (handles complex multi-path payments)
+        if (typeof deliveredAmount === 'string') {
+          outputAmount = parseInt(deliveredAmount) / 1000000;
+          outputToken = 'XRP';
+        } else if (typeof deliveredAmount === 'object') {
+          const amount = deliveredAmount as any;
+          outputAmount = parseFloat(amount.value || '0');
+          outputToken = amount.currency || 'UNKNOWN';
+        }
       } else {
-        console.warn('[Verification] Invalid Amount format:', payment.Amount);
-        outputAmount = 0;
-        outputToken = 'UNKNOWN';
+        // Fallback to Amount field (simple payments)
+        if (typeof payment.Amount === 'string') {
+          outputAmount = parseInt(payment.Amount) / 1000000;
+          outputToken = 'XRP';
+        } else if (payment.Amount && typeof payment.Amount === 'object') {
+          const amount = payment.Amount as any;
+          outputAmount = parseFloat(amount.value || '0');
+          outputToken = amount.currency || 'UNKNOWN';
+        } else {
+          console.warn('[Verification] No delivered_amount or Amount found');
+          outputAmount = 0;
+          outputToken = 'UNKNOWN';
+        }
       }
 
       // For payments, we consider SendMax as input if present
