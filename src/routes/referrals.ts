@@ -200,7 +200,7 @@ router.get('/:wallet', async (req, res) => {
       data: {
         walletAddress: data.walletAddress,
         referralCode: data.referralCode,
-        referralLink: `https://trade.bearpark.xyz?ref=${data.referralCode}`,
+        referralLink: `https://trade.bearpark.xyz?ref=${data.walletAddress}`,
         referredBy: data.referredByCode,
         createdAt: data.createdAt,
       },

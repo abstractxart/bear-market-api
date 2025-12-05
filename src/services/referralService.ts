@@ -59,11 +59,16 @@ export async function registerReferral(
     };
   }
 
-  // Accept referrer code even if referrer hasn't registered yet
-  // The referral code format is: first 6 chars + last 4 chars of wallet address
-  // This allows referrers to share codes before connecting their wallet
-  // Payout service will resolve the actual wallet address when needed
+  // Convert wallet address to referral code if needed
+  // Accepts both formats: full wallet (rXXX...XXX) or code (RXXXXX)
   if (referrerCode) {
+    // If referrerCode looks like a wallet address (starts with 'r' and is long)
+    if (referrerCode.startsWith('r') && referrerCode.length > 25) {
+      // Convert wallet address to referral code
+      const convertedCode = generateReferralCode(referrerCode);
+      console.log(`[Referral] Converted wallet ${referrerCode} to code ${convertedCode}`);
+      referrerCode = convertedCode;
+    }
     console.log(`[Referral] Accepting referrer code: ${referrerCode} (will resolve at payout time)`);
   }
 
