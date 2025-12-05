@@ -7,7 +7,7 @@ import { SecureWalletConnect } from './SecureWalletConnect';
 import { WalletDashboard } from './WalletDashboard';
 
 const Header: React.FC = () => {
-  const { wallet, connectWithAddress } = useWallet();
+  const { wallet } = useWallet();
   const [showWalletConnect, setShowWalletConnect] = useState(false);
   const [showWalletDashboard, setShowWalletDashboard] = useState(false);
 
@@ -17,8 +17,8 @@ const Header: React.FC = () => {
   };
 
   // Handle successful wallet connection
-  const handleConnect = (address: string) => {
-    connectWithAddress(address);
+  const handleConnect = () => {
+    setShowWalletConnect(false);
   };
 
   return (

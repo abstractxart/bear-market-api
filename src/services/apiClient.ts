@@ -10,6 +10,26 @@ export interface APIResponse<T = any> {
   error?: string;
 }
 
+// Type definitions for API responses
+export interface Challenge {
+  nonce: string;
+  timestamp: number;
+  message: string;
+  expiresAt: number;
+}
+
+export interface ReferralRegistration {
+  referralCode: string;
+  referredBy: string | null;
+  referralLink: string;
+}
+
+export interface ReferralStatsData {
+  totalReferrals: number;
+  totalEarned: string; // XRP amount
+  pendingPayouts: string; // XRP amount
+}
+
 /**
  * Generic API request handler
  */
@@ -51,7 +71,7 @@ export const api = {
    * SECURITY: First step of challenge-response authentication
    */
   getChallenge: (walletAddress: string) =>
-    apiRequest(`/api/referrals/challenge/${walletAddress}`),
+    apiRequest<Challenge>(`/api/referrals/challenge/${walletAddress}`),
 
   /**
    * Register a referral relationship with signature verification
@@ -64,7 +84,7 @@ export const api = {
     nonce: string;
     timestamp: number;
   }) =>
-    apiRequest('/api/referrals/register', {
+    apiRequest<ReferralRegistration>('/api/referrals/register', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -74,7 +94,7 @@ export const api = {
    * WARNING: This will be removed once all clients upgrade to signature-based auth
    */
   registerReferral: (walletAddress: string, referrerCode: string | null) =>
-    apiRequest('/api/referrals/register', {
+    apiRequest<ReferralRegistration>('/api/referrals/register', {
       method: 'POST',
       body: JSON.stringify({ walletAddress, referrerCode }),
     }),
@@ -83,13 +103,13 @@ export const api = {
    * Get referral data for a wallet
    */
   getReferralData: (walletAddress: string) =>
-    apiRequest(`/api/referrals/${walletAddress}`),
+    apiRequest<ReferralRegistration>(`/api/referrals/${walletAddress}`),
 
   /**
    * Get referral stats
    */
   getReferralStats: (walletAddress: string) =>
-    apiRequest(`/api/referrals/${walletAddress}/stats`),
+    apiRequest<ReferralStatsData>(`/api/referrals/${walletAddress}/stats`),
 
   /**
    * Get payout history

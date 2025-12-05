@@ -166,9 +166,9 @@ const SwapCard: React.FC = () => {
           outputToken: quote.outputToken.currency,
           inputAmount: parseFloat(quote.inputAmount),
           outputAmount: parseFloat(quote.outputAmount),
-          feeAmount: quote.feeXRP,
+          feeAmount: parseFloat(quote.feeAmount),
           feeToken: 'XRP',
-          swapTxHash: result.swapTxHash,
+          swapTxHash: result.swapTxHash || '',
         }).then(response => {
           if (response.success) {
             console.log('[Swap] Trade recorded, payout triggered');
