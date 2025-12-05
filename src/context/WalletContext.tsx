@@ -12,7 +12,8 @@ const XRPL_MAINNET = 'wss://xrplcluster.com';
 const XRPL_TESTNET = 'wss://s.altnet.rippletest.net:51233';
 
 // Use mainnet in production, testnet for development
-const XRPL_ENDPOINT = import.meta.env.PROD ? XRPL_MAINNET : XRPL_TESTNET;
+// TEMPORARY: Force mainnet for local testing
+const XRPL_ENDPOINT = XRPL_MAINNET; // import.meta.env.PROD ? XRPL_MAINNET : XRPL_TESTNET;
 
 interface WalletContextType {
   wallet: WalletState;
