@@ -18,6 +18,7 @@ app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
     'http://localhost:5174', // Vite dev server alternate port
+    'http://localhost:5175', // Vite dev server alternate port
     'https://trade.bearpark.xyz',
     process.env.FRONTEND_URL_PROD || 'https://bear-market-gjqg3nove-bear-xrpls-projects.vercel.app',
   ],
