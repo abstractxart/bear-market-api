@@ -72,10 +72,12 @@ export async function verifyXRPLTransaction(
       };
     }
 
-    const tx = txResponse.result;
+    const txResult = txResponse.result as any;
+    const tx = txResult.tx_json || txResult;
 
     // 2. Verify transaction succeeded
-    if (!tx.meta || typeof tx.meta !== 'object') {
+    const meta = txResult.meta as any;
+    if (!meta || typeof meta !== 'object') {
       return {
         isValid: false,
         traderWallet: claimedTraderWallet,
@@ -91,7 +93,6 @@ export async function verifyXRPLTransaction(
       };
     }
 
-    const meta = tx.meta as any;
     if (meta.TransactionResult !== 'tesSUCCESS') {
       return {
         isValid: false,
@@ -126,7 +127,7 @@ export async function verifyXRPLTransaction(
     }
 
     // 4. Verify transaction is recent (prevent old transaction replay)
-    const txTimestamp = rippleTimeToUnixTime(tx.date);
+    const txTimestamp = rippleTimeToUnixTime(tx.date || txResult.date || 0);
     const age = Date.now() - txTimestamp;
 
     if (age > MAX_TRANSACTION_AGE_MS) {
@@ -146,7 +147,7 @@ export async function verifyXRPLTransaction(
     }
 
     // 5. Verify transaction is fully validated (not from a fork)
-    if (!tx.validated) {
+    if (!txResult.validated) {
       return {
         isValid: false,
         traderWallet: claimedTraderWallet,
@@ -163,7 +164,7 @@ export async function verifyXRPLTransaction(
     }
 
     // 6. Extract fee from transaction (this is the ACTUAL fee paid, not claimed)
-    const feeInDrops = typeof tx.Fee === 'string' ? parseInt(tx.Fee) : tx.Fee;
+    const feeInDrops = typeof tx.Fee === 'string' ? parseInt(tx.Fee) : (tx.Fee || 0);
     const actualFee = feeInDrops / 1000000; // Convert drops to XRP
 
     // 7. Parse transaction type and extract trade details
@@ -180,8 +181,9 @@ export async function verifyXRPLTransaction(
         outputAmount = parseInt(payment.Amount) / 1000000;
         outputToken = 'XRP';
       } else {
-        outputAmount = parseFloat(payment.Amount.value);
-        outputToken = payment.Amount.currency;
+        const amount = payment.Amount as any;
+        outputAmount = parseFloat(amount.value);
+        outputToken = amount.currency || 'UNKNOWN';
       }
 
       // For payments, we consider SendMax as input if present
@@ -190,8 +192,9 @@ export async function verifyXRPLTransaction(
           inputAmount = parseInt(payment.SendMax) / 1000000;
           inputToken = 'XRP';
         } else {
-          inputAmount = parseFloat(payment.SendMax.value);
-          inputToken = payment.SendMax.currency;
+          const sendMax = payment.SendMax as any;
+          inputAmount = parseFloat(sendMax.value);
+          inputToken = sendMax.currency || 'UNKNOWN';
         }
       } else {
         // If no SendMax, input = output for simple payments
@@ -200,15 +203,16 @@ export async function verifyXRPLTransaction(
       }
 
     } else if (tx.TransactionType === 'OfferCreate') {
-      const offer = tx as OfferCreate;
+      const offer = tx as any;
 
       // TakerGets = what taker receives (seller gives)
       if (typeof offer.TakerGets === 'string') {
         outputAmount = parseInt(offer.TakerGets) / 1000000;
         outputToken = 'XRP';
       } else {
-        outputAmount = parseFloat(offer.TakerGets.value);
-        outputToken = offer.TakerGets.currency;
+        const takerGets = offer.TakerGets as any;
+        outputAmount = parseFloat(takerGets.value);
+        outputToken = takerGets.currency || 'UNKNOWN';
       }
 
       // TakerPays = what taker pays (seller receives)
@@ -216,8 +220,9 @@ export async function verifyXRPLTransaction(
         inputAmount = parseInt(offer.TakerPays) / 1000000;
         inputToken = 'XRP';
       } else {
-        inputAmount = parseFloat(offer.TakerPays.value);
-        inputToken = offer.TakerPays.currency;
+        const takerPays = offer.TakerPays as any;
+        inputAmount = parseFloat(takerPays.value);
+        inputToken = takerPays.currency || 'UNKNOWN';
       }
 
     } else {
