@@ -180,10 +180,14 @@ export async function verifyXRPLTransaction(
       if (typeof payment.Amount === 'string') {
         outputAmount = parseInt(payment.Amount) / 1000000;
         outputToken = 'XRP';
-      } else {
+      } else if (payment.Amount && typeof payment.Amount === 'object') {
         const amount = payment.Amount as any;
-        outputAmount = parseFloat(amount.value);
+        outputAmount = parseFloat(amount.value || '0');
         outputToken = amount.currency || 'UNKNOWN';
+      } else {
+        console.warn('[Verification] Invalid Amount format:', payment.Amount);
+        outputAmount = 0;
+        outputToken = 'UNKNOWN';
       }
 
       // For payments, we consider SendMax as input if present
@@ -191,10 +195,14 @@ export async function verifyXRPLTransaction(
         if (typeof payment.SendMax === 'string') {
           inputAmount = parseInt(payment.SendMax) / 1000000;
           inputToken = 'XRP';
-        } else {
+        } else if (payment.SendMax && typeof payment.SendMax === 'object') {
           const sendMax = payment.SendMax as any;
-          inputAmount = parseFloat(sendMax.value);
+          inputAmount = parseFloat(sendMax.value || '0');
           inputToken = sendMax.currency || 'UNKNOWN';
+        } else {
+          console.warn('[Verification] Invalid SendMax format:', payment.SendMax);
+          inputAmount = 0;
+          inputToken = 'UNKNOWN';
         }
       } else {
         // If no SendMax, input = output for simple payments
@@ -209,20 +217,28 @@ export async function verifyXRPLTransaction(
       if (typeof offer.TakerGets === 'string') {
         outputAmount = parseInt(offer.TakerGets) / 1000000;
         outputToken = 'XRP';
-      } else {
+      } else if (offer.TakerGets && typeof offer.TakerGets === 'object') {
         const takerGets = offer.TakerGets as any;
-        outputAmount = parseFloat(takerGets.value);
+        outputAmount = parseFloat(takerGets.value || '0');
         outputToken = takerGets.currency || 'UNKNOWN';
+      } else {
+        console.warn('[Verification] Invalid TakerGets format:', offer.TakerGets);
+        outputAmount = 0;
+        outputToken = 'UNKNOWN';
       }
 
       // TakerPays = what taker pays (seller receives)
       if (typeof offer.TakerPays === 'string') {
         inputAmount = parseInt(offer.TakerPays) / 1000000;
         inputToken = 'XRP';
-      } else {
+      } else if (offer.TakerPays && typeof offer.TakerPays === 'object') {
         const takerPays = offer.TakerPays as any;
-        inputAmount = parseFloat(takerPays.value);
+        inputAmount = parseFloat(takerPays.value || '0');
         inputToken = takerPays.currency || 'UNKNOWN';
+      } else {
+        console.warn('[Verification] Invalid TakerPays format:', offer.TakerPays);
+        inputAmount = 0;
+        inputToken = 'UNKNOWN';
       }
 
     } else {
