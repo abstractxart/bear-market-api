@@ -11,6 +11,7 @@ const router = express.Router();
 
 // Whitelist of allowed API domains
 const ALLOWED_APIS = [
+  'api.xrpl.to',
   'api.dexscreener.com',
   'api.firstledger.net',
   'api.sologenic.org',
