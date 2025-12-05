@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import pool from '../db';
 import {
   registerReferral,
   getReferralData,
@@ -338,6 +339,49 @@ router.post('/trades/record', async (req, res) => {
     res.status(500).json({
       error: error.message || 'Failed to record trade',
       message: 'Internal server error'
+    });
+  }
+});
+
+/**
+ * DELETE /api/referrals/admin/delete/:wallet
+ * Admin endpoint to delete a wallet registration
+ * Allows wallet to re-register with correct referral code
+ */
+router.delete('/admin/delete/:wallet', async (req, res) => {
+  try {
+    const { wallet } = req.params;
+
+    console.log(`[Admin] Deleting wallet registration: ${wallet}`);
+
+    // Delete from referrals table (cascading delete will handle related records)
+    const result = await pool.query(
+      'DELETE FROM referrals WHERE wallet_address = $1 RETURNING *',
+      [wallet]
+    );
+
+    if (result.rows.length > 0) {
+      console.log(`[Admin] ✓ Deleted wallet: ${wallet}`);
+      res.json({
+        success: true,
+        message: 'Wallet registration deleted',
+        data: {
+          walletAddress: result.rows[0].wallet_address,
+          referralCode: result.rows[0].referral_code,
+          referredBy: result.rows[0].referred_by_code,
+        },
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Wallet not found in database',
+      });
+    }
+  } catch (error: any) {
+    console.error('[Admin] Delete error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to delete wallet',
     });
   }
 });

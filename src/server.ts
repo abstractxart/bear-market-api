@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import referralRoutes from './routes/referrals';
 import adminRoutes from './routes/admin';
+import proxyRoutes from './routes/proxy';
 import { rateLimiter } from './middleware/rateLimiter';
 
 // Load environment variables
@@ -16,6 +17,7 @@ app.use(express.json({ limit: '10kb' })); // Limit request size to prevent DOS
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
+    'https://trade.bearpark.xyz',
     process.env.FRONTEND_URL_PROD || 'https://bear-market-gjqg3nove-bear-xrpls-projects.vercel.app',
   ],
   credentials: true,
@@ -37,6 +39,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/referrals', referralRoutes);
+app.use('/api/proxy', proxyRoutes);
 app.use('/admin', adminRoutes);
 
 // Error handling
