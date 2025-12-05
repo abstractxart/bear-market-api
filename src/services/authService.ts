@@ -8,7 +8,6 @@
  */
 
 import crypto from 'crypto';
-import { Wallet, verify } from 'xrpl';
 
 /**
  * Authentication challenge for wallet ownership proof
