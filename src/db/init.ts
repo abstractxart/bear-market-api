@@ -48,9 +48,7 @@ async function initializeDatabase() {
   } catch (error: any) {
     console.error('❌ Error initializing database:');
     console.error(error);
-    process.exit(1);
-  } finally {
-    await pool.end();
+    throw error; // Throw instead of process.exit when used as a module
   }
 }
 

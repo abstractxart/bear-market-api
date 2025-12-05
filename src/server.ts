@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import referralRoutes from './routes/referrals';
+import adminRoutes from './routes/admin';
 import { rateLimiter } from './middleware/rateLimiter';
 
 // Load environment variables
@@ -36,6 +37,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/referrals', referralRoutes);
+app.use('/admin', adminRoutes);
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
