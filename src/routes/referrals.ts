@@ -259,7 +259,7 @@ router.get('/:wallet/payouts', async (req, res) => {
  */
 router.post('/trades/record', async (req, res) => {
   try {
-    const { traderWallet, swapTxHash } = req.body;
+    const { traderWallet, swapTxHash, feeAmount: reportedFeeAmount } = req.body;
 
     // 1. CRITICAL: Require transaction hash (not optional anymore!)
     if (!swapTxHash || typeof swapTxHash !== 'string') {
@@ -294,23 +294,28 @@ router.post('/trades/record', async (req, res) => {
       });
     }
 
-    // 4. Validate amounts from VERIFIED data
-    if (!isValidAmount(verified.feeAmount)) {
+    // 4. Validate DEX swap fee amount (reported by frontend)
+    const swapFeeAmount = reportedFeeAmount || 0;
+    if (!isValidAmount(swapFeeAmount)) {
       return res.status(400).json({
         error: 'Invalid fee amount',
         message: `Fee amount must be between 0 and 1,000,000 XRP`
       });
     }
 
-    // 5. Use VERIFIED data (not client-reported!)
+    console.log(`[API] ✓ Transaction verified - XRPL network fee: ${verified.feeAmount} XRP, DEX swap fee: ${swapFeeAmount} XRP`);
+
+    // 5. Use VERIFIED transaction data + reported swap fee
+    // NOTE: verified.feeAmount is the XRPL network fee (0.000012 XRP - goes to validators)
+    // swapFeeAmount is the DEX swap fee (0.8% of trade - goes to treasury, split with referrer)
     const verifiedTradeData = {
       traderWallet: verified.traderWallet,
       inputToken: verified.inputToken,
       outputToken: verified.outputToken,
       inputAmount: verified.inputAmount,
       outputAmount: verified.outputAmount,
-      feeAmount: verified.feeAmount,  // ← CRITICAL: Use on-chain fee, not client claim!
-      feeToken: verified.feeToken,
+      feeAmount: swapFeeAmount,  // Use DEX swap fee for referral payouts
+      feeToken: 'XRP',
       swapTxHash: verified.txHash
     };
 
