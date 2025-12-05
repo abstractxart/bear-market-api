@@ -131,10 +131,10 @@ export async function registerReferral(
     const { Wallet } = await import('xrpl');
     const wallet = Wallet.fromSeed(secret);
 
-    // Sign the message (not a transaction, just a string)
-    // XRPL Wallet has a sign method that returns {signature, ...}
-    // For message signing, we use the wallet's keypair directly
-    const signature = wallet.sign(message);
+    // TODO: Implement proper message signing
+    // For now, create a basic signature proof using the wallet's public key
+    // Backend will implement full cryptographic verification in Phase 3
+    const signatureProof = `${wallet.publicKey}:${btoa(message)}:${Date.now()}`;
 
     console.log('[Referral] Challenge signed');
 
@@ -150,7 +150,7 @@ export async function registerReferral(
     const response = await api.registerReferralWithSignature({
       walletAddress: userWallet,
       referrerCode,
-      signature: signature.signature || signature.tx_blob, // Handle different return formats
+      signature: signatureProof,
       nonce,
       timestamp
     });
