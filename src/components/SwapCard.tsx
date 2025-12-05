@@ -8,7 +8,6 @@ import { formatFeePercent, getFeeRate } from '../services/nftService';
 import { findTokenBalance } from '../utils/currency';
 import TokenSelector, { TokenIcon } from './TokenSelector';
 import SlippageSlider from './SlippageSlider';
-import { api } from '../services/apiClient';
 
 // Shorten address for display
 const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
