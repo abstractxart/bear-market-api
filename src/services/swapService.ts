@@ -1,6 +1,7 @@
 import { Client } from 'xrpl';
 import type { Token, SwapQuote, FeeTier } from '../types';
 import { getFeeRate } from './nftService';
+import { api } from './apiClient';
 
 /**
  * BEAR MARKET Swap Service
@@ -570,40 +571,103 @@ export async function executeSwap(
       Flags: 131072, // tfPartialPayment
     };
 
-    // ===== TRANSACTION 2: FEE PAYMENT =====
-    // Always send XRP fee to BEAR Treasury
-    const feeTx: any = {
-      TransactionType: 'Payment',
-      Account: senderAddress,
-      Destination: BEAR_TREASURY_WALLET,
-      Amount: xrpToDrops(feeAmountXRP.toFixed(6)), // Fee in drops
-      // Add memo so it's clear what this is for
-      Memos: [{
-        Memo: {
-          MemoType: Buffer.from('BEAR_SWAP_FEE', 'utf8').toString('hex').toUpperCase(),
-          MemoData: Buffer.from(`Fee for swap: ${quote.inputToken.currency} → ${quote.outputToken.currency}`, 'utf8').toString('hex').toUpperCase(),
-        }
-      }],
-    };
+    // ===== TRANSACTION 2+3: FEE PAYMENT (SPLIT IF REFERRED) =====
+    // Check if user has a referrer
+    let referrerWallet: string | null = null;
+    try {
+      const referralData = await api.getReferralData(senderAddress);
+      if (referralData.success && referralData.data?.referrerWallet) {
+        // Backend has resolved the referral code to the actual wallet address
+        referrerWallet = referralData.data.referrerWallet;
+        console.log('[Swap] User was referred by wallet:', referrerWallet);
+      }
+    } catch (err) {
+      console.warn('[Swap] Could not check referrer:', err);
+    }
 
-    // Autofill both transactions (adds Sequence, Fee, LastLedgerSequence)
+    // Create fee payment transaction(s)
+    const feeTxs: any[] = [];
+
+    if (referrerWallet) {
+      // SPLIT FEE: 50% to referrer, 50% to treasury
+      const halfFee = feeAmountXRP / 2;
+
+      // Fee to referrer
+      feeTxs.push({
+        TransactionType: 'Payment',
+        Account: senderAddress,
+        Destination: referrerWallet,
+        Amount: xrpToDrops(halfFee.toFixed(6)),
+        Memos: [{
+          Memo: {
+            MemoType: Buffer.from('REFERRAL_COMMISSION', 'utf8').toString('hex').toUpperCase(),
+            MemoData: Buffer.from('50% commission for referral', 'utf8').toString('hex').toUpperCase(),
+          }
+        }],
+      });
+
+      // Fee to treasury
+      feeTxs.push({
+        TransactionType: 'Payment',
+        Account: senderAddress,
+        Destination: BEAR_TREASURY_WALLET,
+        Amount: xrpToDrops(halfFee.toFixed(6)),
+        Memos: [{
+          Memo: {
+            MemoType: Buffer.from('BEAR_SWAP_FEE', 'utf8').toString('hex').toUpperCase(),
+            MemoData: Buffer.from('50% treasury fee (referred user)', 'utf8').toString('hex').toUpperCase(),
+          }
+        }],
+      });
+
+      console.log(`[Swap] Splitting fee: ${halfFee} XRP to referrer, ${halfFee} XRP to treasury`);
+    } else {
+      // NO REFERRER: 100% to treasury
+      feeTxs.push({
+        TransactionType: 'Payment',
+        Account: senderAddress,
+        Destination: BEAR_TREASURY_WALLET,
+        Amount: xrpToDrops(feeAmountXRP.toFixed(6)),
+        Memos: [{
+          Memo: {
+            MemoType: Buffer.from('BEAR_SWAP_FEE', 'utf8').toString('hex').toUpperCase(),
+            MemoData: Buffer.from(`Fee for swap: ${quote.inputToken.currency} → ${quote.outputToken.currency}`, 'utf8').toString('hex').toUpperCase(),
+          }
+        }],
+      });
+    }
+
+    // Autofill all transactions
     onStatus?.('Getting transaction details...');
-    const [preparedSwap, preparedFee] = await Promise.all([
+    const preparedTxs = await Promise.all([
       client.autofill(swapTx),
-      client.autofill(feeTx),
+      ...feeTxs.map(tx => client.autofill(tx)),
     ]);
 
-    // Ensure fee tx has sequence AFTER swap tx
-    preparedFee.Sequence = preparedSwap.Sequence! + 1;
+    const preparedSwap = preparedTxs[0];
+    const preparedFees = preparedTxs.slice(1);
 
-    // ===== SIGN BOTH TRANSACTIONS =====
+    // Ensure fee txs have sequential numbers AFTER swap tx
+    preparedFees.forEach((feeTx, index) => {
+      feeTx.Sequence = preparedSwap.Sequence! + 1 + index;
+    });
+
+    // ===== SIGN ALL TRANSACTIONS =====
     onStatus?.('Please sign the swap transaction...');
     const signedSwap = await signTransaction(preparedSwap);
 
-    onStatus?.('Please sign the fee transaction...');
-    const signedFee = await signTransaction(preparedFee);
+    // Sign all fee transactions
+    const signedFees: any[] = [];
+    for (let i = 0; i < preparedFees.length; i++) {
+      const feeType = preparedFees.length > 1
+        ? (i === 0 ? 'referral commission' : 'treasury fee')
+        : 'fee';
+      onStatus?.(`Please sign the ${feeType} transaction...`);
+      const signedFee = await signTransaction(preparedFees[i]);
+      signedFees.push(signedFee);
+    }
 
-    // ===== SUBMIT BOTH TRANSACTIONS =====
+    // ===== SUBMIT ALL TRANSACTIONS =====
     onStatus?.('Submitting swap...');
     const swapResult = await client.submitAndWait(signedSwap.tx_blob);
 
@@ -621,22 +685,45 @@ export async function executeSwap(
       };
     }
 
-    // Submit fee transaction
-    onStatus?.('Collecting fee...');
-    const feeResult = await client.submitAndWait(signedFee.tx_blob);
+    // Submit all fee transactions
+    const feeResults: any[] = [];
+    let allFeesSucceeded = true;
 
-    let feeSuccess = false;
-    if (feeResult.result.meta && typeof feeResult.result.meta !== 'string') {
-      const meta = feeResult.result.meta as any;
-      feeSuccess = meta.TransactionResult === 'tesSUCCESS';
+    for (let i = 0; i < signedFees.length; i++) {
+      const feeType = signedFees.length > 1
+        ? (i === 0 ? 'referral commission' : 'treasury fee')
+        : 'fee';
+      onStatus?.(`Collecting ${feeType}...`);
+
+      try {
+        const feeResult = await client.submitAndWait(signedFees[i].tx_blob);
+        let feeSuccess = false;
+        if (feeResult.result.meta && typeof feeResult.result.meta !== 'string') {
+          const meta = feeResult.result.meta as any;
+          feeSuccess = meta.TransactionResult === 'tesSUCCESS';
+        }
+
+        feeResults.push({
+          hash: feeResult.result.hash,
+          success: feeSuccess,
+        });
+
+        if (!feeSuccess) {
+          allFeesSucceeded = false;
+        }
+      } catch (err) {
+        console.error(`Fee transaction ${i} failed:`, err);
+        allFeesSucceeded = false;
+        feeResults.push({ success: false });
+      }
     }
 
-    // Even if fee fails, swap succeeded
+    // Even if fees fail, swap succeeded
     return {
       success: true,
       swapTxHash: swapResult.result.hash,
-      feeTxHash: feeSuccess ? feeResult.result.hash : undefined,
-      error: feeSuccess ? undefined : 'Fee collection failed (swap still succeeded)',
+      feeTxHash: feeResults[0]?.hash, // First fee tx hash (backward compatibility)
+      error: allFeesSucceeded ? undefined : 'Some fee collections failed (swap still succeeded)',
     };
 
   } catch (error: any) {
