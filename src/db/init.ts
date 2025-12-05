@@ -46,7 +46,8 @@ async function initializeDatabase() {
     console.log('\n🎉 Database is ready for use!');
 
   } catch (error: any) {
-    console.error('❌ Error initializing database:', error.message);
+    console.error('❌ Error initializing database:');
+    console.error(error);
     process.exit(1);
   } finally {
     await pool.end();
