@@ -59,18 +59,12 @@ export async function registerReferral(
     };
   }
 
-  // Verify referrer code exists (if provided)
+  // Accept referrer code even if referrer hasn't registered yet
+  // The referral code format is: first 6 chars + last 4 chars of wallet address
+  // This allows referrers to share codes before connecting their wallet
+  // Payout service will resolve the actual wallet address when needed
   if (referrerCode) {
-    const referrerQuery = await pool.query(
-      'SELECT * FROM referrals WHERE referral_code = $1',
-      [referrerCode]
-    );
-
-    if (referrerQuery.rows.length === 0) {
-      console.warn(`[Referral] Invalid referrer code: ${referrerCode}`);
-      // Continue without referrer rather than failing
-      referrerCode = null;
-    }
+    console.log(`[Referral] Accepting referrer code: ${referrerCode} (will resolve at payout time)`);
   }
 
   // Insert new referral with verified flag
@@ -151,8 +145,10 @@ export async function getReferralStats(walletAddress: string): Promise<ReferralS
 
 /**
  * Get referrer wallet address for a trader
+ * Returns wallet only if referrer has registered
  */
 export async function getReferrerWallet(traderWallet: string): Promise<string | null> {
+  // Look up trader's referred_by_code and find matching registered wallet
   const result = await pool.query(
     `SELECT ref.wallet_address
      FROM referrals trader
@@ -162,6 +158,8 @@ export async function getReferrerWallet(traderWallet: string): Promise<string | 
   );
 
   if (result.rows.length === 0) {
+    // Referrer hasn't registered yet - no payout
+    console.log(`[Referral] No registered referrer found for trader ${traderWallet}`);
     return null;
   }
 
