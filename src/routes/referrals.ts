@@ -181,21 +181,18 @@ router.get('/:wallet', async (req, res) => {
   try {
     const { wallet } = req.params;
 
-    const data = await getReferralData(wallet);
+    let data = await getReferralData(wallet);
 
     if (!data) {
-      // Auto-register if not found
-      const code = generateReferralCode(wallet);
-      return res.json({
-        success: true,
-        data: {
-          walletAddress: wallet,
-          referralCode: code,
-          referralLink: `${process.env.FRONTEND_URL_PROD}?ref=${code}`,
-          referredBy: null,
-          createdAt: new Date(),
-        },
-      });
+      // Auto-register wallet in database (unverified until they connect)
+      console.log(`[API] Auto-registering wallet: ${wallet}`);
+      const registered = await registerReferral(wallet, null, false);
+      data = {
+        walletAddress: registered.walletAddress,
+        referralCode: registered.referralCode,
+        referredByCode: registered.referredByCode,
+        createdAt: registered.createdAt,
+      };
     }
 
     res.json({
@@ -203,7 +200,7 @@ router.get('/:wallet', async (req, res) => {
       data: {
         walletAddress: data.walletAddress,
         referralCode: data.referralCode,
-        referralLink: `${process.env.FRONTEND_URL_PROD}?ref=${data.referralCode}`,
+        referralLink: `https://trade.bearpark.xyz?ref=${data.referralCode}`,
         referredBy: data.referredByCode,
         createdAt: data.createdAt,
       },
