@@ -19,9 +19,12 @@ export interface Challenge {
 }
 
 export interface ReferralRegistration {
+  walletAddress?: string;
   referralCode: string;
   referredBy: string | null;
+  referrerWallet?: string | null; // Resolved wallet address of referrer
   referralLink: string;
+  createdAt?: string;
 }
 
 export interface ReferralStatsData {
