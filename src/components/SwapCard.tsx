@@ -159,25 +159,10 @@ const SwapCard: React.FC = () => {
         setQuote(null);
         await refreshBalance();
 
-        // Record trade with backend API for referral payouts (async, don't wait)
-        api.recordTrade({
-          traderWallet: wallet.address!,
-          inputToken: quote.inputToken.currency,
-          outputToken: quote.outputToken.currency,
-          inputAmount: parseFloat(quote.inputAmount),
-          outputAmount: parseFloat(quote.outputAmount),
-          feeAmount: parseFloat(quote.feeAmount),
-          feeToken: 'XRP',
-          swapTxHash: result.swapTxHash || '',
-        }).then(response => {
-          if (response.success) {
-            console.log('[Swap] Trade recorded, payout triggered');
-          } else {
-            console.warn('[Swap] Failed to record trade:', response.error);
-          }
-        }).catch(error => {
-          console.error('[Swap] Error recording trade:', error);
-        });
+        // NOTE: With Option A (fee splitting at swap time), we don't need to
+        // call api.recordTrade() because referral fees are paid directly during
+        // the swap execution (50% to referrer, 50% to treasury).
+        // The backend trade recording is only needed for Option B (hot wallet payouts).
 
         // Auto-clear success message after 10 seconds
         setTimeout(() => setSwapSuccess(null), 10000);
