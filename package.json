@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsc && copyfiles -u 1 src/db/*.sql dist",
     "start": "node dist/server.js",
     "db:init": "tsx src/db/init.ts",
     "db:init:sql": "psql $DATABASE_URL -f src/db/schema.sql"
@@ -29,6 +29,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^24.10.1",
     "@types/pg": "^8.15.6",
+    "copyfiles": "^2.4.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
