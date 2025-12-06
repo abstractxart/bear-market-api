@@ -16,6 +16,7 @@ const REFERRER_STORAGE_KEY = 'bear_market_referrer';
 export interface ReferralData {
   referralCode: string;      // User's own referral code
   referredBy: string | null; // Referral code of who referred them
+  referrerWallet?: string | null; // Resolved wallet address of referrer (for payments)
   referralLink: string;       // Full referral link to share
   timestamp: number;          // When the referral was recorded
 }
@@ -79,6 +80,8 @@ function createLocalReferralData(
   const referralData: ReferralData = {
     referralCode: userCode,
     referredBy: referrerCode,
+    // In local fallback, referrerCode from URL IS the wallet address (see line 83: ?ref=${userWallet})
+    referrerWallet: referrerCode,
     referralLink: `${window.location.origin}?ref=${userWallet}`,
     timestamp: Date.now(),
   };
@@ -171,6 +174,8 @@ export async function registerReferral(
       const referralData: ReferralData = {
         referralCode: response.data.referralCode,
         referredBy: response.data.referredBy,
+        // Store resolved wallet address for payments (fallback to referredBy if not provided)
+        referrerWallet: response.data.referrerWallet || response.data.referredBy,
         referralLink: response.data.referralLink,
         timestamp: Date.now(),
       };
@@ -207,6 +212,7 @@ export async function getUserReferralData(walletAddress: string): Promise<Referr
       const referralData: ReferralData = {
         referralCode: response.data.referralCode,
         referredBy: response.data.referredBy,
+        referrerWallet: response.data.referrerWallet || response.data.referredBy,
         referralLink: response.data.referralLink,
         timestamp: Date.now(),
       };

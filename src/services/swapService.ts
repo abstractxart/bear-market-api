@@ -654,11 +654,13 @@ export async function executeSwap(
         if (storedReferral) {
           try {
             const localData = JSON.parse(storedReferral);
-            if (localData.referredBy) {
-              referrerWallet = localData.referredBy;
+            // Prefer referrerWallet (resolved address) over referredBy
+            const wallet = localData.referrerWallet || localData.referredBy;
+            if (wallet) {
+              referrerWallet = wallet;
               console.log('[Swap] Found referrer in localStorage:', referrerWallet);
             } else {
-              console.log('[Swap] No referrer found (localStorage has no referredBy)');
+              console.log('[Swap] No referrer found (localStorage has no referrerWallet or referredBy)');
             }
           } catch (e) {
             console.log('[Swap] No referrer found (localStorage parse error)');
@@ -674,14 +676,22 @@ export async function executeSwap(
       if (storedReferral) {
         try {
           const localData = JSON.parse(storedReferral);
-          if (localData.referredBy) {
-            referrerWallet = localData.referredBy;
+          // Prefer referrerWallet (resolved address) over referredBy
+          const wallet = localData.referrerWallet || localData.referredBy;
+          if (wallet) {
+            referrerWallet = wallet;
             console.log('[Swap] Found referrer in localStorage (API fallback):', referrerWallet);
           }
         } catch (e) {
           // Ignore parse errors
         }
       }
+    }
+
+    // Validate referrer is a valid XRPL address before attempting payment
+    if (referrerWallet && !referrerWallet.startsWith('r')) {
+      console.warn('[Swap] Invalid referrer wallet format (must start with "r"), skipping referral payment:', referrerWallet);
+      referrerWallet = null;
     }
 
     if (referrerWallet) {
