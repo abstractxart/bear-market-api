@@ -62,6 +62,7 @@ export interface LeaderboardToken extends Token {
   holders?: number;            // Unique holder count
   trustlines?: number;         // Total trustlines
   createdAt?: number;          // Token creation timestamp
+  supply?: number;             // Total supply
 
   // Metadata
   domain?: string;             // Token's domain

@@ -38,6 +38,20 @@ const TokenTable: React.FC<TokenTableProps> = ({
 }) => {
   const [previousPrices, setPreviousPrices] = useState<Map<string, number>>(new Map());
   const [flashingTokens, setFlashingTokens] = useState<Map<string, 'up' | 'down'>>(new Map());
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const mobileScrollRef = useRef<HTMLDivElement>(null);
+  const desktopScrollRef = useRef<HTMLDivElement>(null);
+
+  // Track scroll position for scroll-to-top button
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    setShowScrollTop(target.scrollTop > 200);
+  };
+
+  const scrollToTop = () => {
+    mobileScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    desktopScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Track price changes for flash animation
   useEffect(() => {
@@ -91,19 +105,25 @@ const TokenTable: React.FC<TokenTableProps> = ({
       </div>
 
       {/* MOBILE LAYOUT - Scrollable table with sticky columns */}
-      <div className="md:hidden relative z-10 bg-[#0d0d12] px-1" style={{ overflow: 'auto', maxHeight: 'calc(100vh - 90px)', WebkitOverflowScrolling: 'touch' }}>
-        <table className="text-sm border-collapse w-full" style={{ minWidth: '560px' }}>
+      <div
+        ref={mobileScrollRef}
+        onScroll={handleScroll}
+        className="md:hidden relative z-10 bg-[#0d0d12] px-1"
+        style={{ overflow: 'auto', maxHeight: 'calc(100vh - 90px)', WebkitOverflowScrolling: 'touch' }}
+      >
+        <table className="text-sm border-collapse w-full" style={{ minWidth: '680px' }}>
           {/* Mobile Header - sticky top with subtle glow */}
           <thead>
             <tr className="text-[10px] font-bold uppercase tracking-wider text-gray-400 border-b border-bear-dark-600/50">
               <th className="py-2.5 pl-2 pr-1 text-center bg-[#0d0d12]" style={{ position: 'sticky', left: 0, top: 0, zIndex: 50, width: '28px' }}>#</th>
-              <th className="py-2.5 pl-1 text-left bg-[#0d0d12] min-w-[90px]" style={{ position: 'sticky', left: '28px', top: 0, zIndex: 50 }}>Token</th>
-              <th className="py-2.5 text-right min-w-[68px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>Price</th>
-              <th className="py-2.5 text-right min-w-[46px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>1H</th>
-              <th className="py-2.5 text-right min-w-[46px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>24H</th>
-              <th className="py-2.5 text-right min-w-[52px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>Vol</th>
-              <th className="py-2.5 text-right min-w-[58px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>MCap</th>
-              <th className="py-2.5 text-right pr-2 min-w-[48px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>Holders</th>
+              <th className="py-2.5 pl-1 pr-2 text-left bg-[#0d0d12] min-w-[90px]" style={{ position: 'sticky', left: '28px', top: 0, zIndex: 50 }}>Token</th>
+              <th className="py-2.5 px-2 text-right min-w-[72px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>Price</th>
+              <th className="py-2.5 px-1.5 text-right min-w-[48px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>1H</th>
+              <th className="py-2.5 px-1.5 text-right min-w-[48px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>24H</th>
+              <th className="py-2.5 px-2 text-right min-w-[62px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>Vol</th>
+              <th className="py-2.5 px-2 text-right min-w-[68px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>MCap</th>
+              <th className="py-2.5 px-2 text-right min-w-[62px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>TVL</th>
+              <th className="py-2.5 pl-2 pr-2 text-right min-w-[56px] bg-[#0d0d12]" style={{ position: 'sticky', top: 0, zIndex: 40 }}>Holders</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-bear-dark-700/50">
@@ -124,6 +144,7 @@ const TokenTable: React.FC<TokenTableProps> = ({
                   <td className="py-2.5"><div className="h-4 w-9 bg-bear-dark-600 rounded ml-auto"></div></td>
                   <td className="py-2.5"><div className="h-4 w-10 bg-bear-dark-600 rounded ml-auto"></div></td>
                   <td className="py-2.5"><div className="h-4 w-12 bg-bear-dark-600 rounded ml-auto"></div></td>
+                  <td className="py-2.5"><div className="h-4 w-10 bg-bear-dark-600 rounded ml-auto"></div></td>
                   <td className="py-2.5 pr-2"><div className="h-4 w-10 bg-bear-dark-600 rounded ml-auto"></div></td>
                 </tr>
               ))
@@ -142,7 +163,11 @@ const TokenTable: React.FC<TokenTableProps> = ({
       </div>
 
       {/* DESKTOP LAYOUT - Full table with horizontal scroll */}
-      <div className="hidden md:block relative z-10 overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] bg-bear-dark-800/80 md:rounded-2xl">
+      <div
+        ref={desktopScrollRef}
+        onScroll={handleScroll}
+        className="hidden md:block relative z-10 overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] bg-bear-dark-800/80 md:rounded-2xl"
+      >
         <table className="w-full text-sm min-w-[600px]">
           {/* Header */}
           <thead className="sticky top-0 z-30 bg-bear-dark-800 border-b border-bear-dark-700">
@@ -215,6 +240,15 @@ const TokenTable: React.FC<TokenTableProps> = ({
                 <SortIndicator column="marketCap" />
               </th>
 
+              {/* TVL */}
+              <th
+                className="px-2 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-white whitespace-nowrap"
+                onClick={() => handleHeaderClick('tvl')}
+              >
+                TVL
+                <SortIndicator column="tvl" />
+              </th>
+
               {/* Holders */}
               <th
                 className="px-2 py-2 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-white whitespace-nowrap pr-3"
@@ -246,6 +280,7 @@ const TokenTable: React.FC<TokenTableProps> = ({
                   <td className="px-2 py-3"><div className="h-4 w-10 bg-bear-dark-600 rounded ml-auto"></div></td>
                   <td className="px-2 py-3"><div className="h-4 w-10 bg-bear-dark-600 rounded ml-auto"></div></td>
                   <td className="px-2 py-3"><div className="h-4 w-16 bg-bear-dark-600 rounded ml-auto"></div></td>
+                  <td className="px-2 py-3"><div className="h-4 w-14 bg-bear-dark-600 rounded ml-auto"></div></td>
                   <td className="px-2 py-3"><div className="h-4 w-16 bg-bear-dark-600 rounded ml-auto"></div></td>
                   <td className="px-2 py-3 pr-3"><div className="h-4 w-12 bg-bear-dark-600 rounded ml-auto"></div></td>
                 </tr>
@@ -270,6 +305,68 @@ const TokenTable: React.FC<TokenTableProps> = ({
           No tokens found
         </div>
       )}
+
+      {/* Scroll to Top Button */}
+      <button
+        onClick={scrollToTop}
+        aria-label="Scroll to top"
+        className={`
+          transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]
+          ${showScrollTop
+            ? 'opacity-100 scale-100 translate-y-0'
+            : 'opacity-0 scale-50 translate-y-4 pointer-events-none'
+          }
+          hover:scale-110 active:scale-95
+        `}
+        style={{
+          position: 'absolute',
+          bottom: '80px',
+          right: '24px',
+          width: '56px',
+          height: '56px',
+          zIndex: 100,
+          cursor: 'pointer',
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+        }}
+      >
+        {/* Spinning gradient border */}
+        <div
+          className="animate-spin-slow"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '9999px',
+            background: 'conic-gradient(from 0deg, #680cd9, #feb501, #07ae08, #680cd9)',
+          }}
+        />
+        {/* Inner button */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: '3px',
+            borderRadius: '9999px',
+            background: '#0A0A0F',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#edb723"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 15l7-7 7 7" />
+          </svg>
+        </div>
+      </button>
     </div>
   );
 };
@@ -320,9 +417,12 @@ const TokenRow: React.FC<TokenRowProps> = ({ token, rank, flashDirection }) => {
           </div>
         </td>
 
-        {/* Price */}
+        {/* Price - XRP */}
         <td className="px-2 py-2.5 text-right font-mono text-bearpark-gold text-xs whitespace-nowrap font-bold">
-          {formatPrice(token.price)}
+          <span className="inline-flex items-center justify-end gap-0.5">
+            {formatPrice(token.price)}
+            <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-3 h-3 opacity-80" />
+          </span>
         </td>
 
         {/* 1h */}
@@ -340,14 +440,27 @@ const TokenRow: React.FC<TokenRowProps> = ({ token, rank, flashDirection }) => {
           <PriceChange value={token.priceChange7d} />
         </td>
 
-        {/* Volume 24h */}
+        {/* Volume 24h - XRP from vol24hxrp */}
         <td className="px-2 py-2.5 text-right font-mono text-bearpark-gold/80 text-xs whitespace-nowrap">
-          {formatCompactNumber(token.volume24h)}
+          <span className="inline-flex items-center justify-end gap-0.5">
+            {formatCompactNumber(token.volume24h)}
+            <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-3 h-3 opacity-60" />
+          </span>
         </td>
 
-        {/* Market Cap */}
+        {/* Market Cap - USD */}
         <td className="px-2 py-2.5 text-right font-mono text-bearpark-gold/80 text-xs whitespace-nowrap">
           {token.marketCap ? `$${formatCompactNumber(token.marketCap)}` : '--'}
+        </td>
+
+        {/* TVL */}
+        <td className="px-2 py-2.5 text-right font-mono text-bearpark-gold/80 text-xs whitespace-nowrap">
+          {token.tvl ? (
+            <span className="inline-flex items-center justify-end gap-0.5">
+              {formatCompactNumber(token.tvl)}
+              <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-3 h-3 opacity-60" />
+            </span>
+          ) : '--'}
         </td>
 
         {/* Holders */}
@@ -388,9 +501,12 @@ const TokenRow: React.FC<TokenRowProps> = ({ token, rank, flashDirection }) => {
         </div>
       </td>
 
-      {/* Price */}
+      {/* Price - XRP */}
       <td className="px-2 py-2 text-right font-mono text-white text-xs whitespace-nowrap">
-        {formatPrice(token.price)}
+        <span className="inline-flex items-center justify-end gap-0.5">
+          {formatPrice(token.price)}
+          <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-3 h-3 opacity-50" />
+        </span>
       </td>
 
       {/* 1h */}
@@ -408,14 +524,27 @@ const TokenRow: React.FC<TokenRowProps> = ({ token, rank, flashDirection }) => {
         <PriceChange value={token.priceChange7d} />
       </td>
 
-      {/* Volume 24h */}
+      {/* Volume 24h - XRP from vol24hxrp */}
       <td className="px-2 py-2 text-right font-mono text-gray-300 text-xs whitespace-nowrap">
-        {formatCompactNumber(token.volume24h)}
+        <span className="inline-flex items-center justify-end gap-0.5">
+          {formatCompactNumber(token.volume24h)}
+          <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-3 h-3 opacity-40" />
+        </span>
       </td>
 
-      {/* Market Cap */}
+      {/* Market Cap - USD */}
       <td className="px-2 py-2 text-right font-mono text-gray-300 text-xs whitespace-nowrap">
         {token.marketCap ? `$${formatCompactNumber(token.marketCap)}` : '--'}
+      </td>
+
+      {/* TVL */}
+      <td className="px-2 py-2 text-right font-mono text-gray-300 text-xs whitespace-nowrap">
+        {token.tvl ? (
+          <span className="inline-flex items-center justify-end gap-0.5">
+            {formatCompactNumber(token.tvl)}
+            <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-3 h-3 opacity-40" />
+          </span>
+        ) : '--'}
       </td>
 
       {/* Holders */}
@@ -469,22 +598,36 @@ const MobileTokenRow: React.FC<TokenRowProps> = ({ token, rank, flashDirection }
             </span>
           </div>
         </td>
-        <td className="py-3 text-right font-mono text-xs text-bearpark-gold font-bold whitespace-nowrap">
-          {formatPrice(token.price)}
+        <td className="py-3 px-2 text-right font-mono text-xs text-bearpark-gold font-bold whitespace-nowrap">
+          <span className="inline-flex items-center justify-end gap-0.5">
+            {formatPrice(token.price)}
+            <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-2.5 h-2.5 opacity-80" />
+          </span>
         </td>
-        <td className="py-3 text-right whitespace-nowrap">
+        <td className="py-3 px-1.5 text-right whitespace-nowrap">
           <PriceChange value={token.priceChange1h} isBear />
         </td>
-        <td className="py-3 text-right whitespace-nowrap">
+        <td className="py-3 px-1.5 text-right whitespace-nowrap">
           <PriceChange value={token.priceChange24h} isBear />
         </td>
-        <td className="py-3 text-right font-mono text-xs text-bearpark-gold/90 whitespace-nowrap">
-          {formatCompactNumber(token.volume24h)}
+        <td className="py-3 px-2 text-right font-mono text-xs text-bearpark-gold/90 whitespace-nowrap">
+          <span className="inline-flex items-center justify-end gap-0.5">
+            {formatCompactNumber(token.volume24h)}
+            <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-2.5 h-2.5 opacity-60" />
+          </span>
         </td>
-        <td className="py-3 text-right font-mono text-xs text-bearpark-gold/90 whitespace-nowrap">
+        <td className="py-3 px-2 text-right font-mono text-xs text-bearpark-gold/90 whitespace-nowrap">
           {token.marketCap ? `$${formatCompactNumber(token.marketCap)}` : '--'}
         </td>
-        <td className="py-3 pr-2 text-right font-mono text-xs text-bearpark-gold/90 whitespace-nowrap border-r-2 border-[#edb723]">
+        <td className="py-3 px-2 text-right font-mono text-xs text-bearpark-gold/90 whitespace-nowrap">
+          {token.tvl ? (
+            <span className="inline-flex items-center justify-end gap-0.5">
+              {formatCompactNumber(token.tvl)}
+              <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-2.5 h-2.5 opacity-60" />
+            </span>
+          ) : '--'}
+        </td>
+        <td className="py-3 pl-2 pr-2 text-right font-mono text-xs text-bearpark-gold/90 whitespace-nowrap border-r-2 border-[#edb723]">
           {token.holders?.toLocaleString() || '--'}
         </td>
       </tr>
@@ -518,22 +661,36 @@ const MobileTokenRow: React.FC<TokenRowProps> = ({ token, rank, flashDirection }
           </span>
         </div>
       </td>
-      <td className="py-2.5 text-right font-mono text-xs text-white whitespace-nowrap">
-        {formatPrice(token.price)}
+      <td className="py-2.5 px-2 text-right font-mono text-xs text-white whitespace-nowrap">
+        <span className="inline-flex items-center justify-end gap-0.5">
+          {formatPrice(token.price)}
+          <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-2.5 h-2.5 opacity-50" />
+        </span>
       </td>
-      <td className="py-2.5 text-right whitespace-nowrap">
+      <td className="py-2.5 px-1.5 text-right whitespace-nowrap">
         <PriceChange value={token.priceChange1h} />
       </td>
-      <td className="py-2.5 text-right whitespace-nowrap">
+      <td className="py-2.5 px-1.5 text-right whitespace-nowrap">
         <PriceChange value={token.priceChange24h} />
       </td>
-      <td className="py-2.5 text-right font-mono text-xs text-gray-400 whitespace-nowrap">
-        {formatCompactNumber(token.volume24h)}
+      <td className="py-2.5 px-2 text-right font-mono text-xs text-gray-400 whitespace-nowrap">
+        <span className="inline-flex items-center justify-end gap-0.5">
+          {formatCompactNumber(token.volume24h)}
+          <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-2.5 h-2.5 opacity-40" />
+        </span>
       </td>
-      <td className="py-2.5 text-right font-mono text-xs text-gray-400 whitespace-nowrap">
+      <td className="py-2.5 px-2 text-right font-mono text-xs text-gray-400 whitespace-nowrap">
         {token.marketCap ? `$${formatCompactNumber(token.marketCap)}` : '--'}
       </td>
-      <td className="py-2.5 pr-2 text-right font-mono text-xs text-gray-400 whitespace-nowrap">
+      <td className="py-2.5 px-2 text-right font-mono text-xs text-gray-400 whitespace-nowrap">
+        {token.tvl ? (
+          <span className="inline-flex items-center justify-end gap-0.5">
+            {formatCompactNumber(token.tvl)}
+            <img src="https://files.catbox.moe/lufprf.png" alt="XRP" className="w-2.5 h-2.5 opacity-40" />
+          </span>
+        ) : '--'}
+      </td>
+      <td className="py-2.5 pl-2 pr-2 text-right font-mono text-xs text-gray-400 whitespace-nowrap">
         {token.holders?.toLocaleString() || '--'}
       </td>
     </tr>

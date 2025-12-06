@@ -1,15 +1,23 @@
 /**
- * BEAR MARKET - Secure Key Manager
+ * BEAR SWAP - Secure Key Manager
  *
- * Security Features:
- * - Keys stored in closure (not accessible from window/global)
- * - Web Crypto API for all cryptographic operations
- * - PBKDF2 with 600,000 iterations for key derivation
- * - AES-256-GCM for encryption
- * - Automatic memory wiping
- * - No persistence by default
- * - Timing-safe comparisons
- * - Frozen objects to prevent prototype pollution
+ * Cryptographic Key Management Implementation
+ *
+ * Security Architecture:
+ * - Keys stored in JavaScript closure (isolated from global scope)
+ * - Web Crypto API (SubtleCrypto) for all cryptographic operations
+ * - PBKDF2-SHA256 key derivation with 600,000 iterations (OWASP 2023)
+ * - AES-256-GCM authenticated encryption
+ * - 256-bit (32-byte) cryptographically random salt
+ * - 96-bit (12-byte) IV for GCM mode (NIST recommended)
+ * - Automatic secure memory wiping via overwrite-then-zero
+ * - Timing-safe comparison functions (prevents timing attacks)
+ * - Object freezing to prevent prototype pollution
+ *
+ * Compliance:
+ * - OWASP Cryptographic Storage Cheat Sheet
+ * - NIST SP 800-132 (PBKDF2 recommendations)
+ * - NIST SP 800-38D (GCM mode recommendations)
  */
 
 // Secure random bytes using Web Crypto API

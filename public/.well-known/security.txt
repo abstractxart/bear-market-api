@@ -1,0 +1,12 @@
+# BEAR SWAP Security Contact
+# https://securitytxt.org/
+
+Contact: mailto:security@bearpark.xyz
+Preferred-Languages: en
+Canonical: https://swap.bearpark.xyz/.well-known/security.txt
+Expires: 2026-12-31T23:59:59.000Z
+
+# Responsible Disclosure Policy
+# We take security seriously. If you discover a vulnerability,
+# please report it responsibly and we will work with you to
+# address it promptly.

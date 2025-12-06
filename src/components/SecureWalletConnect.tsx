@@ -1,11 +1,17 @@
 /**
  * BEAR SWAP - Secure Wallet Connect
  *
- * Security Model (same as MetaMask, First Ledger):
- * - Password encrypts seed locally in browser using AES-256-GCM
- * - PBKDF2 with 600,000 iterations for key derivation
- * - Password NEVER leaves your device
- * - BEAR SWAP cannot see, recover, or reset your password
+ * Self-Custodial Wallet Implementation
+ *
+ * Security Architecture:
+ * - AES-256-GCM encryption for seed storage
+ * - PBKDF2-SHA256 with 600,000 iterations (OWASP 2023 recommended)
+ * - 256-bit cryptographically random salt
+ * - Client-side only - keys never transmitted to any server
+ * - Secure memory handling with automatic wiping
+ *
+ * This implementation follows the same security model as industry-standard
+ * wallets including MetaMask and First Ledger.
  */
 
 import { useState, useCallback, useEffect } from 'react';
@@ -81,12 +87,6 @@ export const SecureWalletConnect = ({
   const [algorithm, setAlgorithm] = useState<'secp256k1' | 'ed25519'>('secp256k1');
   const [mnemonicWords, setMnemonicWords] = useState('');
   const [xamanNumbers, setXamanNumbers] = useState<string[]>(Array(8).fill(''));
-
-  // Web3Auth initialization disabled until VITE_WEB3AUTH_CLIENT_ID is configured
-  // If you want to enable social login, set the client ID in .env.local
-  // useEffect(() => {
-  //   initWeb3Auth().catch(console.error);
-  // }, []);
 
   // Check for saved vault on mount
   useEffect(() => {
@@ -255,20 +255,12 @@ export const SecureWalletConnect = ({
 
   // Actually proceed after confirmation
   const handleConfirmedProceed = () => {
-    console.log('🔍 [DEBUG] handleConfirmedProceed called');
-    console.log('🔍 [DEBUG] newWallet:', newWallet ? 'exists' : 'null');
-
     if (!newWallet) {
-      console.error('❌ [DEBUG] No newWallet found!');
       setError('Wallet data lost. Please start over.');
       setShowSaveConfirmation(false);
       setMode('select');
       return;
     }
-
-    console.log('🔍 [DEBUG] newWallet.address:', newWallet.address);
-    console.log('🔍 [DEBUG] newWallet.mnemonic length:', newWallet.mnemonic.split(' ').length, 'words');
-    console.log('🔍 [DEBUG] newWallet.seed:', newWallet.seed?.substring(0, 10) + '...');
 
     // Close confirmation modal
     setShowSaveConfirmation(false);
@@ -278,11 +270,9 @@ export const SecureWalletConnect = ({
 
     // Use the MNEMONIC as the secret (not the seed) since that's what we're showing the user
     // The mnemonic can be used to recreate the wallet just like a family seed can
-    console.log('✅ [DEBUG] Setting pendingSecret to mnemonic');
     setPendingSecret(newWallet.mnemonic);
     setPendingAddress(newWallet.address);
 
-    console.log('✅ [DEBUG] Changing mode to save-wallet');
     setMode('save-wallet');
   };
 
@@ -389,19 +379,9 @@ export const SecureWalletConnect = ({
 
   // Save wallet with password
   const handleSaveWallet = async () => {
-    console.log('🔍 [DEBUG] handleSaveWallet called');
-    console.log('🔍 [DEBUG] pendingSecret exists:', !!pendingSecret);
-    console.log('🔍 [DEBUG] pendingAddress:', pendingAddress);
-
     if (!pendingSecret || !pendingAddress) {
-      console.error('❌ [DEBUG] Missing pendingSecret or pendingAddress!');
       setError('No wallet to save');
       return;
-    }
-
-    console.log('🔍 [DEBUG] pendingSecret is mnemonic:', pendingSecret.includes(' '));
-    if (pendingSecret.includes(' ')) {
-      console.log('🔍 [DEBUG] Mnemonic word count:', pendingSecret.split(' ').length);
     }
 
     if (newPassword.length < 12) {
@@ -420,18 +400,13 @@ export const SecureWalletConnect = ({
     try {
       const keyManager = getKeyManager();
 
-      console.log('🔄 [DEBUG] Initializing keyManager with secret...');
-      console.log('🔍 [DEBUG] Secret is mnemonic:', pendingSecret.includes(' '));
       // ALWAYS initialize with the secret (even if a key exists from previous session)
       // This ensures we're saving the correct wallet, not a stale one
       // KeyManager now handles mnemonics directly
       await keyManager.initializeSessionOnly(pendingSecret);
-      console.log('✅ [DEBUG] KeyManager initialized successfully');
 
-      console.log('🔄 [DEBUG] Creating encrypted vault...');
       // Create encrypted vault
       const vault = await keyManager.createVault(newPassword);
-      console.log('✅ [DEBUG] Vault created successfully');
 
       // Save to localStorage
       saveVaultToStorage(vault, pendingAddress);
@@ -444,13 +419,10 @@ export const SecureWalletConnect = ({
 
       logSecurityEvent('wallet_saved', `Saved wallet: ${pendingAddress.slice(0, 8)}...`);
 
-      console.log('✅ [DEBUG] Wallet saved successfully!');
       onConnect(pendingAddress);
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save wallet';
-      console.error('❌ [DEBUG] Save wallet error:', message);
-      console.error('❌ [DEBUG] Full error:', err);
       setError(message);
       logSecurityEvent('wallet_save_error', message);
     } finally {
@@ -460,33 +432,23 @@ export const SecureWalletConnect = ({
 
   // Skip saving and connect directly (session only)
   const handleSkipSave = async () => {
-    console.log('🔍 [DEBUG] handleSkipSave called');
-    console.log('🔍 [DEBUG] pendingAddress:', pendingAddress);
-    console.log('🔍 [DEBUG] pendingSecret exists:', !!pendingSecret);
-
     if (!pendingAddress || !pendingSecret) {
-      console.error('❌ [DEBUG] Missing pendingAddress or pendingSecret in Skip!');
       return;
     }
 
     setLoading(true);
     setError(null); // Clear any existing errors
     try {
-      console.log('🔄 [DEBUG] Skip: Initializing keyManager...');
-      console.log('🔍 [DEBUG] Skip: Secret is mnemonic:', pendingSecret.includes(' '));
       // Initialize keyManager with the secret (required for Header.handleConnect)
       // KeyManager now handles mnemonics directly
       const keyManager = getKeyManager();
       await keyManager.initializeSessionOnly(pendingSecret);
-      console.log('✅ [DEBUG] Skip: KeyManager initialized');
 
       logSecurityEvent('skip_save', 'User skipped saving wallet');
       onConnect(pendingAddress);
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to connect';
-      console.error('❌ [DEBUG] Skip error:', message);
-      console.error('❌ [DEBUG] Skip full error:', err);
       setError(message);
     } finally {
       setLoading(false);
@@ -1738,6 +1700,14 @@ export const SecureWalletConnect = ({
                     placeholder={importMethod === 'family-seed' ? 'sXXXXXXXXXXXXXXXXXXXXXXXXXXXX' : '00112233...'}
                     className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 pr-12"
                     autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-gramm="false"
+                    data-gramm_editor="false"
+                    data-enable-grammarly="false"
+                    data-lpignore="true"
+                    data-form-type="other"
                   />
                   <button
                     type="button"
@@ -1763,6 +1733,14 @@ export const SecureWalletConnect = ({
                   rows={3}
                   className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 resize-none"
                   autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-gramm="false"
+                  data-gramm_editor="false"
+                  data-enable-grammarly="false"
+                  data-lpignore="true"
+                  data-form-type="other"
                 />
                 <p className="text-xs text-gray-500 mt-1">Enter 12 or 24 words separated by spaces</p>
               </div>
@@ -1827,6 +1805,14 @@ export const SecureWalletConnect = ({
                                       : 'bg-black/60 border-2 border-gray-700 text-white'
                               }`}
                               autoComplete="off"
+                              autoCorrect="off"
+                              autoCapitalize="off"
+                              spellCheck={false}
+                              data-gramm="false"
+                              data-gramm_editor="false"
+                              data-enable-grammarly="false"
+                              data-lpignore="true"
+                              data-form-type="other"
                             />
                             {isLocked && (
                               <button

@@ -1,8 +1,19 @@
 /**
- * BEAR MARKET - Security Policy
+ * BEAR SWAP - Security Policy
  *
- * This file implements Content Security Policy and other security measures
- * to prevent XSS, injection attacks, and other vulnerabilities.
+ * Client-Side Security Implementation
+ *
+ * Security Controls:
+ * - Content Security Policy (CSP) to prevent XSS and injection attacks
+ * - X-Frame-Options to prevent clickjacking
+ * - X-Content-Type-Options to prevent MIME sniffing
+ * - X-XSS-Protection for legacy browser support
+ * - Strict Referrer-Policy for privacy
+ * - Input sanitization utilities
+ * - Environment integrity checking
+ *
+ * Note: These client-side headers provide defense-in-depth.
+ * Production deployments should also set these headers server-side.
  */
 
 /**
@@ -10,20 +21,30 @@
  * Note: For production, these should also be set server-side
  */
 export const applySecurityPolicy = (): void => {
-  // Content Security Policy
+  const isProduction = import.meta.env.PROD;
+
+  // Content Security Policy - tighter in production
   const cspMeta = document.createElement('meta');
   cspMeta.httpEquiv = 'Content-Security-Policy';
+
+  // In production: remove unsafe-eval, keep unsafe-inline only for styles
+  // In development: allow unsafe-eval for Vite HMR
+  const scriptSrc = isProduction
+    ? "script-src 'self' 'unsafe-inline'" // Production: no eval
+    : "script-src 'self' 'unsafe-inline' 'unsafe-eval'"; // Dev: allow eval for Vite
+
   cspMeta.content = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Required for Vite dev, tighten in prod
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
-    "font-src 'self' data:",
-    "connect-src 'self' https://s1.ripple.com https://s2.ripple.com https://xrplcluster.com https://*.xrpl.org wss://s1.ripple.com wss://s2.ripple.com wss://xrplcluster.com wss://*.xrpl.org",
+    scriptSrc,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' data: https: blob:",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "connect-src 'self' https://s1.ripple.com https://s2.ripple.com https://xrplcluster.com https://*.xrpl.org https://api.xrpl.to https://*.xrpl.to wss://s1.ripple.com wss://s2.ripple.com wss://xrplcluster.com wss://*.xrpl.org",
     "frame-ancestors 'none'",
     "form-action 'self'",
     "base-uri 'self'",
     "object-src 'none'",
+    "upgrade-insecure-requests", // Force HTTPS
   ].join('; ');
   document.head.appendChild(cspMeta);
 

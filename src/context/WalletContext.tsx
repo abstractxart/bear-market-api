@@ -217,13 +217,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [xrplClient]);
 
-  // REMOVED: connectWithAddress() - CRITICAL SECURITY VULNERABILITY
-  // This function allowed wallet impersonation attacks by accepting any address
-  // without proof of ownership. Users must now connect with:
-  // 1. connectWithSecret() - Requires actual wallet control
-  // 2. External wallet providers (future) - Xumm, Crossmark, etc.
-  //
-  // David Schwartz approved this removal.
+  // SECURITY: connectWithAddress() has been removed to prevent impersonation attacks.
+  // Wallet connection now requires cryptographic proof of ownership via:
+  // 1. connectWithSecret() - Direct key-based authentication
+  // 2. External wallet providers (planned) - Xaman, Crossmark, GemWallet
 
   // Auto-refresh balance when wallet address changes
   useEffect(() => {

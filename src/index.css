@@ -96,14 +96,26 @@
   100% { opacity: 1; }
 }
 
-/* Slow spin animation for gradient rings */
+/* Slow spin animation for gradient rings - BUTTERY SMOOTH with GPU acceleration */
 .animate-spin-slow {
   animation: spin 8s linear infinite;
+  /* GPU acceleration hints for silky smooth rotation */
+  will-change: transform;
+  transform-origin: center center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  perspective: 1000px;
+  /* Force GPU compositing layer */
+  transform: translateZ(0);
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg) translateZ(0);
+  }
+  to {
+    transform: rotate(360deg) translateZ(0);
+  }
 }
 
 /* BEAR GODMODE pulse glow */
@@ -124,6 +136,38 @@
       0 0 40px rgba(237, 183, 35, 0.3),
       0 0 60px rgba(237, 183, 35, 0.2),
       inset 0 0 20px rgba(237, 183, 35, 0.2);
+  }
+}
+
+/* Glow pulse for special BEAR elements - premium styling */
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(237, 183, 35, 0.3);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(237, 183, 35, 0.6), 0 0 60px rgba(104, 12, 217, 0.3);
+    filter: brightness(1.1);
+  }
+}
+
+/* Slow breathing for orbs - subtle ambient effect */
+.animate-breathe {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
   }
 }
 
@@ -285,41 +329,39 @@ body::before {
 
 /* ===== Component Classes ===== */
 .glass-card {
-  background: linear-gradient(180deg, rgba(237, 183, 35, 0.12), rgba(237, 183, 35, 0.08));
+  background: transparent;
   border-radius: 2rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   position: relative;
+  /* NO overflow:hidden - allows swap button to stay on top */
 }
 
+/* Spinning conic-gradient border - premium styling */
 .glass-card::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: 2rem;
-  padding: 5px;
-  background: linear-gradient(
-    to right,
-    var(--color-bearpark-purple) 0%,
-    var(--color-bearpark-purple) 33.33%,
-    var(--color-bearpark-yellow) 33.33%,
-    var(--color-bearpark-yellow) 66.66%,
-    var(--color-bearpark-green) 66.66%,
-    var(--color-bearpark-green) 100%
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  z-index: -1;
+  background: conic-gradient(from 0deg, #680cd9, #9333ea, #feb501, #84cc16, #07ae08, #10b981, #680cd9);
+  animation: spin 8s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  z-index: -2;
 }
 
+/* Inner card background - slight transparency for animated orb visibility */
 .glass-card::after {
   content: '';
   position: absolute;
-  inset: 5px;
-  border-radius: calc(2rem - 5px);
-  background: linear-gradient(180deg, rgba(237, 183, 35, 0.12), rgba(237, 183, 35, 0.08));
+  inset: 3px;
+  border-radius: calc(2rem - 3px);
+  background: linear-gradient(180deg, rgba(15, 15, 25, 0.96), rgba(10, 10, 18, 0.98));
+  backdrop-filter: blur(8px);
   z-index: -1;
 }
+
+/* Content stays above pseudo-elements naturally since they have negative z-index */
 
 .btn-primary {
   color: white;
@@ -665,7 +707,7 @@ body::before {
   50% { background-position: 100% 50%; }
 }
 
-/* ===== COCAINE BEAR HOVER EFFECTS ===== */
+/* ===== animated HOVER EFFECTS ===== */
 
 /* Animated underline for nav items */
 .nav-link-hover {

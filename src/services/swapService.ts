@@ -94,6 +94,13 @@ export async function getSwapQuote(
     outputBeforeFee = inputAmountNum * priceInXRP;
   }
 
+  // CRITICAL SANITY CHECK for Token → XRP - Auto-correct inverted rates
+  if (!isInputXRP && outputBeforeFee > inputAmountNum * 10) {
+    // Auto-correct by inverting the price
+    const correctedPrice = 1 / priceInXRP;
+    outputBeforeFee = inputAmountNum * correctedPrice;
+  }
+
   // Calculate fee - ALWAYS IN XRP
   const feeRate = getFeeRate(feeTier);
   let xrpFeeAmount: number;
@@ -149,7 +156,7 @@ async function getTokenPriceInXRP(
     return cached.price;
   }
 
-  // 1. Try OnTheDex ticker API first (INSTANT!)
+  // 1. Try OnTheDex ticker API first (fastest response)
   try {
     const tickerUrl = `${ONTHEDEX_API}/ticker/XRP/${token.currency}:${token.issuer}`;
     const response = await fetch(tickerUrl, {
@@ -158,26 +165,24 @@ async function getTokenPriceInXRP(
 
     if (response.ok) {
       const data = await response.json();
+
       // OnTheDex returns price as how many tokens per XRP
       // We want price of 1 token in XRP, so we invert
       if (data.last && parseFloat(data.last) > 0) {
         const pricePerXRP = parseFloat(data.last);
         const priceInXRP = 1 / pricePerXRP;
-
         priceCache.set(cacheKey, { price: priceInXRP, timestamp: Date.now() });
         return priceInXRP;
       }
     }
-  } catch (error) {
-    console.warn('OnTheDex ticker failed:', error);
+  } catch {
+    // OnTheDex unavailable, try fallback
   }
 
   // 2. Try DexScreener API (has most tokens including BEAR)
   try {
-    const dexResponse = await fetch(
-      `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(token.currency)}%20xrpl`,
-      { signal: AbortSignal.timeout(3000) }
-    );
+    const dexUrl = `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(token.currency)}%20xrpl`;
+    const dexResponse = await fetch(dexUrl, { signal: AbortSignal.timeout(3000) });
 
     if (dexResponse.ok) {
       const dexData = await dexResponse.json();
@@ -190,7 +195,9 @@ async function getTokenPriceInXRP(
           if (baseToken?.symbol?.toUpperCase() === token.currency.toUpperCase()) {
             // Check issuer matches if we have one
             const address = baseToken.address || '';
-            if (token.issuer && !address.includes(token.issuer)) continue;
+            if (token.issuer && !address.includes(token.issuer)) {
+              continue;
+            }
 
             // priceNative is price in XRP (native currency)
             if (pair.priceNative) {
@@ -202,16 +209,15 @@ async function getTokenPriceInXRP(
         }
       }
     }
-  } catch (error) {
-    console.warn('DexScreener price fetch failed:', error);
+  } catch {
+    // DexScreener unavailable, try fallback
   }
 
   // 3. Fallback to XRPL order book
   try {
     const quoteResult = await getQuoteFromOrderBook(client, params);
+
     // quoteResult gives us output for the input amount
-    // priceInXRP = how much XRP for 1 token = inputAmount / outputAmount (for XRP→Token)
-    // But we need to handle both directions
     const isInputXRP = params.inputToken.currency === 'XRP';
     let priceInXRP: number;
 
@@ -223,10 +229,21 @@ async function getTokenPriceInXRP(
       priceInXRP = parseFloat(quoteResult.outputAmount) / parseFloat(params.inputAmount);
     }
 
+    // SANITY CHECK: If price is > 10 XRP, try inverse calculation
+    if (priceInXRP > 10) {
+      const inversePriceInXRP = isInputXRP
+        ? parseFloat(quoteResult.outputAmount) / parseFloat(params.inputAmount)
+        : parseFloat(params.inputAmount) / parseFloat(quoteResult.outputAmount);
+
+      // If inverse is more reasonable (< 10), use it
+      if (inversePriceInXRP < priceInXRP && inversePriceInXRP < 10) {
+        priceInXRP = inversePriceInXRP;
+      }
+    }
+
     priceCache.set(cacheKey, { price: priceInXRP, timestamp: Date.now() });
     return priceInXRP;
-  } catch (error) {
-    console.error('Order book fallback failed:', error);
+  } catch {
     throw new Error('Unable to get price quote');
   }
 }
@@ -259,18 +276,45 @@ async function getQuoteFromOrderBook(
 ): Promise<QuoteResult> {
   const { inputToken, outputToken, inputAmount } = params;
 
+  // VALIDATION: Ensure we have issuers for non-XRP tokens
+  if (inputToken.currency !== 'XRP' && !inputToken.issuer) {
+    throw new Error(`Missing issuer for ${inputToken.currency}`);
+  }
+  if (outputToken.currency !== 'XRP' && !outputToken.issuer) {
+    throw new Error(`Missing issuer for ${outputToken.currency}`);
+  }
+
   try {
+    // Build the request
+    // CRITICAL: For book_offers, we need offers where we RECEIVE the output and GIVE the input
+    // taker_gets = what the OFFER MAKER is selling (what we receive as taker)
+    // taker_pays = what the OFFER MAKER wants (what we pay as taker)
+    //
+    // When buying SPIFFY with XRP:
+    //   - We want offers from people SELLING SPIFFY for XRP
+    //   - Those offers have: TakerGets = SPIFFY (maker sells), TakerPays = XRP (maker wants)
+    //   - Query: taker_gets = SPIFFY, taker_pays = XRP
+    //
+    // When selling SPIFFY for XRP:
+    //   - We want offers from people BUYING SPIFFY with XRP
+    //   - Those offers have: TakerGets = XRP (maker sells), TakerPays = SPIFFY (maker wants)
+    //   - Query: taker_gets = XRP, taker_pays = SPIFFY
+
+    const takerGets = outputToken.currency === 'XRP'
+      ? { currency: 'XRP' }
+      : { currency: toXRPLCurrency(outputToken.currency), issuer: outputToken.issuer! };
+
+    const takerPays = inputToken.currency === 'XRP'
+      ? { currency: 'XRP' }
+      : { currency: toXRPLCurrency(inputToken.currency), issuer: inputToken.issuer! };
+
     // Single API call to get order book
     // taker_gets = what YOU receive (output token)
     // taker_pays = what YOU pay (input token)
     const bookResult = await client.request({
       command: 'book_offers',
-      taker_gets: outputToken.currency === 'XRP'
-        ? { currency: 'XRP' }
-        : { currency: toXRPLCurrency(outputToken.currency), issuer: outputToken.issuer! },
-      taker_pays: inputToken.currency === 'XRP'
-        ? { currency: 'XRP' }
-        : { currency: toXRPLCurrency(inputToken.currency), issuer: inputToken.issuer! },
+      taker_gets: takerGets,
+      taker_pays: takerPays,
       limit: 20, // Get more offers for better pricing
     });
 
@@ -281,23 +325,117 @@ async function getQuoteFromOrderBook(
       return getAMMQuote(client, params);
     }
 
+    // =====================================================
+    // CRITICAL VALIDATION: Ensure offers match our direction!
+    // This prevents the bug where we get wrong-direction offers
+    // =====================================================
+    const firstOffer = offers[0];
+    const offerTakerGetsIsXRP = typeof firstOffer.TakerGets === 'string';
+    const offerTakerPaysIsXRP = typeof firstOffer.TakerPays === 'string';
+    const expectedOutputIsXRP = outputToken.currency === 'XRP';
+    const expectedInputIsXRP = inputToken.currency === 'XRP';
+
+    // Offers should have:
+    // - TakerGets = what WE receive = outputToken
+    // - TakerPays = what WE pay = inputToken
+    const directionCorrect =
+      (expectedOutputIsXRP === offerTakerGetsIsXRP) &&
+      (expectedInputIsXRP === offerTakerPaysIsXRP);
+
+    if (!directionCorrect) {
+      // TRY INVERSE QUERY: Swap taker_gets and taker_pays
+      try {
+        const inverseResult = await client.request({
+          command: 'book_offers',
+          taker_gets: takerPays, // SWAP
+          taker_pays: takerGets, // SWAP
+          limit: 20,
+        });
+
+        const inverseOffers = inverseResult.result.offers || [];
+
+        if (inverseOffers.length > 0) {
+          // Now we have offers in the wrong direction, but we can use them
+          // by inverting the rate calculation
+          const invFirst = inverseOffers[0];
+          const invTakerGetsIsXRP = typeof invFirst.TakerGets === 'string';
+
+          // Check if inverse matches our direction now
+          if (invTakerGetsIsXRP === expectedInputIsXRP) {
+            // Rate inversion: our_rate = 1 / their_rate
+            const invCalc = calculateOutputFromOffers(inverseOffers, 1);
+            if (invCalc.rate > 0) {
+              const invertedRate = 1 / invCalc.rate;
+              const ourOutput = parseFloat(inputAmount) * invertedRate;
+
+              if (ourOutput > 0 && invertedRate > 1e-10) {
+                return {
+                  outputAmount: ourOutput.toFixed(6),
+                  marketRate: invertedRate,
+                };
+              }
+            }
+          }
+        }
+      } catch {
+        // Inverse query failed, continue to AMM fallback
+      }
+
+      // Fallback to AMM if inverse didn't work
+      return getAMMQuote(client, params);
+    }
+
     // Calculate expected output from order book
     const { output, rate } = calculateOutputFromOffers(
       offers,
       parseFloat(inputAmount)
     );
 
-    if (output === 0) {
-      // Order book empty or insufficient, try AMM
+    // Sanity check: reject absurdly small outputs
+    if (output === 0 || rate < 1e-10) {
       return getAMMQuote(client, params);
+    }
+
+    // Additional check: if output is less than 1 unit for a reasonable input, something is wrong
+    const inputNum = parseFloat(inputAmount);
+    if (inputNum >= 1 && output < 0.000001) {
+      return getAMMQuote(client, params);
+    }
+
+    // EXTRA VALIDATION: Compare with OnTheDex price if available
+    // This helps catch wildly incorrect order book rates
+    try {
+      const nonXrpToken = inputToken.currency === 'XRP' ? outputToken : inputToken;
+      const priceUrl = `https://api.onthedex.live/public/v1/ticker/XRP/${nonXrpToken.currency}:${nonXrpToken.issuer}`;
+      const priceResp = await fetch(priceUrl);
+      if (priceResp.ok) {
+        const priceData = await priceResp.json();
+        const externalPrice = priceData.last; // XRP per token
+
+        if (externalPrice && externalPrice > 0) {
+          // Calculate our implied price
+          const isInputXRP = inputToken.currency === 'XRP';
+          const ourPrice = isInputXRP
+            ? inputNum / output  // XRP spent per token received
+            : output / inputNum;  // XRP received per token sold
+
+          const priceDiff = Math.abs(ourPrice - externalPrice) / externalPrice;
+
+          // If our price differs by more than 50x from external, something is wrong
+          if (priceDiff > 50) {
+            return getAMMQuote(client, params);
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore price check errors
     }
 
     return {
       outputAmount: output.toFixed(6),
       marketRate: rate,
     };
-  } catch (error) {
-    console.error('Order book error:', error);
+  } catch {
     // Fallback to AMM-only pricing
     return getAMMQuote(client, params);
   }
@@ -351,14 +489,18 @@ async function getAMMQuote(
       outputAmount: outputAfterAMMFee.toFixed(6),
       marketRate: outputPool / inputPool,
     };
-  } catch (error) {
-    console.error('AMM quote error:', error);
-    throw new Error('Unable to get quote. Please try again.');
+  } catch {
+    // No AMM exists for this pair - this token has NO LIQUIDITY
+    throw new Error(`No liquidity found for ${params.inputToken.currency}/${params.outputToken.currency}. This token may not have any active order book or AMM.`);
   }
 }
 
 /**
  * Calculate output amount from order book offers
+ *
+ * CRITICAL: After direction validation, offers are guaranteed to have:
+ * - TakerGets = what WE RECEIVE (output token)
+ * - TakerPays = what WE PAY (input token)
  */
 function calculateOutputFromOffers(
   offers: any[],
@@ -371,34 +513,32 @@ function calculateOutputFromOffers(
   let remainingInput = inputAmount;
   let totalOutput = 0;
 
-  for (const offer of offers) {
-    if (remainingInput <= 0) break;
+  for (let i = 0; i < offers.length && remainingInput > 0; i++) {
+    const offer = offers[i];
 
-    // After fix: TakerGets = output (what you receive), TakerPays = input (what you pay)
-    const takerGets = parseOfferAmount(offer.TakerGets); // Output amount
-    const takerPays = parseOfferAmount(offer.TakerPays); // Input amount
+    // Parse amounts - TakerGets is OUTPUT (what we receive), TakerPays is INPUT (what we pay)
+    const outputAvailable = parseOfferAmount(offer.TakerGets);
+    const inputRequired = parseOfferAmount(offer.TakerPays);
 
-    // owner_funds is in TakerGets units (output units)
-    const ownerFunds = parseFloat(offer.owner_funds || takerGets.toString());
+    // owner_funds limits how much the offer maker can actually deliver (in TakerGets units)
+    const ownerFunds = offer.owner_funds ? parseFloat(offer.owner_funds) : outputAvailable;
+    const actualOutputAvailable = Math.min(outputAvailable, ownerFunds);
 
-    // Rate: how much input per 1 output
-    const rate = takerPays / takerGets;
+    // Price = how much INPUT per 1 OUTPUT
+    const pricePerOutput = inputRequired / outputAvailable;
 
-    // Max input this offer can accept = takerPays
-    // But limited by owner_funds (in output units), converted to input units
-    const maxInputFromFunds = ownerFunds * rate;
-    const availableInput = Math.min(takerPays, maxInputFromFunds);
+    // How much input can we use on this offer?
+    const maxInputForThisOffer = actualOutputAvailable * pricePerOutput;
+    const inputToConsume = Math.min(remainingInput, maxInputForThisOffer);
 
-    const consumable = Math.min(remainingInput, availableInput);
-    const outputForThis = consumable / rate;
+    // How much output do we get for this input?
+    const outputForThisOffer = inputToConsume / pricePerOutput;
 
-    totalOutput += outputForThis;
-    remainingInput -= consumable;
+    totalOutput += outputForThisOffer;
+    remainingInput -= inputToConsume;
   }
 
-  // Calculate effective rate
-  const effectiveRate = totalOutput / inputAmount;
-
+  const effectiveRate = inputAmount > 0 ? totalOutput / inputAmount : 0;
   return { output: totalOutput, rate: effectiveRate };
 }
 
@@ -694,39 +834,50 @@ export async function executeSwap(
       referrerWallet = null;
     }
 
-    if (referrerWallet) {
+    // MINIMUM FEE THRESHOLD: 1 drop = 0.000001 XRP
+    // XRPL rejects payments of 0 drops, so skip fee transactions if amount is too small
+    const MIN_FEE_XRP = 0.000001;
+
+    if (feeAmountXRP < MIN_FEE_XRP) {
+      console.log(`[Swap] Fee too small (${feeAmountXRP} XRP), skipping fee transactions`);
+    } else if (referrerWallet) {
       // SPLIT FEE: 50% to referrer, 50% to treasury
       const halfFee = feeAmountXRP / 2;
 
-      // Fee to referrer
-      feeTxs.push({
-        TransactionType: 'Payment',
-        Account: senderAddress,
-        Destination: referrerWallet,
-        Amount: xrpToDrops(halfFee.toFixed(6)),
-        Memos: [{
-          Memo: {
-            MemoType: Buffer.from('REFERRAL_COMMISSION', 'utf8').toString('hex').toUpperCase(),
-            MemoData: Buffer.from('50% commission for referral', 'utf8').toString('hex').toUpperCase(),
-          }
-        }],
-      });
+      // Only add fee transactions if each half is at least 1 drop
+      if (halfFee >= MIN_FEE_XRP) {
+        // Fee to referrer
+        feeTxs.push({
+          TransactionType: 'Payment',
+          Account: senderAddress,
+          Destination: referrerWallet,
+          Amount: xrpToDrops(halfFee.toFixed(6)),
+          Memos: [{
+            Memo: {
+              MemoType: Buffer.from('REFERRAL_COMMISSION', 'utf8').toString('hex').toUpperCase(),
+              MemoData: Buffer.from('50% commission for referral', 'utf8').toString('hex').toUpperCase(),
+            }
+          }],
+        });
 
-      // Fee to treasury
-      feeTxs.push({
-        TransactionType: 'Payment',
-        Account: senderAddress,
-        Destination: BEAR_TREASURY_WALLET,
-        Amount: xrpToDrops(halfFee.toFixed(6)),
-        Memos: [{
-          Memo: {
-            MemoType: Buffer.from('BEAR_SWAP_FEE', 'utf8').toString('hex').toUpperCase(),
-            MemoData: Buffer.from('50% treasury fee (referred user)', 'utf8').toString('hex').toUpperCase(),
-          }
-        }],
-      });
+        // Fee to treasury
+        feeTxs.push({
+          TransactionType: 'Payment',
+          Account: senderAddress,
+          Destination: BEAR_TREASURY_WALLET,
+          Amount: xrpToDrops(halfFee.toFixed(6)),
+          Memos: [{
+            Memo: {
+              MemoType: Buffer.from('BEAR_SWAP_FEE', 'utf8').toString('hex').toUpperCase(),
+              MemoData: Buffer.from('50% treasury fee (referred user)', 'utf8').toString('hex').toUpperCase(),
+            }
+          }],
+        });
 
-      console.log(`[Swap] Splitting fee: ${halfFee} XRP to referrer, ${halfFee} XRP to treasury`);
+        console.log(`[Swap] Splitting fee: ${halfFee} XRP to referrer, ${halfFee} XRP to treasury`);
+      } else {
+        console.log(`[Swap] Split fee too small (${halfFee} XRP each), skipping fee transactions`);
+      }
     } else {
       // NO REFERRER: 100% to treasury
       feeTxs.push({

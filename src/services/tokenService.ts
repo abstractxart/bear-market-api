@@ -879,6 +879,27 @@ export async function getAllTokens(): Promise<XRPLToken[]> {
  * Get popular/featured tokens - Top tokens by 24h volume from OnTheDex
  * BEAR token is ALWAYS at the top with price from DexScreener!
  */
+// Helper: fetch with timeout
+async function fetchWithTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      console.warn(`[TokenService] Request timed out after ${timeoutMs}ms`);
+      resolve(fallback);
+    }, timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timeoutId!);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId!);
+    console.error('[TokenService] Fetch error:', error);
+    return fallback;
+  }
+}
+
 export async function getPopularTokens(): Promise<XRPLToken[]> {
   // Use short cache for popular tokens (30 seconds)
   if (popularTokensCache && Date.now() - (popularTokensCacheTime || 0) < 30000) {
@@ -887,9 +908,10 @@ export async function getPopularTokens(): Promise<XRPLToken[]> {
 
   try {
     // Fetch ALL traded tokens from OnTheDex AND BEAR price from DexScreener
+    // Add 5 second timeout to prevent hanging
     const [onTheDexTokens, bearPrice] = await Promise.all([
-      fetchOnTheDexTokens(),
-      fetchBearPriceFromDexScreener(),
+      fetchWithTimeout(fetchOnTheDexTokens(), 5000, []),
+      fetchWithTimeout(fetchBearPriceFromDexScreener(), 5000, {}),
     ]);
 
     // Sort by 24h volume (highest first) - this gives us the most active tokens
@@ -897,10 +919,10 @@ export async function getPopularTokens(): Promise<XRPLToken[]> {
       return (b.volume24h || 0) - (a.volume24h || 0);
     });
 
-    // Take top 50 by volume (excluding BEAR since we'll add it at top)
+    // Take top 100 by volume (excluding BEAR since we'll add it at top)
     const topTokens = sortedByVolume
       .filter(t => !(t.currency === 'BEAR' && t.issuer === 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW'))
-      .slice(0, 49);
+      .slice(0, 99);
 
     // Get BEAR token - use COMMON_TOKENS info with DexScreener price data
     const bearBase = COMMON_TOKENS.find(t => t.currency === 'BEAR')!;
@@ -914,9 +936,15 @@ export async function getPopularTokens(): Promise<XRPLToken[]> {
     };
 
     // BEAR always at top!
-    popularTokensCache = [bearToken, ...topTokens];
+    // If API failed (no tokens), use COMMON_TOKENS as fallback
+    const finalTokens = topTokens.length > 0
+      ? [bearToken, ...topTokens]
+      : [bearToken, ...COMMON_TOKENS.filter(t => t.currency !== 'BEAR')];
+
+    popularTokensCache = finalTokens;
     popularTokensCacheTime = Date.now();
 
+    console.log(`[TokenService] Loaded ${finalTokens.length} popular tokens`);
     return popularTokensCache;
   } catch (error) {
     console.error('Failed to fetch popular tokens:', error);

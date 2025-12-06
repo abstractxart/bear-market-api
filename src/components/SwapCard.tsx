@@ -212,8 +212,10 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
   // Set max amount
   const handleMaxClick = () => {
     if (inputToken.currency === 'XRP') {
-      // Reserve 2 XRP for fees and reserve
-      const max = Math.max(0, parseFloat(wallet.balance.xrp) - 2);
+      // Reserve 0.1 XRP for transaction fees (tx fee is ~0.00001 XRP)
+      // Users can override manually if they want to use more
+      const reserve = 0.1;
+      const max = Math.max(0, parseFloat(wallet.balance.xrp) - reserve);
       setInputAmount(max.toFixed(6));
     } else {
       // Use findTokenBalance to handle hex-encoded currency codes (e.g., RLUSD)
@@ -297,13 +299,12 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
       </AnimatePresence>
 
       {/* Input token */}
-      <div className="bg-bear-dark-800 rounded-3xl p-4 mb-2">
+      <div className="bg-bear-dark-700/60 backdrop-blur-sm rounded-3xl p-4 mb-2 border border-bear-dark-600">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm text-gray-400">You pay</span>
           <button
             onClick={handleMaxClick}
-            className="text-xs font-black px-3 py-1 rounded-full"
-            style={{ background: 'var(--color-bearpark-gold)', color: '#000' }}
+            className="text-xs font-black px-3 py-1 rounded-full bg-bear-green-500 text-white hover:bg-bear-green-400 transition-colors"
           >
             MAX
           </button>
@@ -346,15 +347,15 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
         </div>
       </div>
 
-      {/* Swap direction button */}
-      <div className="flex justify-center -my-2 relative z-10">
+      {/* Swap direction button - HIGH Z-INDEX to stay above everything */}
+      <div className="flex justify-center -my-2 relative z-30">
         <button
           onClick={handleFlipTokens}
-          className="p-3 rounded-2xl transition-all hover:scale-110 border-2"
+          className="p-3 rounded-2xl transition-all hover:scale-110 border-2 shadow-lg"
           style={{
             background: 'var(--color-bearpark-gold)',
             borderColor: 'rgba(0,0,0,0.2)',
-            boxShadow: '0 4px 0 #9b7a0d'
+            boxShadow: '0 4px 0 #9b7a0d, 0 8px 20px rgba(237, 183, 35, 0.4)'
           }}
         >
           <svg className="w-5 h-5" style={{ color: '#000' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -364,7 +365,7 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
       </div>
 
       {/* Output token */}
-      <div className="bg-bear-dark-800 rounded-3xl p-4 mt-2">
+      <div className="bg-bear-dark-700/60 backdrop-blur-sm rounded-3xl p-4 mt-2 border border-bear-dark-600">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm text-gray-400">You receive</span>
           {quote && (
@@ -402,26 +403,34 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
               </div>
             )}
           </div>
-          <button
-            onClick={() => setShowTokenSelector('output')}
-            className="flex items-center gap-2 px-4 py-2 rounded-full transition-all font-black text-sm"
-            style={{
-              background: outputToken ? 'var(--color-bear-dark-600)' : 'var(--color-bearpark-gold)',
-              color: outputToken ? 'white' : '#000'
-            }}
-          >
-            {outputToken ? (
-              <>
-                <TokenIcon token={outputToken} size={24} />
-                <span className="font-semibold">{outputToken.symbol}</span>
-              </>
-            ) : (
-              <span>Select token</span>
-            )}
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+          {/* Select token button - with spinning tri-gradient when no token selected */}
+          {outputToken ? (
+            <button
+              onClick={() => setShowTokenSelector('output')}
+              className="flex items-center gap-2 px-4 py-2 rounded-full transition-all font-semibold text-sm bg-bear-dark-600 hover:bg-bear-dark-500 text-white"
+            >
+              <TokenIcon token={outputToken} size={24} />
+              <span>{outputToken.symbol}</span>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowTokenSelector('output')}
+              className="relative flex items-center gap-2 px-4 py-2 rounded-full transition-all font-bold text-sm text-white overflow-hidden group hover:scale-105 active:scale-95"
+            >
+              {/* Spinning tri-gradient border */}
+              <span className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></span>
+              <span className="absolute inset-[2px] rounded-full bg-bear-dark-800 group-hover:bg-bear-dark-700 transition-colors"></span>
+              <span className="relative z-10 flex items-center gap-2">
+                <span>Select token</span>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
+            </button>
+          )}
         </div>
         {outputToken && (
           <div className="text-sm text-gray-500 mt-2">

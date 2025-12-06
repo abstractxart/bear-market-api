@@ -1,0 +1,9 @@
+# BEAR SWAP - robots.txt
+# Allow search engines to index main pages
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://swap.bearpark.xyz/sitemap.xml
