@@ -648,10 +648,40 @@ export async function executeSwap(
         referrerWallet = referralData.data.referrerWallet;
         console.log('[Swap] User was referred by wallet:', referrerWallet);
       } else {
-        console.log('[Swap] No referrer found');
+        console.log('[Swap] No referrer from API, checking localStorage...');
+        // Fallback: Check localStorage for referral data
+        const storedReferral = localStorage.getItem('bear_market_referral');
+        if (storedReferral) {
+          try {
+            const localData = JSON.parse(storedReferral);
+            if (localData.referredBy) {
+              referrerWallet = localData.referredBy;
+              console.log('[Swap] Found referrer in localStorage:', referrerWallet);
+            } else {
+              console.log('[Swap] No referrer found (localStorage has no referredBy)');
+            }
+          } catch (e) {
+            console.log('[Swap] No referrer found (localStorage parse error)');
+          }
+        } else {
+          console.log('[Swap] No referrer found');
+        }
       }
     } catch (err) {
-      console.warn('[Swap] Could not check referrer:', err);
+      console.warn('[Swap] Could not check referrer from API:', err);
+      // Fallback: Check localStorage even if API fails
+      const storedReferral = localStorage.getItem('bear_market_referral');
+      if (storedReferral) {
+        try {
+          const localData = JSON.parse(storedReferral);
+          if (localData.referredBy) {
+            referrerWallet = localData.referredBy;
+            console.log('[Swap] Found referrer in localStorage (API fallback):', referrerWallet);
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
     }
 
     if (referrerWallet) {
