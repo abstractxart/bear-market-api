@@ -39,6 +39,36 @@ export interface Token {
   decimals: number;
 }
 
+// Extended token type for leaderboard/market data
+export interface LeaderboardToken extends Token {
+  // Price data
+  price?: number;              // Current price in XRP
+  priceChange5m?: number;      // 5-minute price change %
+  priceChange1h?: number;      // 1-hour price change %
+  priceChange24h?: number;     // 24-hour price change %
+  priceChange7d?: number;      // 7-day price change %
+
+  // Volume data
+  volume24h?: number;          // 24-hour trading volume in XRP
+  volumeChange24h?: number;    // 24h volume change %
+  totalVolume?: number;        // Lifetime total volume
+
+  // Market metrics
+  marketCap?: number;          // Market capitalization
+  tvl?: number;                // Total Value Locked / liquidity
+  fdv?: number;                // Fully Diluted Valuation
+
+  // Token stats
+  holders?: number;            // Unique holder count
+  trustlines?: number;         // Total trustlines
+  createdAt?: number;          // Token creation timestamp
+
+  // Metadata
+  domain?: string;             // Token's domain
+  verified?: boolean;          // Verified status
+
+}
+
 export const XRP_TOKEN: Token = {
   currency: 'XRP',
   issuer: undefined,

@@ -16,6 +16,7 @@ import { getTokenIconUrls } from '../services/tokenService';
 interface WalletDashboardProps {
   isOpen: boolean;
   onClose: () => void;
+  originRect?: DOMRect | null; // Origin point for the SPLOINK animation
 }
 
 type TabType = 'tokens' | 'lps' | 'nfts' | 'history';
@@ -63,7 +64,7 @@ interface TxHistory {
   hash: string;
 }
 
-export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
+export const WalletDashboard = ({ isOpen, onClose, originRect }: WalletDashboardProps) => {
   const { wallet, xrplClient, disconnect } = useWallet();
   const [activeTab, setActiveTab] = useState<TabType>('tokens');
   const [nfts, setNfts] = useState<NFTData[]>([]);
@@ -878,6 +879,20 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
 
   if (!isOpen) return null;
 
+  // Calculate origin point for SPLOINK animation
+  const getOriginStyles = () => {
+    if (originRect) {
+      return {
+        // Start from button position
+        originX: originRect.left + originRect.width / 2,
+        originY: originRect.top + originRect.height / 2,
+      };
+    }
+    return { originX: window.innerWidth - 100, originY: 80 };
+  };
+
+  const origin = getOriginStyles();
+
   return (
     <AnimatePresence>
       <motion.div
@@ -886,201 +901,415 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 flex items-start justify-end p-4 pt-20"
       >
-        {/* Backdrop */}
+        {/* Backdrop with blur */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/70 backdrop-blur-md"
           onClick={onClose}
         />
 
-        {/* Dashboard Panel */}
+        {/* Dashboard Panel - SPLOINK Animation */}
         <motion.div
-          initial={{ opacity: 0, x: 20, scale: 0.95 }}
-          animate={{ opacity: 1, x: 0, scale: 1 }}
-          exit={{ opacity: 0, x: 20, scale: 0.95 }}
-          transition={{ type: 'spring', duration: 0.4 }}
-          className="relative w-full max-w-sm bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col"
+          initial={{
+            opacity: 0,
+            scale: 0.3,
+            x: origin.originX - window.innerWidth + 200,
+            y: origin.originY - 80,
+            borderRadius: '100px',
+          }}
+          animate={{
+            opacity: 1,
+            scale: 1,
+            x: 0,
+            y: 0,
+            borderRadius: '24px',
+          }}
+          exit={{
+            opacity: 0,
+            scale: 0.3,
+            x: origin.originX - window.innerWidth + 200,
+            y: origin.originY - 80,
+            borderRadius: '100px',
+          }}
+          transition={{
+            type: 'spring',
+            stiffness: 400,
+            damping: 30,
+            mass: 1,
+          }}
+          className="relative w-full max-w-sm overflow-hidden max-h-[80vh] flex flex-col"
         >
-          {/* Header */}
-          <div className="p-4 border-b border-gray-800">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-white">Wallet</h2>
-              <button
-                onClick={onClose}
-                className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+          {/* Animated gradient border wrapper */}
+          <div className="absolute inset-0 rounded-3xl bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow opacity-70"></div>
+          {/* Outer glow */}
+          <div className="absolute inset-[-4px] rounded-3xl bg-gradient-to-br from-bear-purple-500/40 to-bearpark-gold/40 blur-xl"></div>
+
+          {/* Main panel */}
+          <div className="relative m-[2px] rounded-[22px] bg-gradient-to-b from-bear-dark-800 via-bear-dark-900 to-black overflow-hidden flex flex-col max-h-[calc(80vh-4px)]">
+            {/* Floating particles */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute -top-10 -left-10 w-40 h-40 bg-bear-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+              <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-bearpark-gold/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+              <div className="absolute top-1/3 right-4 w-2 h-2 bg-bear-green-400 rounded-full animate-ping" style={{ animationDelay: '0.3s' }}></div>
+              <div className="absolute bottom-1/4 left-4 w-1.5 h-1.5 bg-bearpark-gold rounded-full animate-ping" style={{ animationDelay: '0.6s' }}></div>
             </div>
 
-            {/* Address bar */}
-            <div className="flex items-center gap-2 p-2 bg-gray-800 rounded-xl">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-sm">
-                🐻
+            {/* Header */}
+            <div className="relative p-5 border-b border-bear-dark-700/50">
+              <div className="flex items-center justify-between mb-4">
+                <motion.h2
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-2xl font-bold text-white font-luckiest tracking-wide"
+                >
+                  Wallet
+                </motion.h2>
+                <motion.button
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2, type: 'spring' }}
+                  onClick={onClose}
+                  className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white bg-bear-dark-700/50 hover:bg-bear-dark-600 rounded-xl transition-all border border-bear-dark-600"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </motion.button>
               </div>
-              <span className="flex-1 font-mono text-sm text-white">
-                {wallet.address ? formatAddress(wallet.address) : '---'}
-              </span>
-              <button
-                onClick={handleCopyAddress}
-                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-                title="Copy address"
-              >
-                {copied ? (
-                  <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                )}
-              </button>
-              <a
-                href={`https://bithomp.com/explorer/${wallet.address}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-                title="View on explorer"
-              >
-                <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
-              <button
-                onClick={() => {
-                  disconnect();
-                  onClose();
-                }}
-                className="p-1.5 hover:bg-red-500/20 rounded-lg transition-colors"
-                title="Disconnect"
-              >
-                <svg className="w-4 h-4 text-gray-400 hover:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </button>
-            </div>
 
-            {/* View Wallet Button */}
-            <a
-              href={`https://bithomp.com/explorer/${wallet.address}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full mt-3 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-xl text-center font-semibold text-white transition-all"
-            >
-              View Wallet
-            </a>
-
-            {/* Receive / Send Buttons */}
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <button className="flex items-center justify-center gap-2 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-white font-medium transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-                Receive
-              </button>
-              <button className="flex items-center justify-center gap-2 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-white font-medium transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                </svg>
-                Send
-              </button>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex border-b border-gray-800">
-            {(['tokens', 'lps', 'nfts', 'history'] as TabType[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-3 text-sm font-medium transition-colors ${
-                  activeTab === tab
-                    ? 'text-white border-b-2 border-purple-500'
-                    : 'text-gray-500 hover:text-gray-300'
-                }`}
+              {/* Epic Address Bar */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="relative group"
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                {tab === 'lps' && ' LPs'}
-                {tab === 'nfts' && ' NFTs'}
-              </button>
-            ))}
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto">
-            {/* Tokens Tab */}
-            {activeTab === 'tokens' && (
-              <div className="p-2">
-                {/* XRP Balance */}
-                <div className="flex items-center gap-3 p-3 hover:bg-gray-800/50 rounded-xl transition-colors">
-                  <TokenIconSmall currency="XRP" size={40} />
-                  <div className="flex-1">
-                    <div className="font-semibold text-white">XRP</div>
-                    <div className="text-xs text-gray-500">XRP Ledger</div>
+                <div className="absolute inset-0 bg-gradient-to-r from-bear-purple-500/20 to-bearpark-gold/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="relative flex items-center gap-3 p-3 bg-black/40 rounded-2xl border-2 border-bear-dark-600 group-hover:border-bear-purple-500/50 transition-colors">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-bear-purple-500 to-bearpark-gold rounded-full blur-sm animate-pulse"></div>
+                    <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-bear-purple-500 to-bearpark-gold flex items-center justify-center text-lg shadow-lg">
+                      🐻
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-mono text-white">{parseFloat(wallet.balance.xrp).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                    <div className="text-xs text-gray-500">XRP</div>
+                  <span className="flex-1 font-mono text-sm text-white font-semibold">
+                    {wallet.address ? formatAddress(wallet.address) : '---'}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <motion.button
+                      onClick={handleCopyAddress}
+                      className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                      title="Copy address"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      {copied ? (
+                        <svg className="w-5 h-5 text-bear-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5 text-gray-400 hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                    </motion.button>
+                    <motion.a
+                      href={`https://bithomp.com/explorer/${wallet.address}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                      title="View on explorer"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <svg className="w-5 h-5 text-gray-400 hover:text-bear-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </motion.a>
+                    <motion.button
+                      onClick={() => {
+                        disconnect();
+                        onClose();
+                      }}
+                      className="p-2 hover:bg-red-500/20 rounded-xl transition-colors"
+                      title="Disconnect"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <svg className="w-5 h-5 text-gray-400 hover:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                    </motion.button>
                   </div>
                 </div>
+              </motion.div>
 
-                {/* Token Balances */}
-                {regularTokens.map((token, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 hover:bg-gray-800/50 rounded-xl transition-colors">
-                    <TokenIconSmall currency={token.token.currency} issuer={token.token.issuer} size={40} />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-white">{formatCurrency(token.token.currency)}</div>
-                      <div className="text-xs text-gray-500 truncate">
-                        {token.token.issuer?.slice(0, 8)}...
-                      </div>
+              {/* Epic View Wallet Button */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mt-4 relative group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-bear-purple-500/40 to-blue-500/40 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <motion.a
+                  href={`https://bithomp.com/explorer/${wallet.address}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative block w-full py-4 rounded-2xl text-center font-bold text-lg text-white overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%)',
+                    boxShadow: '0 6px 0 #5B21B6, 0 10px 30px rgba(139, 92, 246, 0.4)',
+                  }}
+                  whileHover={{
+                    boxShadow: '0 4px 0 #5B21B6, 0 8px 25px rgba(139, 92, 246, 0.4)',
+                    y: 2,
+                  }}
+                  whileTap={{
+                    boxShadow: '0 2px 0 #5B21B6, 0 4px 15px rgba(139, 92, 246, 0.4)',
+                    y: 4,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  <span className="relative flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    View Wallet
+                  </span>
+                </motion.a>
+              </motion.div>
+
+              {/* Receive / Send Buttons - 3D Style */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="grid grid-cols-2 gap-3 mt-4"
+              >
+                <motion.button
+                  className="relative flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white overflow-hidden group"
+                  style={{
+                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                    boxShadow: '0 4px 0 #047857, 0 6px 20px rgba(16, 185, 129, 0.3)',
+                  }}
+                  whileHover={{
+                    boxShadow: '0 3px 0 #047857, 0 5px 15px rgba(16, 185, 129, 0.3)',
+                    y: 1,
+                  }}
+                  whileTap={{
+                    boxShadow: '0 1px 0 #047857, 0 2px 8px rgba(16, 185, 129, 0.3)',
+                    y: 3,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                  Receive
+                </motion.button>
+                <motion.button
+                  className="relative flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white overflow-hidden group"
+                  style={{
+                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    boxShadow: '0 4px 0 #B45309, 0 6px 20px rgba(245, 158, 11, 0.3)',
+                  }}
+                  whileHover={{
+                    boxShadow: '0 3px 0 #B45309, 0 5px 15px rgba(245, 158, 11, 0.3)',
+                    y: 1,
+                  }}
+                  whileTap={{
+                    boxShadow: '0 1px 0 #B45309, 0 2px 8px rgba(245, 158, 11, 0.3)',
+                    y: 3,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                  </svg>
+                  Send
+                </motion.button>
+              </motion.div>
+            </div>
+
+            {/* Epic Animated Tabs */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="relative flex border-b border-bear-dark-700/50 bg-black/20"
+            >
+              {/* Animated tab indicator */}
+              <motion.div
+                className="absolute bottom-0 h-[3px] bg-gradient-to-r from-bear-purple-500 to-bearpark-gold rounded-full"
+                layoutId="tabIndicator"
+                initial={false}
+                animate={{
+                  left: `${(['tokens', 'lps', 'nfts', 'history'] as TabType[]).indexOf(activeTab) * 25}%`,
+                  width: '25%',
+                }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              />
+              {(['tokens', 'lps', 'nfts', 'history'] as TabType[]).map((tab, idx) => (
+                <motion.button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`relative flex-1 py-4 text-sm font-bold uppercase tracking-wider transition-colors ${
+                    activeTab === tab
+                      ? 'text-white'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 + idx * 0.05 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {tab === 'tokens' && '💰'}
+                  {tab === 'lps' && '🌊'}
+                  {tab === 'nfts' && '🖼️'}
+                  {tab === 'history' && '📜'}
+                  <span className="ml-1">
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </span>
+                </motion.button>
+              ))}
+            </motion.div>
+
+          {/* Content */}
+          <div className="relative flex-1 overflow-y-auto">
+            {/* Tokens Tab - EPIC STYLING */}
+            {activeTab === 'tokens' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-3 space-y-2"
+              >
+                {/* XRP Balance - Hero Card */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="relative group"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-2xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="relative flex items-center gap-4 p-4 bg-gradient-to-br from-bear-dark-700/50 to-bear-dark-800/50 rounded-2xl border border-bear-dark-600 group-hover:border-blue-500/30 transition-all">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-blue-500 rounded-full blur-md opacity-50 group-hover:opacity-100 transition-opacity"></div>
+                      <TokenIconSmall currency="XRP" size={48} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-white text-lg">XRP</div>
+                      <div className="text-xs text-blue-400 font-semibold">XRP Ledger</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-mono text-white">
-                        {parseFloat(token.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}
-                      </div>
+                      <div className="font-mono text-white text-xl font-bold">{parseFloat(wallet.balance.xrp).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                      <div className="text-xs text-gray-500">XRP</div>
                     </div>
                   </div>
+                </motion.div>
+
+                {/* Token Balances - Fancy Cards */}
+                {regularTokens.map((token, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.15 + i * 0.05 }}
+                    className="relative group"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-bear-purple-500/10 to-bearpark-gold/10 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="relative flex items-center gap-3 p-3 bg-black/30 rounded-xl border border-bear-dark-700 group-hover:border-bear-purple-500/30 transition-all">
+                      <div className="relative">
+                        <TokenIconSmall currency={token.token.currency} issuer={token.token.issuer} size={40} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-white">{formatCurrency(token.token.currency)}</div>
+                        <div className="text-xs text-gray-500 truncate font-mono">
+                          {token.token.issuer?.slice(0, 8)}...
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono text-white font-bold">
+                          {parseFloat(token.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
                 ))}
 
                 {regularTokens.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    No tokens found
-                  </div>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-12"
+                  >
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-bear-dark-700 to-bear-dark-800 flex items-center justify-center border border-bear-dark-600">
+                      <span className="text-3xl">💰</span>
+                    </div>
+                    <p className="text-gray-400 font-medium">No tokens found</p>
+                    <p className="text-xs text-gray-600 mt-1">Start trading to add tokens</p>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             )}
 
-            {/* LPs Tab */}
+            {/* LPs Tab - EPIC STYLING */}
             {activeTab === 'lps' && (
-              <div className="p-2">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-3 space-y-2"
+              >
                 {lpTokens.map((token, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 hover:bg-gray-800/50 rounded-xl transition-colors">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center border border-green-500/30">
-                      <span className="text-lg">🌊</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-white truncate">{formatCurrency(token.token.currency)}</div>
-                      <div className="text-xs text-green-400">LP Position</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-mono text-white">
-                        {parseFloat(token.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 + i * 0.05 }}
+                    className="relative group"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="relative flex items-center gap-3 p-4 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-xl border border-emerald-500/30 group-hover:border-emerald-400/50 transition-all">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-emerald-500 rounded-full blur-md opacity-30 group-hover:opacity-70 transition-opacity animate-pulse"></div>
+                        <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center border-2 border-emerald-400/50 shadow-lg">
+                          <span className="text-xl">🌊</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-white truncate">{formatCurrency(token.token.currency)}</div>
+                        <div className="text-xs text-emerald-400 font-semibold">LP Position</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono text-white font-bold text-lg">
+                          {parseFloat(token.balance).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
 
                 {lpTokens.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    No LP positions found
-                  </div>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-12"
+                  >
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-500/10 to-teal-500/10 flex items-center justify-center border border-emerald-500/30">
+                      <span className="text-3xl">🌊</span>
+                    </div>
+                    <p className="text-gray-400 font-medium">No LP positions found</p>
+                    <p className="text-xs text-gray-600 mt-1">Provide liquidity to earn</p>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             )}
 
             {/* NFTs Tab - Epic Collection Gallery */}
@@ -1593,61 +1822,90 @@ export const WalletDashboard = ({ isOpen, onClose }: WalletDashboardProps) => {
               </div>
             )}
 
-            {/* History Tab */}
+            {/* History Tab - EPIC STYLING */}
             {activeTab === 'history' && (
-              <div className="p-2">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-3 space-y-2"
+              >
                 {loadingHistory ? (
-                  <div className="text-center py-8">
-                    <div className="w-8 h-8 mx-auto border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
-                    <p className="text-gray-500 mt-2">Loading history...</p>
+                  <div className="text-center py-12">
+                    <div className="relative w-12 h-12 mx-auto">
+                      <div className="absolute inset-0 border-4 border-bear-purple-500/20 rounded-full" />
+                      <div className="absolute inset-0 border-4 border-transparent border-t-bear-purple-500 rounded-full animate-spin" />
+                      <div className="absolute inset-2 border-4 border-transparent border-t-bearpark-gold rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }} />
+                    </div>
+                    <p className="text-gray-400 mt-4 font-medium">Loading history...</p>
                   </div>
                 ) : history.length > 0 ? (
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     {history.map((tx, i) => (
-                      <a
+                      <motion.a
                         key={i}
                         href={`https://bithomp.com/explorer/${tx.hash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3 hover:bg-gray-800/50 rounded-xl transition-colors"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="relative flex items-center gap-3 p-3 rounded-xl transition-all group"
                       >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          tx.type === 'sent' ? 'bg-red-500/20' : 'bg-green-500/20'
-                        }`}>
-                          {tx.type === 'sent' ? (
-                            <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm text-gray-400">
-                            {tx.type === 'sent' ? 'Sent' : 'Received'}
+                        <div className={`absolute inset-0 rounded-xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity ${
+                          tx.type === 'sent' ? 'bg-red-500/10' : 'bg-emerald-500/10'
+                        }`}></div>
+                        <div className={`relative flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                          tx.type === 'sent'
+                            ? 'bg-red-500/5 border-red-500/20 group-hover:border-red-500/40'
+                            : 'bg-emerald-500/5 border-emerald-500/20 group-hover:border-emerald-500/40'
+                        }`} style={{ width: '100%' }}>
+                          <div className={`relative w-10 h-10 rounded-full flex items-center justify-center ${
+                            tx.type === 'sent' ? 'bg-red-500/20' : 'bg-emerald-500/20'
+                          }`}>
+                            {tx.type === 'sent' ? (
+                              <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                              </svg>
+                            )}
                           </div>
-                          <div className="text-xs text-gray-500 truncate">
-                            {tx.type === 'sent' ? `To ${tx.to?.slice(0, 8)}...` : `From ${tx.from?.slice(0, 8)}...`}
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-sm font-bold ${tx.type === 'sent' ? 'text-red-300' : 'text-emerald-300'}`}>
+                              {tx.type === 'sent' ? 'Sent' : 'Received'}
+                            </div>
+                            <div className="text-xs text-gray-500 truncate font-mono">
+                              {tx.type === 'sent' ? `To ${tx.to?.slice(0, 8)}...` : `From ${tx.from?.slice(0, 8)}...`}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-sm font-mono font-bold ${tx.type === 'sent' ? 'text-red-400' : 'text-emerald-400'}`}>
+                              {tx.type === 'sent' ? '-' : '+'}{tx.amount}
+                            </div>
+                            <div className="text-xs text-gray-500">{tx.timestamp.split(',')[1]?.trim() || tx.timestamp}</div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className={`text-sm font-mono ${tx.type === 'sent' ? 'text-red-400' : 'text-green-400'}`}>
-                            {tx.type === 'sent' ? '-' : '+'}{tx.amount}
-                          </div>
-                          <div className="text-xs text-gray-500">{tx.timestamp.split(',')[1]?.trim() || tx.timestamp}</div>
-                        </div>
-                      </a>
+                      </motion.a>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    No transaction history
-                  </div>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-12"
+                  >
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-bear-dark-700 to-bear-dark-800 flex items-center justify-center border border-bear-dark-600">
+                      <span className="text-3xl">📜</span>
+                    </div>
+                    <p className="text-gray-400 font-medium">No transaction history</p>
+                    <p className="text-xs text-gray-600 mt-1">Transactions will appear here</p>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             )}
+          </div>
           </div>
         </motion.div>
       </motion.div>

@@ -174,13 +174,19 @@ class SecureKeyManager {
 
     let wallet;
     try {
-      // Auto-detect algorithm from seed prefix
-      // sEd... = ed25519, s... (without Ed) = secp256k1
-      const isEd25519 = secret.startsWith('sEd');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      wallet = Wallet.fromSeed(secret, {
-        algorithm: (isEd25519 ? 'ed25519' : 'ecdsa-secp256k1') as any
-      });
+      // Check if it's a mnemonic phrase (contains spaces)
+      if (secret.includes(' ')) {
+        // It's a mnemonic - use fromMnemonic
+        wallet = Wallet.fromMnemonic(secret);
+      } else {
+        // Auto-detect algorithm from seed prefix
+        // sEd... = ed25519, s... (without Ed) = secp256k1
+        const isEd25519 = secret.startsWith('sEd');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        wallet = Wallet.fromSeed(secret, {
+          algorithm: (isEd25519 ? 'ed25519' : 'ecdsa-secp256k1') as any
+        });
+      }
     } catch {
       throw new Error('Invalid secret key');
     }
@@ -347,12 +353,20 @@ class SecureKeyManager {
     const secret = await this.getSecretForSigning();
 
     const { Wallet } = await import('xrpl');
-    // Auto-detect algorithm from seed prefix
-    const isEd25519 = secret.startsWith('sEd');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const wallet = Wallet.fromSeed(secret, {
-      algorithm: (isEd25519 ? 'ed25519' : 'ecdsa-secp256k1') as any
-    });
+
+    let wallet;
+    // Check if it's a mnemonic phrase (contains spaces)
+    if (secret.includes(' ')) {
+      // It's a mnemonic - use fromMnemonic
+      wallet = Wallet.fromMnemonic(secret);
+    } else {
+      // Auto-detect algorithm from seed prefix
+      const isEd25519 = secret.startsWith('sEd');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      wallet = Wallet.fromSeed(secret, {
+        algorithm: (isEd25519 ? 'ed25519' : 'ecdsa-secp256k1') as any
+      });
+    }
 
     // Sign the transaction
     const { tx_blob, hash } = wallet.sign(txJson as any);
@@ -418,6 +432,17 @@ class SecureKeyManager {
     // secp256k1 family seed: starts with 's', 29 characters
     // ED25519 family seed: starts with 'sEd', 31 characters
     // Hex: 64 characters
+    // BIP39 Mnemonic: 12 or 24 words
+
+    // Mnemonic phrase (12 or 24 words separated by spaces)
+    if (secret.includes(' ')) {
+      const words = secret.trim().split(/\s+/);
+      if (words.length === 12 || words.length === 24) {
+        // Basic validation - each word should be lowercase letters
+        return words.every(word => /^[a-z]+$/.test(word));
+      }
+      return false;
+    }
 
     // Family seed format - secp256k1 (29 chars) or ED25519 (31 chars)
     // Accept 29-31 characters to cover both algorithms

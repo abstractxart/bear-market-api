@@ -9,11 +9,11 @@ import { getStoredReferralCode, registerReferral } from '../services/referralSer
 
 // XRPL Client Configuration
 const XRPL_MAINNET = 'wss://xrplcluster.com';
-const XRPL_TESTNET = 'wss://s.altnet.rippletest.net:51233';
+// const XRPL_TESTNET = 'wss://s.altnet.rippletest.net:51233';
 
 // Use mainnet in production, testnet for development
 // TEMPORARY: Force mainnet for local testing
-const XRPL_ENDPOINT = XRPL_MAINNET; // import.meta.env.PROD ? XRPL_MAINNET : XRPL_TESTNET;
+const XRPL_ENDPOINT = XRPL_MAINNET;
 
 interface WalletContextType {
   wallet: WalletState;

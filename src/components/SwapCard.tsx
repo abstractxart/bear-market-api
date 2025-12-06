@@ -8,16 +8,22 @@ import { formatFeePercent, getFeeRate } from '../services/nftService';
 import { findTokenBalance } from '../utils/currency';
 import TokenSelector, { TokenIcon } from './TokenSelector';
 import SlippageSlider from './SlippageSlider';
+import { SecureWalletConnect } from './SecureWalletConnect';
+import { getKeyManager } from '../security/SecureKeyManager';
 
 // Shorten address for display
 const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
-const SwapCard: React.FC = () => {
-  const { wallet, xrplClient, signTransaction, refreshBalance } = useWallet();
+interface SwapCardProps {
+  presetOutputToken?: Token;
+}
+
+const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
+  const { wallet, xrplClient, signTransaction, refreshBalance, connectWithSecret } = useWallet();
 
   // Swap state
   const [inputToken, setInputToken] = useState<Token>(XRP_TOKEN);
-  const [outputToken, setOutputToken] = useState<Token | null>(null);
+  const [outputToken, setOutputToken] = useState<Token | null>(presetOutputToken || null);
   const [inputAmount, setInputAmount] = useState('');
   const [outputAmount, setOutputAmount] = useState('');
   const [editingField, setEditingField] = useState<'input' | 'output'>('input');
@@ -31,7 +37,32 @@ const SwapCard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showTokenSelector, setShowTokenSelector] = useState<'input' | 'output' | null>(null);
-  const [swapSuccess, setSwapSuccess] = useState<{ swapHash?: string; feeHash?: string } | null>(null);
+  const [showWalletConnect, setShowWalletConnect] = useState(false);
+  const [swapSuccess, setSwapSuccess] = useState<{
+    swapHash?: string;
+    feeHash?: string;
+    feeHashes?: string[];
+    feeCount?: number;
+  } | null>(null);
+
+  // Update output token when preset changes (for terminal mode)
+  useEffect(() => {
+    if (presetOutputToken) {
+      setOutputToken(presetOutputToken);
+    }
+  }, [presetOutputToken]);
+
+  // Handle wallet connection
+  const handleWalletConnect = async () => {
+    try {
+      const keyManager = getKeyManager();
+      const secret = await keyManager.getSecretForSigning();
+      await connectWithSecret(secret);
+      setShowWalletConnect(false);
+    } catch (error) {
+      console.error('[SwapCard] Failed to connect wallet:', error);
+    }
+  };
 
   // Debounced quote fetching - supports both input and output editing
   useEffect(() => {
@@ -151,6 +182,8 @@ const SwapCard: React.FC = () => {
         setSwapSuccess({
           swapHash: result.swapTxHash,
           feeHash: result.feeTxHash,
+          feeHashes: result.feeTxHashes || [],
+          feeCount: result.feeCount || 1,
         });
         setInputAmount('');
         setOutputAmount('');
@@ -232,10 +265,8 @@ const SwapCard: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-white font-display">Swap</h2>
         <div className="flex items-center gap-2">
-          {/* Fee tier badge */}
-          <span className={`fee-badge-${wallet.feeTier === 'ultra_rare' ? 'ultra' : wallet.feeTier === 'pixel_bear' ? 'pixel' : 'regular'}`}>
-            {wallet.feeTier === 'ultra_rare' && '👑 '}
-            {wallet.feeTier === 'pixel_bear' && '🐻 '}
+          {/* Fee tier badge - rounded pill, purple */}
+          <span className="px-3 py-1 rounded-full text-sm font-bold bg-bear-purple-500 text-white">
             {formatFeePercent(wallet.feeTier)} fee
           </span>
           {/* Settings button */}
@@ -483,7 +514,46 @@ const SwapCard: React.FC = () => {
               </a>
             </div>
           )}
-          {swapSuccess.feeHash && (
+          {/* Fee Transaction Display */}
+          {swapSuccess.feeCount === 2 && swapSuccess.feeHashes && swapSuccess.feeHashes.length === 2 ? (
+            // Referral Split: Show both fee transactions
+            <>
+              <div className="text-gray-400 text-xs mb-1">
+                Fee TX #1:{' '}
+                <a
+                  href={`https://xrpscan.com/tx/${swapSuccess.feeHashes[0]}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-bear-purple-400 hover:underline"
+                >
+                  {swapSuccess.feeHashes[0].slice(0, 8)}...{swapSuccess.feeHashes[0].slice(-8)}
+                </a>
+                {' → '}
+                <span className="text-yellow-400">Referral Reward</span>
+              </div>
+              <div className="text-gray-400 text-xs">
+                Fee TX #2:{' '}
+                <a
+                  href={`https://xrpscan.com/tx/${swapSuccess.feeHashes[1]}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-bear-purple-400 hover:underline"
+                >
+                  {swapSuccess.feeHashes[1].slice(0, 8)}...{swapSuccess.feeHashes[1].slice(-8)}
+                </a>
+                {' → '}
+                <a
+                  href={`https://xrpscan.com/account/${BEAR_TREASURY_WALLET}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-400 hover:underline"
+                >
+                  BEAR Treasury
+                </a>
+              </div>
+            </>
+          ) : swapSuccess.feeHash ? (
+            // No Referral: Show single fee transaction
             <div className="text-gray-400 text-xs">
               Fee TX:{' '}
               <a
@@ -504,7 +574,7 @@ const SwapCard: React.FC = () => {
                 BEAR Treasury
               </a>
             </div>
-          )}
+          ) : null}
         </motion.div>
       )}
 
@@ -516,19 +586,40 @@ const SwapCard: React.FC = () => {
       )}
 
       {/* Swap button */}
-      <motion.button
-        onClick={handleSwap}
-        disabled={!quote || isSwapping || !wallet.isConnected}
-        className={`w-full mt-6 py-4 rounded-xl font-bold text-lg transition-all ${
-          quote && wallet.isConnected
-            ? 'btn-primary'
-            : 'bg-bear-dark-600 text-gray-500 cursor-not-allowed'
-        }`}
-        whileTap={{ scale: 0.98 }}
-      >
-        {!wallet.isConnected
-          ? 'Connect Wallet'
-          : isSwapping
+      {!wallet.isConnected ? (
+        /* Connect Wallet - Purple 3D clicky button */
+        <motion.button
+          onClick={() => setShowWalletConnect(true)}
+          className="w-full mt-6 py-4 rounded-xl font-bold text-lg text-white transition-all"
+          style={{
+            background: '#8B5CF6',
+            boxShadow: '0 6px 0 #6D28D9, 0 8px 15px rgba(139, 92, 246, 0.4)',
+            transform: 'translateY(0)',
+          }}
+          whileHover={{
+            boxShadow: '0 4px 0 #6D28D9, 0 6px 10px rgba(139, 92, 246, 0.4)',
+            transform: 'translateY(2px)',
+          }}
+          whileTap={{
+            boxShadow: '0 2px 0 #6D28D9, 0 3px 5px rgba(139, 92, 246, 0.4)',
+            transform: 'translateY(4px)',
+          }}
+        >
+          Connect Wallet
+        </motion.button>
+      ) : (
+        /* Swap button - normal state */
+        <motion.button
+          onClick={handleSwap}
+          disabled={!quote || isSwapping}
+          className={`w-full mt-6 py-4 rounded-xl font-bold text-lg transition-all ${
+            quote
+              ? 'btn-primary'
+              : 'bg-bear-dark-600 text-gray-500 cursor-not-allowed'
+          }`}
+          whileTap={{ scale: 0.98 }}
+        >
+          {isSwapping
             ? 'Swapping...'
             : !outputToken
               ? 'Select a token'
@@ -537,7 +628,8 @@ const SwapCard: React.FC = () => {
                 : quote
                   ? 'Swap'
                   : 'Loading...'}
-      </motion.button>
+        </motion.button>
+      )}
 
       {/* Token selector modal */}
       <AnimatePresence>
@@ -549,6 +641,13 @@ const SwapCard: React.FC = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Wallet connect modal */}
+      <SecureWalletConnect
+        isOpen={showWalletConnect}
+        onClose={() => setShowWalletConnect(false)}
+        onConnect={handleWalletConnect}
+      />
     </motion.div>
   );
 };

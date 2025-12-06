@@ -52,6 +52,23 @@ export function normalizeCurrency(currency: string): string {
 }
 
 /**
+ * Convert a currency code to XRPL format
+ * 3-char codes stay as-is, longer codes get hex-encoded
+ */
+export function toXRPLCurrency(currency: string): string {
+  // Already hex-encoded
+  if (isHexCurrency(currency)) {
+    return currency;
+  }
+  // 3-char codes don't need encoding
+  if (currency.length <= 3) {
+    return currency;
+  }
+  // Convert to hex for XRPL
+  return stringToHex(currency);
+}
+
+/**
  * Compare two currency codes, handling both hex and human-readable formats
  * Returns true if they represent the same currency
  */

@@ -261,14 +261,16 @@ async function getQuoteFromOrderBook(
 
   try {
     // Single API call to get order book
+    // taker_gets = what YOU receive (output token)
+    // taker_pays = what YOU pay (input token)
     const bookResult = await client.request({
       command: 'book_offers',
-      taker_gets: inputToken.currency === 'XRP'
-        ? { currency: 'XRP' }
-        : { currency: toXRPLCurrency(inputToken.currency), issuer: inputToken.issuer! },
-      taker_pays: outputToken.currency === 'XRP'
+      taker_gets: outputToken.currency === 'XRP'
         ? { currency: 'XRP' }
         : { currency: toXRPLCurrency(outputToken.currency), issuer: outputToken.issuer! },
+      taker_pays: inputToken.currency === 'XRP'
+        ? { currency: 'XRP' }
+        : { currency: toXRPLCurrency(inputToken.currency), issuer: inputToken.issuer! },
       limit: 20, // Get more offers for better pricing
     });
 
@@ -282,8 +284,7 @@ async function getQuoteFromOrderBook(
     // Calculate expected output from order book
     const { output, rate } = calculateOutputFromOffers(
       offers,
-      parseFloat(inputAmount),
-      inputToken.currency === 'XRP'
+      parseFloat(inputAmount)
     );
 
     if (output === 0) {
@@ -361,8 +362,7 @@ async function getAMMQuote(
  */
 function calculateOutputFromOffers(
   offers: any[],
-  inputAmount: number,
-  inputIsXRP: boolean
+  inputAmount: number
 ): { output: number; rate: number } {
   if (offers.length === 0) {
     return { output: 0, rate: 0 };
@@ -374,17 +374,22 @@ function calculateOutputFromOffers(
   for (const offer of offers) {
     if (remainingInput <= 0) break;
 
-    const takerGets = parseOfferAmount(offer.TakerGets);
-    const takerPays = parseOfferAmount(offer.TakerPays);
+    // After fix: TakerGets = output (what you receive), TakerPays = input (what you pay)
+    const takerGets = parseOfferAmount(offer.TakerGets); // Output amount
+    const takerPays = parseOfferAmount(offer.TakerPays); // Input amount
+
+    // owner_funds is in TakerGets units (output units)
     const ownerFunds = parseFloat(offer.owner_funds || takerGets.toString());
 
-    // Rate for this offer
+    // Rate: how much input per 1 output
     const rate = takerPays / takerGets;
 
-    // How much of this offer can we consume?
-    const availableInput = inputIsXRP ? takerPays : takerGets;
+    // Max input this offer can accept = takerPays
+    // But limited by owner_funds (in output units), converted to input units
+    const maxInputFromFunds = ownerFunds * rate;
+    const availableInput = Math.min(takerPays, maxInputFromFunds);
 
-    const consumable = Math.min(remainingInput, availableInput, ownerFunds * rate);
+    const consumable = Math.min(remainingInput, availableInput);
     const outputForThis = consumable / rate;
 
     totalOutput += outputForThis;
@@ -440,6 +445,10 @@ function xrpToDrops(xrp: string): string {
   return drops.toString();
 }
 
+function dropsToXrp(drops: string): string {
+  return (parseInt(drops, 10) / 1_000_000).toString();
+}
+
 /**
  * Swap execution result
  */
@@ -447,6 +456,8 @@ export interface SwapResult {
   success: boolean;
   swapTxHash?: string;
   feeTxHash?: string;
+  feeTxHashes?: string[];  // All fee transaction hashes (for referral split)
+  feeCount?: number;       // Number of fee transactions (1 = no referral, 2 = referral split)
   error?: string;
 }
 
@@ -507,6 +518,7 @@ export async function executeSwap(
           issuer: quote.outputToken.issuer!,
           value: '100000000000', // High trust limit
         },
+        Flags: 131072, // tfSetNoRipple - disables rippling for regular user accounts
       };
 
       const preparedTrustSet = await client.autofill(trustSetTx);
@@ -572,21 +584,75 @@ export async function executeSwap(
     };
 
     // ===== TRANSACTION 2+3: FEE PAYMENT (SPLIT IF REFERRED) =====
-    // Check if user has a referrer
-    let referrerWallet: string | null = null;
+    console.log('[Swap] EXECUTING FEE SPLIT CODE - VERSION 2.0');
+
+    // ===== CHECK IF USER CAN AFFORD FEE =====
+    // XRPL Reserve Requirements (Updated Dec 2, 2024 - https://xrpl.org/blog/2024/lower-reserves-are-in-effect)
+    // Base Reserve: 1 XRP (was 10 XRP)
+    // Owner Reserve: 0.2 XRP per object (was 2 XRP)
+    const XRPL_BASE_RESERVE = 1; // 1 XRP minimum reserve (lowered from 10 XRP on Dec 2, 2024)
+    const NETWORK_FEE_BUFFER = 0.01; // Buffer for network fees and owner reserves
+
+    // Get current XRP balance
+    let currentXrpBalance = 0;
     try {
-      const referralData = await api.getReferralData(senderAddress);
-      if (referralData.success && referralData.data?.referrerWallet) {
-        // Backend has resolved the referral code to the actual wallet address
-        referrerWallet = referralData.data.referrerWallet;
-        console.log('[Swap] User was referred by wallet:', referrerWallet);
-      }
+      const accountInfo = await client.request({
+        command: 'account_info',
+        account: senderAddress,
+        ledger_index: 'validated'
+      });
+      currentXrpBalance = parseFloat(dropsToXrp((accountInfo.result.account_data as any).Balance));
+      console.log(`[Swap] Current XRP balance: ${currentXrpBalance}`);
     } catch (err) {
-      console.warn('[Swap] Could not check referrer:', err);
+      console.warn('[Swap] Could not fetch account balance, proceeding with fee anyway');
+    }
+
+    // Calculate what user will have after swap
+    let xrpAfterSwap = currentXrpBalance;
+    if (isInputXRP) {
+      // XRP → Token: User spends XRP (the input amount minus what's reserved for fee)
+      xrpAfterSwap = currentXrpBalance - parseFloat(quote.inputAmount);
+    } else if (quote.outputToken.currency === 'XRP') {
+      // Token → XRP: User receives XRP
+      xrpAfterSwap = currentXrpBalance + parseFloat(quote.minimumReceived);
+    }
+    // For Token → Token: XRP balance stays roughly the same (only network fees)
+
+    // Calculate minimum XRP needed to pay fee
+    const minXrpNeededForFee = XRPL_BASE_RESERVE + feeAmountXRP + NETWORK_FEE_BUFFER;
+    const canAffordFee = xrpAfterSwap >= minXrpNeededForFee;
+
+    console.log(`[Swap] XRP after swap: ${xrpAfterSwap.toFixed(4)}, Need for fee: ${minXrpNeededForFee.toFixed(4)}, Can afford: ${canAffordFee}`);
+
+    // BLOCK swap if user can't afford fee - fee is REQUIRED, never skip it!
+    if (!canAffordFee) {
+      const shortfall = (minXrpNeededForFee - xrpAfterSwap).toFixed(2);
+      console.error(`[Swap] BLOCKING SWAP - Insufficient XRP for fee. Has: ${xrpAfterSwap.toFixed(4)}, Needs: ${minXrpNeededForFee.toFixed(4)} (including ${XRPL_BASE_RESERVE} XRP reserve)`);
+      return {
+        success: false,
+        error: `Insufficient XRP for swap fee. You need ~${shortfall} more XRP above the ${XRPL_BASE_RESERVE} XRP reserve to complete this swap.`,
+      };
     }
 
     // Create fee payment transaction(s)
     const feeTxs: any[] = [];
+    let referrerWallet: string | null = null;
+
+    // Check if user has a referrer
+    try {
+      console.log('[Swap] Checking for referrer...', senderAddress);
+      const referralData = await api.getReferralData(senderAddress);
+      console.log('[Swap] Referral API response:', referralData);
+      if (referralData.success && referralData.data?.referrerWallet) {
+        // Backend has resolved the referral code to the actual wallet address
+        referrerWallet = referralData.data.referrerWallet;
+        console.log('[Swap] User was referred by wallet:', referrerWallet);
+      } else {
+        console.log('[Swap] No referrer found');
+      }
+    } catch (err) {
+      console.warn('[Swap] Could not check referrer:', err);
+    }
 
     if (referrerWallet) {
       // SPLIT FEE: 50% to referrer, 50% to treasury
@@ -718,12 +784,14 @@ export async function executeSwap(
       }
     }
 
-    // Even if fees fail, swap succeeded
+    // Return success - fees are required and already validated
     return {
       success: true,
       swapTxHash: swapResult.result.hash,
       feeTxHash: feeResults[0]?.hash, // First fee tx hash (backward compatibility)
-      error: allFeesSucceeded ? undefined : 'Some fee collections failed (swap still succeeded)',
+      feeTxHashes: feeResults.map(r => r.hash).filter(Boolean), // All fee tx hashes
+      feeCount: feeResults.length, // Number of fee transactions (1 = no referral, 2 = referral split)
+      error: allFeesSucceeded ? undefined : 'Fee collection issue (swap succeeded)',
     };
 
   } catch (error: any) {

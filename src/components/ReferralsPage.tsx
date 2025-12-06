@@ -155,7 +155,7 @@ const ReferralsPage: React.FC = () => {
             </div>
             <h3 className="font-semibold text-white mb-2">They Trade</h3>
             <p className="text-sm text-gray-400">
-              Your referrals connect and start trading on BEAR MARKET
+              Your referrals connect and start trading on <span className="font-luckiest">BEAR SWAP</span>
             </p>
           </div>
           <div>
