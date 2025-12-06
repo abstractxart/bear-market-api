@@ -129,7 +129,19 @@ export async function registerReferral(
     // 2. Sign the challenge with wallet private key
     const secret = await keyManager.getSecretForSigning();
     const { Wallet } = await import('xrpl');
-    const wallet = Wallet.fromSeed(secret);
+
+    let wallet;
+    // Check if it's a mnemonic phrase (contains spaces)
+    if (secret.includes(' ')) {
+      // It's a mnemonic - use fromMnemonic
+      wallet = Wallet.fromMnemonic(secret);
+    } else {
+      // Auto-detect algorithm from seed prefix
+      const isEd25519 = secret.startsWith('sEd');
+      wallet = Wallet.fromSeed(secret, {
+        algorithm: (isEd25519 ? 'ed25519' : 'ecdsa-secp256k1') as any
+      });
+    }
 
     // TODO: Implement proper message signing
     // For now, create a basic signature proof using the wallet's public key
