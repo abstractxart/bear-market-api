@@ -124,7 +124,7 @@ export const SecureWalletConnect = ({
       setShowSaveConfirmation(false);
       setImportMethod('family-seed');
       setAlgorithm('secp256k1');
-      setMnemonicWords('');
+      setMnemonicWords(Array(12).fill(''));
       setXamanNumbers(Array(8).fill(''));
       setUnlockPassword('');
       setNewPassword('');
@@ -377,7 +377,7 @@ export const SecureWalletConnect = ({
 
       // Clear input fields
       setSecret('');
-      setMnemonicWords('');
+      setMnemonicWords(Array(mnemonicWordCount).fill(''));
       setXamanNumbers(Array(8).fill(''));
 
       // Go to save wallet step
@@ -1600,7 +1600,7 @@ export const SecureWalletConnect = ({
         case 'private-key':
           return secret.trim().length > 0;
         case 'mnemonic':
-          return mnemonicWords.trim().split(/\s+/).length >= 12;
+          return mnemonicWords.filter(w => w.trim().length > 0).length === mnemonicWordCount;
         case 'xaman-numbers':
           return xamanNumbers.filter(n => /^\d{6}$/.test(n.trim())).length === 8;
         default:
