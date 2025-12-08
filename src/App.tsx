@@ -386,10 +386,10 @@ const App: React.FC = () => {
                         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                       >
                         {/* Spinning gradient border on hover */}
-                        <div className="absolute inset-0 rounded-2xl bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] opacity-0 group-hover:opacity-100 group-hover:animate-spin-slow transition-opacity duration-300"></div>
+                        <div className="absolute inset-0 z-0 rounded-2xl bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] opacity-0 group-hover:opacity-100 group-hover:animate-spin-slow transition-opacity duration-300"></div>
                         {/* Static gradient border when not hovering */}
-                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-[#680cd9] via-[#feb501] to-[#07ae08] group-hover:opacity-0 transition-opacity duration-300"></div>
-                        <div className="relative m-[2px] rounded-2xl bg-bear-dark-800 group-hover:bg-bear-dark-800/90 p-6 h-full transition-colors">
+                        <div className="absolute inset-0 z-0 rounded-2xl bg-gradient-to-r from-[#680cd9] via-[#feb501] to-[#07ae08] group-hover:opacity-0 transition-opacity duration-300"></div>
+                        <div className="relative z-10 m-[2px] rounded-2xl bg-bear-dark-800 group-hover:bg-bear-dark-800/90 p-6 h-full transition-colors">
                           <div className="flex items-start gap-4">
                             <div className="w-12 h-12 rounded-xl bg-bear-green-500/20 group-hover:bg-bear-green-500/30 flex items-center justify-center flex-shrink-0 transition-colors">
                               <svg className="w-6 h-6 text-bear-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -450,10 +450,10 @@ const App: React.FC = () => {
                         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                       >
                         {/* Spinning gradient border on hover */}
-                        <div className="absolute inset-0 rounded-2xl bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] opacity-0 group-hover:opacity-100 group-hover:animate-spin-slow transition-opacity duration-300"></div>
+                        <div className="absolute inset-0 z-0 rounded-2xl bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] opacity-0 group-hover:opacity-100 group-hover:animate-spin-slow transition-opacity duration-300"></div>
                         {/* Static gradient border when not hovering */}
-                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-[#680cd9] via-[#feb501] to-[#07ae08] group-hover:opacity-0 transition-opacity duration-300"></div>
-                        <div className="relative m-[2px] rounded-2xl bg-bear-dark-800 group-hover:bg-bear-dark-800/90 p-6 h-full transition-colors">
+                        <div className="absolute inset-0 z-0 rounded-2xl bg-gradient-to-r from-[#680cd9] via-[#feb501] to-[#07ae08] group-hover:opacity-0 transition-opacity duration-300"></div>
+                        <div className="relative z-10 m-[2px] rounded-2xl bg-bear-dark-800 group-hover:bg-bear-dark-800/90 p-6 h-full transition-colors">
                           <div className="flex items-start gap-4">
                             <div className="w-12 h-12 rounded-xl bg-bearpark-gold/20 group-hover:bg-bearpark-gold/30 flex items-center justify-center flex-shrink-0 transition-colors">
                               <svg className="w-6 h-6 text-bearpark-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
