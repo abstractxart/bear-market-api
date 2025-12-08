@@ -86,23 +86,30 @@ const ReferralsPage: React.FC = () => {
           </div>
           <button
             onClick={handleCopy}
-            className="btn-honey flex items-center justify-center gap-2 whitespace-nowrap"
+            className="relative flex items-center justify-center gap-2 whitespace-nowrap px-6 py-3 rounded-xl text-white font-bold overflow-hidden group hover:scale-105 transition-transform"
           >
-            {copySuccess ? (
-              <>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Copied!
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                Copy Link
-              </>
-            )}
+            {/* Tri-gradient animated border */}
+            <span className="absolute inset-0 rounded-xl bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></span>
+            <span className="absolute inset-[2px] rounded-xl bg-bear-dark-800 group-hover:bg-bear-dark-700 transition-colors"></span>
+
+            {/* Content */}
+            <span className="relative z-10 flex items-center gap-2">
+              {copySuccess ? (
+                <>
+                  <svg className="w-5 h-5 text-bearpark-green" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-bearpark-green">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copy Link
+                </>
+              )}
+            </span>
           </button>
         </div>
 
