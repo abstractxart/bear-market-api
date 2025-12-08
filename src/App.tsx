@@ -440,14 +440,20 @@ const App: React.FC = () => {
                               </svg>
                             </div>
                             <div>
-                              <h3 className="font-bold text-white text-lg mb-2">No Team Wallets. No "TBA".</h3>
+                              <h3 className="font-bold text-white text-lg mb-2">Every Swap Burns $BEAR</h3>
                               <p className="text-gray-400 text-sm mb-3">
-                                50% goes to referrers (if used), the other 50% goes directly into the
-                                <span className="text-bearpark-gold font-bold"> $BEAR liquidity pool</span> as a single-sided deposit.
+                                50% of fees go to referrers (if used), the other 50% gets deposited into the
+                                <span className="text-bearpark-gold font-bold"> $BEAR liquidity pool</span> — permanently locked in a blackholed wallet.
                               </p>
-                              <div className="p-3 bg-bearpark-gold/10 rounded-lg border border-bearpark-gold/30">
+                              <div className="p-3 bg-bearpark-gold/10 rounded-lg border border-bearpark-gold/30 space-y-2">
                                 <p className="text-xs text-bearpark-gold font-bold">
-                                  No referrer? <span className="text-white">100% of fees → $BEAR LP!</span>
+                                  🔥 LP is <a href="https://bithomp.com/en/account/rBEARmPLNA8CMu92P4vj95fkyCt1N4jrNm" target="_blank" rel="noopener noreferrer" className="underline hover:text-bearpark-gold/80">BLACKHOLED</a> — keys destroyed forever
+                                </p>
+                                <p className="text-xs text-white/80">
+                                  Each swap permanently removes $BEAR from circulation → increasing scarcity → deflationary tokenomics
+                                </p>
+                                <p className="text-xs text-bear-green-400 font-bold">
+                                  No referrer? 100% of fees → Blackholed LP = More burn!
                                 </p>
                               </div>
                             </div>
