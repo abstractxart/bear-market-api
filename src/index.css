@@ -327,6 +327,25 @@ body::before {
   background: var(--color-bear-purple-500);
 }
 
+/* Custom scrollbar for terminal right panel */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #680cd9, #feb501, #07ae08);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #8B5CF6, #FCD34D, #10B981);
+}
+
 /* ===== Component Classes ===== */
 .glass-card {
   background: transparent;

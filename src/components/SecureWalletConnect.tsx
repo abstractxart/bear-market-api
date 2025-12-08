@@ -507,7 +507,7 @@ export const SecureWalletConnect = ({
           {/* Dark container with logo */}
           <div className="absolute inset-[3px] rounded-[14px] bg-gradient-to-br from-bear-dark-800 to-bear-dark-900 flex items-center justify-center overflow-hidden shadow-2xl">
             <img
-              src="https://file.garden/aTNJV_mJHkBEIhEB/BEARSWAPLOGO3.png"
+              src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/BEARSWAPLOGO3.png"
               alt="BEAR SWAP"
               className="w-full h-full object-cover"
             />
@@ -1342,7 +1342,7 @@ export const SecureWalletConnect = ({
             <div className="absolute inset-0 rounded-2xl bg-[conic-gradient(from_0deg,#10B981,#34D399,#10B981)] animate-spin-slow"></div>
             <div className="absolute inset-[3px] rounded-[14px] bg-gradient-to-b from-bear-dark-800 to-bear-dark-900 flex items-center justify-center overflow-hidden shadow-2xl">
               <img
-                src="https://file.garden/aTNJV_mJHkBEIhEB/BEARSWAPLOGO3.png"
+                src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/BEARSWAPLOGO3.png"
                 alt="BEAR SWAP"
                 className="w-full h-full object-cover"
               />

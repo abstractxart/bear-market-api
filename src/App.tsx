@@ -175,7 +175,7 @@ const App: React.FC = () => {
                           <div
                             className="absolute inset-0 bg-cover bg-center scale-110"
                             style={{
-                              backgroundImage: 'url(https://file.garden/aTNJV_mJHkBEIhEB/sadbear.png)',
+                              backgroundImage: 'url(https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/sadbear.png)',
                             }}
                           ></div>
                           {/* Dark overlay */}
@@ -208,7 +208,7 @@ const App: React.FC = () => {
                             playsInline
                             className="absolute inset-0 w-full h-full object-cover"
                           >
-                            <source src="https://file.garden/aTNJV_mJHkBEIhEB/BEARRAVE_1.mp4" type="video/mp4" />
+                            <source src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/BEARRAVE_1.mp4" type="video/mp4" />
                           </video>
                           {/* Dark overlay */}
                           <div className="absolute inset-0 bg-black/60"></div>
@@ -236,7 +236,7 @@ const App: React.FC = () => {
                           <div
                             className="absolute inset-0 w-[150%] h-full bg-cover bg-center animate-pan-slow"
                             style={{
-                              backgroundImage: 'url(https://file.garden/aTNJV_mJHkBEIhEB/62df7ec93488-4783-9b3e-1a15f863ba209df8e0211795-4489-b1e3-d16d060d0ee003c57f5491c6-4b80-af35-9e20a8ea316b.webp)',
+                              backgroundImage: 'url(https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/62df7ec93488-4783-9b3e-1a15f863ba209df8e0211795-4489-b1e3-d16d060d0ee003c57f5491c6-4b80-af35-9e20a8ea316b.webp)',
                             }}
                           ></div>
                           {/* Dark overlay */}
@@ -453,8 +453,18 @@ const App: React.FC = () => {
                         <div className="absolute inset-0 z-0 rounded-2xl bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] opacity-0 group-hover:opacity-100 group-hover:animate-spin-slow transition-opacity duration-300"></div>
                         {/* Static gradient border when not hovering */}
                         <div className="absolute inset-0 z-0 rounded-2xl bg-gradient-to-r from-[#680cd9] via-[#feb501] to-[#07ae08] group-hover:opacity-0 transition-opacity duration-300"></div>
-                        <div className="relative z-10 m-[2px] rounded-2xl bg-bear-dark-800 group-hover:bg-bear-dark-800/90 p-6 h-full transition-colors">
-                          <div className="flex items-start gap-4">
+                        <div
+                          className="relative z-10 m-[2px] rounded-2xl p-6 h-full transition-colors overflow-hidden"
+                          style={{
+                            backgroundImage: 'url(https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/BEAR%20BURN.gif)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                        >
+                          {/* Black opacity overlay */}
+                          <div className="absolute inset-0 bg-black/60 -z-10"></div>
+                          <div className="flex items-start gap-4 relative z-10">
                             <div className="w-12 h-12 rounded-xl bg-bearpark-gold/20 group-hover:bg-bearpark-gold/30 flex items-center justify-center flex-shrink-0 transition-colors">
                               <svg className="w-6 h-6 text-bearpark-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />

@@ -71,7 +71,7 @@ const Header: React.FC = () => {
                 {/* Dark container matching swap panel */}
                 <div className="absolute inset-[2px] rounded-[10px] bg-bear-dark-800 flex items-center justify-center overflow-hidden">
                   <img
-                    src="https://file.garden/aTNJV_mJHkBEIhEB/BEARSWAPLOGO3.png"
+                    src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/BEARSWAPLOGO3.png"
                     alt="BEAR SWAP"
                     className="w-full h-full object-cover"
                   />

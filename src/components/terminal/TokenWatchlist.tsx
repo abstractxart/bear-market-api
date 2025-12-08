@@ -199,7 +199,10 @@ export const TokenWatchlist: React.FC<TokenWatchlistProps> = ({
   );
 
   return (
-    <div className="h-full flex flex-col rounded-xl bg-bear-dark-800 border border-bear-dark-700 overflow-hidden">
+    <div className="relative h-full flex flex-col rounded-xl overflow-hidden">
+      {/* TRICOLOR BORDER */}
+      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-bear-gold via-bear-purple-500 to-bear-gold p-[2px]">
+        <div className="w-full h-full rounded-xl bg-bear-dark-900 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bear-dark-700">
         <h3 className="text-sm font-bold text-white">Tokens</h3>
@@ -262,6 +265,8 @@ export const TokenWatchlist: React.FC<TokenWatchlistProps> = ({
             ))}
           </div>
         )}
+      </div>
+        </div>
       </div>
     </div>
   );

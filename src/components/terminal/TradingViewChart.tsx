@@ -391,17 +391,17 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ token, trade
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { color: '#0A0A0F' },
-        textColor: '#9CA3AF',
+        background: { color: '#0A0A0F' }, // Deep BEAR void
+        textColor: '#D1D5DB', // Brighter text for readability
       },
       grid: {
-        vertLines: { color: '#1A1A2E' },
-        horzLines: { color: '#1A1A2E' },
+        vertLines: { color: 'rgba(237, 183, 35, 0.05)' }, // Subtle BEAR gold grid
+        horzLines: { color: 'rgba(237, 183, 35, 0.05)' },
       },
       crosshair: {
         mode: 1,
         vertLine: {
-          color: '#edb723',
+          color: '#edb723', // BEAR gold crosshair
           width: 1,
           style: 2,
           labelBackgroundColor: '#edb723',
@@ -414,14 +414,14 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ token, trade
         },
       },
       rightPriceScale: {
-        borderColor: '#1A1A2E',
+        borderColor: 'rgba(237, 183, 35, 0.2)', // BEAR gold border
         scaleMargins: {
           top: 0.1,
           bottom: 0.2,
         },
       },
       timeScale: {
-        borderColor: '#1A1A2E',
+        borderColor: 'rgba(237, 183, 35, 0.2)', // BEAR gold border
         timeVisible: true,
         secondsVisible: false,
       },
@@ -443,27 +443,27 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ token, trade
     });
     candleSeriesRef.current = candleSeries;
 
-    // Add line series (hidden by default)
+    // Add line series (hidden by default) - BEAR GOLD theme
     const lineSeries = chart.addSeries(LineSeries, {
-      color: '#8B5CF6',
+      color: '#edb723', // BEAR gold
       lineWidth: 2,
       visible: false,
     });
     lineSeriesRef.current = lineSeries;
 
-    // Add area series (hidden by default)
+    // Add area series (hidden by default) - BEAR GOLD theme
     const areaSeries = chart.addSeries(AreaSeries, {
-      lineColor: '#8B5CF6',
-      topColor: 'rgba(139, 92, 246, 0.4)',
-      bottomColor: 'rgba(139, 92, 246, 0.0)',
+      lineColor: '#edb723', // BEAR gold
+      topColor: 'rgba(237, 183, 35, 0.3)', // Transparent BEAR gold
+      bottomColor: 'rgba(237, 183, 35, 0.0)',
       lineWidth: 2,
       visible: false,
     });
     areaSeriesRef.current = areaSeries;
 
-    // Add volume histogram
+    // Add volume histogram - BEAR themed
     const volumeSeries = chart.addSeries(HistogramSeries, {
-      color: 'rgba(139, 92, 246, 0.5)',
+      color: 'rgba(237, 183, 35, 0.4)', // Semi-transparent BEAR gold
       priceFormat: {
         type: 'volume',
       },
@@ -554,125 +554,308 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ token, trade
   }, [trades]);
 
   return (
-    <div className="relative h-full rounded-xl overflow-hidden bg-bear-dark-800 border border-bear-dark-700">
-      {/* Chart Header */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 py-2 bg-bear-dark-800/90 backdrop-blur-sm border-b border-bear-dark-700">
-        {/* Timeframe Selector */}
-        <div className="flex items-center gap-1">
-          {TIMEFRAMES.map((tf) => (
-            <button
-              key={tf.value}
-              onClick={() => setTimeframe(tf.value)}
-              className={`px-2 py-1 text-xs font-semibold rounded transition-all ${
-                timeframe === tf.value
-                  ? 'bg-bear-purple-500 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-bear-dark-700'
-              }`}
-            >
-              {tf.label}
-            </button>
-          ))}
-        </div>
+    <div className="relative h-full rounded-xl overflow-hidden bg-bear-dark-900 shadow-2xl">
+      {/* TRICOLOR BORDER - Matching wallet/main screen */}
+      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-bear-gold via-bear-purple-500 to-bear-gold p-[2px]">
+        <div className="w-full h-full rounded-xl bg-bear-dark-900" />
+      </div>
 
-        {/* Chart Type */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setChartType('candle')}
-            className={`p-1.5 rounded ${chartType === 'candle' ? 'bg-bear-purple-500' : 'hover:bg-bear-dark-700'}`}
-            title="Candlestick"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="3" y="8" width="4" height="8" rx="1" />
-              <rect x="10" y="4" width="4" height="16" rx="1" />
-              <rect x="17" y="6" width="4" height="12" rx="1" />
-            </svg>
-          </button>
-          <button
-            onClick={() => setChartType('line')}
-            className={`p-1.5 rounded ${chartType === 'line' ? 'bg-bear-purple-500' : 'hover:bg-bear-dark-700'}`}
-            title="Line"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 17l6-6 4 4 8-8" />
-            </svg>
-          </button>
-          <button
-            onClick={() => setChartType('area')}
-            className={`p-1.5 rounded ${chartType === 'area' ? 'bg-bear-purple-500' : 'hover:bg-bear-dark-700'}`}
-            title="Area"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" opacity="0.5">
-              <path d="M3 17l6-6 4 4 8-8v11H3z" />
-            </svg>
-          </button>
-        </div>
+      {/* Subtle animated grid overlay */}
+      <div className="absolute inset-0 opacity-[0.02]" style={{
+        backgroundImage: 'linear-gradient(rgba(237, 183, 35, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(237, 183, 35, 0.3) 1px, transparent 1px)',
+        backgroundSize: '40px 40px'
+      }} />
 
-        {/* Price Info */}
-        <div className="flex items-center gap-3">
-          {lastPrice && (
-            <>
-              <span className="text-white font-mono font-bold">
-                {lastPrice.toFixed(lastPrice >= 1 ? 4 : 8)}
-              </span>
-              <span className={`text-sm font-mono ${priceChange >= 0 ? 'text-bear-green-400' : 'text-red-400'}`}>
-                {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
-              </span>
-            </>
-          )}
-          {dataSource === 'trades' && (
-            <span className="text-xs text-yellow-500" title="Generated from trade history">
-              📊
-            </span>
-          )}
+      {/* Chart Header - GODMODE (Inside Chart) */}
+      <div className="absolute top-3 left-3 right-3 z-50">
+        {/* Premium glassmorphic header bar */}
+        <div className="relative rounded-xl bg-black/20 backdrop-blur-md border border-white/10">
+          <div className="flex items-center justify-between gap-4 px-4 py-2.5">
+
+            {/* Timeframe Selector - Ultra Premium */}
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-black/30 rounded-xl border border-white/5 backdrop-blur-md shadow-inner">
+              {TIMEFRAMES.map((tf) => (
+                <button
+                  key={tf.value}
+                  onClick={() => setTimeframe(tf.value)}
+                  className={`relative px-4 py-2 text-xs font-black rounded-lg transition-all duration-300 ${
+                    timeframe === tf.value
+                      ? 'text-black'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {timeframe === tf.value && (
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-r from-bear-gold via-yellow-400 to-bear-gold rounded-lg shadow-lg shadow-bear-gold/60" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-yellow-600/50 to-transparent rounded-lg" />
+                    </>
+                  )}
+                  <span className="relative z-10">{tf.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Chart Type - Luxury Icons */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-black/30 rounded-xl border border-white/5 backdrop-blur-md shadow-inner">
+              {[
+                { type: 'candle', icon: (
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="3" y="8" width="4" height="8" rx="1" />
+                    <rect x="10" y="4" width="4" height="16" rx="1" />
+                    <rect x="17" y="6" width="4" height="12" rx="1" />
+                  </svg>
+                ), label: 'Candles' },
+                { type: 'line', icon: (
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M3 17l6-6 4 4 8-8" />
+                  </svg>
+                ), label: 'Line' },
+                { type: 'area', icon: (
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" opacity="0.8">
+                    <path d="M3 17l6-6 4 4 8-8v11H3z" />
+                  </svg>
+                ), label: 'Area' }
+              ].map(({ type, icon, label }) => (
+                <button
+                  key={type}
+                  onClick={() => setChartType(type as ChartType)}
+                  className={`relative p-2.5 rounded-lg transition-all duration-300 group ${
+                    chartType === type ? 'scale-110' : 'hover:scale-105'
+                  }`}
+                  title={label}
+                >
+                  {chartType === type && (
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-r from-bear-gold via-yellow-400 to-bear-gold rounded-lg shadow-lg shadow-bear-gold/60" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-yellow-600/50 to-transparent rounded-lg" />
+                    </>
+                  )}
+                  <div className={chartType === type ? 'relative z-10 text-black' : 'text-gray-400 group-hover:text-bear-gold transition-colors'}>
+                    {icon}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Price Display - Premium Stats */}
+            <div className="flex items-center gap-4 px-5 py-3 bg-gradient-to-br from-black/50 via-black/30 to-transparent rounded-xl border border-bear-gold/30 backdrop-blur-md shadow-xl shadow-bear-gold/10">
+              {lastPrice ? (
+                <>
+                  <div className="flex flex-col items-start">
+                    <span className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-0.5">Price</span>
+                    <span className="text-base font-mono font-black text-bear-gold drop-shadow-[0_0_10px_rgba(237,183,35,0.4)]">
+                      ${lastPrice.toFixed(lastPrice >= 1 ? 4 : 8)}
+                    </span>
+                  </div>
+                  <div className="w-px h-10 bg-gradient-to-b from-transparent via-bear-gold/30 to-transparent" />
+                  <div className="flex flex-col items-start">
+                    <span className="text-[10px] text-gray-500 font-bold tracking-widest uppercase mb-0.5">24h Change</span>
+                    <div className={`flex items-center gap-1.5 ${
+                      priceChange >= 0 ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                      <span className="text-lg font-bold">{priceChange >= 0 ? '↗' : '↘'}</span>
+                      <span className="text-sm font-black font-mono">
+                        {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                  {dataSource === 'trades' && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-yellow-500/20 to-yellow-600/10 rounded-lg border border-yellow-500/40 shadow-lg shadow-yellow-500/20">
+                      <div className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse shadow-lg shadow-yellow-400/50" />
+                      <span className="text-xs text-yellow-300 font-bold tracking-wide">LIVE</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-bear-gold rounded-full animate-pulse" />
+                  <span className="text-xs text-gray-500 font-medium">Loading...</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Chart Container - Hidden until data loads to prevent weird default scaling */}
       <div
         ref={chartContainerRef}
-        className={`w-full h-full pt-10 transition-opacity duration-300 ${hasData ? 'opacity-100' : 'opacity-0'}`}
+        className={`w-full h-full transition-opacity duration-500 ${hasData ? 'opacity-100' : 'opacity-0'}`}
         style={{ visibility: hasData ? 'visible' : 'hidden' }}
       />
 
-      {/* Loading Overlay */}
+      {/* Loading Overlay - GODMODE */}
       <AnimatePresence>
         {isLoading && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 flex items-center justify-center bg-bear-dark-900/80 backdrop-blur-sm"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0 flex items-center justify-center bg-[#0A0A0F]/95 backdrop-blur-2xl z-[100]"
           >
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-10 border-4 border-bear-purple-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-400 text-sm">Loading chart...</p>
+            {/* Radial glow effect */}
+            <div className="absolute inset-0 bg-gradient-radial from-bear-gold/10 via-transparent to-transparent opacity-50" />
+
+            <div className="relative flex flex-col items-center gap-6">
+              {/* Premium spinner with multiple layers */}
+              <div className="relative">
+                {/* Outer rotating ring */}
+                <div className="w-24 h-24 border-2 border-bear-gold/10 rounded-full animate-spin" style={{ animationDuration: '3s' }} />
+
+                {/* Middle rotating ring */}
+                <div className="absolute inset-2 border-2 border-t-bear-gold border-r-bear-gold/50 border-b-transparent border-l-transparent rounded-full animate-spin" style={{ animationDuration: '1.5s' }} />
+
+                {/* Inner glow */}
+                <div className="absolute inset-4 bg-gradient-to-br from-bear-gold/20 to-yellow-600/20 rounded-full blur-xl animate-pulse" />
+
+                {/* Center icon */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-4xl animate-pulse drop-shadow-[0_0_20px_rgba(237,183,35,0.6)]">🐻</span>
+                </div>
+              </div>
+
+              {/* Loading text with gradient */}
+              <div className="flex flex-col items-center gap-2">
+                <h3 className="text-xl font-black tracking-wider bg-gradient-to-r from-bear-gold via-yellow-400 to-bear-gold bg-clip-text text-transparent animate-pulse">
+                  LOADING CHART
+                </h3>
+                <p className="text-xs text-gray-500 font-mono tracking-wide">Fetching XRPL market data...</p>
+              </div>
+
+              {/* Animated progress bar */}
+              <div className="w-48 h-1.5 bg-black/50 rounded-full overflow-hidden border border-bear-gold/20">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-bear-gold via-yellow-400 to-bear-gold shadow-lg shadow-bear-gold/50"
+                  animate={{ x: ['-100%', '100%'] }}
+                  transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+                />
+              </div>
+
+              {/* Animated particles */}
+              <div className="absolute inset-0 pointer-events-none">
+                {[...Array(6)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute w-1 h-1 bg-bear-gold/40 rounded-full"
+                    style={{
+                      left: `${20 + i * 15}%`,
+                      top: `${30 + (i % 2) * 40}%`
+                    }}
+                    animate={{
+                      y: [0, -20, 0],
+                      opacity: [0.2, 0.6, 0.2],
+                      scale: [1, 1.5, 1]
+                    }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 2,
+                      delay: i * 0.2
+                    }}
+                  />
+                ))}
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Error/Info Overlay - Fully covers chart when no data */}
+      {/* Error/Waiting Overlay - GODMODE */}
       <AnimatePresence>
         {error && !isLoading && !hasData && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 flex items-center justify-center bg-bear-dark-800"
+            className="absolute inset-0 flex items-center justify-center bg-[#0A0A0F] z-[100]"
           >
-            <div className="flex flex-col items-center gap-3 text-center px-4">
-              <div className="w-12 h-12 border-4 border-bear-purple-500/30 border-t-bear-purple-500 rounded-full animate-spin" />
-              <p className="text-gray-400 text-sm">{error}</p>
-              <p className="text-gray-500 text-xs">Chart will update as trades come in</p>
+            {/* Premium background effects */}
+            <div className="absolute inset-0 bg-gradient-radial from-bear-gold/5 via-transparent to-transparent" />
+            <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-bear-gold/5 rounded-full blur-[120px] animate-pulse" />
+
+            <div className="relative flex flex-col items-center gap-6 text-center px-6 max-w-lg">
+              {/* Premium icon with glow */}
+              <div className="relative">
+                {/* Rotating border */}
+                <div className="w-20 h-20 border-2 border-t-bear-gold border-r-bear-gold/50 border-b-bear-gold/20 border-l-transparent rounded-full animate-spin" style={{ animationDuration: '3s' }} />
+
+                {/* Glow effect */}
+                <div className="absolute inset-2 bg-gradient-to-br from-bear-gold/20 to-transparent rounded-full blur-xl" />
+
+                {/* Center icon */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-5xl drop-shadow-[0_0_30px_rgba(237,183,35,0.4)]">🐻</span>
+                </div>
+              </div>
+
+              {/* Message card */}
+              <div className="relative p-6 rounded-2xl bg-gradient-to-br from-black/40 to-black/20 backdrop-blur-xl border border-bear-gold/20 shadow-2xl shadow-bear-gold/10">
+                <div className="absolute -top-px left-0 right-0 h-px bg-gradient-to-r from-transparent via-bear-gold/50 to-transparent" />
+
+                <div className="flex flex-col gap-4">
+                  <h3 className="text-lg font-black text-bear-gold tracking-wide">{error}</h3>
+                  <p className="text-sm text-gray-400 leading-relaxed">
+                    The chart will automatically update when new trades occur
+                  </p>
+
+                  {/* CTA Card */}
+                  <div className="mt-2 p-4 rounded-xl bg-gradient-to-br from-bear-gold/15 to-bear-gold/5 border border-bear-gold/30">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-bear-gold to-yellow-600 flex items-center justify-center shadow-lg shadow-bear-gold/30">
+                        <span className="text-xl">🎯</span>
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="text-xs font-bold text-white">Ready to trade?</p>
+                        <p className="text-[10px] text-gray-400">Execute a trade to populate the chart</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Animated waiting indicator */}
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1.5">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      className="w-2 h-2 bg-bear-gold rounded-full shadow-lg shadow-bear-gold/50"
+                      animate={{
+                        scale: [1, 1.3, 1],
+                        opacity: [0.4, 1, 0.4]
+                      }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 1.5,
+                        delay: i * 0.2
+                      }}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-gray-600 font-mono">Waiting for data</span>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Watermark */}
-      <div className="absolute bottom-12 left-3 opacity-30 pointer-events-none">
-        <span className="text-xs font-luckiest text-gradient-bear">BEAR TERMINAL</span>
+      {/* Premium BEAR Watermark - Elegant */}
+      <div className="absolute bottom-6 right-6 opacity-15 pointer-events-none z-10 group-hover:opacity-25 transition-opacity">
+        <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-gradient-to-br from-bear-gold/10 to-transparent border border-bear-gold/20">
+          <span className="text-3xl drop-shadow-[0_0_10px_rgba(237,183,35,0.3)]">🐻</span>
+          <div className="flex flex-col">
+            <span className="text-base font-luckiest text-gradient-bear leading-none tracking-wider drop-shadow-[0_0_8px_rgba(237,183,35,0.2)]">BEAR</span>
+            <span className="text-[10px] text-gray-500 font-mono leading-none tracking-widest mt-1">TERMINAL v1.0</span>
+          </div>
+        </div>
       </div>
+
+      {/* Subtle corner accents - Premium glow */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-bear-gold/5 via-bear-gold/2 to-transparent pointer-events-none blur-2xl" />
+      <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-bear-gold/5 via-bear-gold/2 to-transparent pointer-events-none blur-2xl" />
+
+      {/* Bottom accent line */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-bear-gold/20 to-transparent pointer-events-none" />
     </div>
   );
 };

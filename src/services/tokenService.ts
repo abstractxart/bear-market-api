@@ -210,6 +210,9 @@ const LOCAL_TOKEN_ICONS: Record<string, string> = {
 
 // ==================== HELPER FUNCTIONS ====================
 
+// R2 CDN - OUR token icons uploaded to Cloudflare R2 (999 icons!)
+const R2_CDN = 'https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/token-icons';
+
 // XMagnetic CDN - predictable URL pattern for ALL XRPL tokens!
 const XMAGNETIC_CDN = 'https://img.xmagnetic.org/u';
 
@@ -248,7 +251,13 @@ export function getTokenIconUrl(currency: string, issuer?: string): string {
     return DEXSCREENER_ICONS[currency];
   }
 
-  // 4. XMagnetic CDN - predictable pattern for ANY token with issuer!
+  // 4. R2 CDN - OUR uploaded token icons (999 icons!)
+  if (issuer) {
+    // Try both currency_issuer.webp pattern
+    return `${R2_CDN}/${currency.toLowerCase()}_${issuer.substring(0, 12)}.webp`;
+  }
+
+  // 5. XMagnetic CDN - predictable pattern for ANY token with issuer!
   if (issuer) {
     return `${XMAGNETIC_CDN}/${issuer}_${currency}.webp`;
   }
@@ -281,7 +290,12 @@ export function getTokenIconUrls(currency: string, issuer?: string): string[] {
     urls.push(DEXSCREENER_ICONS[currency]);
   }
 
-  // 3. XMagnetic CDN - predictable pattern, works for most tokens!
+  // 3. R2 CDN - OUR uploaded token icons (999 icons!)
+  if (issuer) {
+    urls.push(`${R2_CDN}/${currency.toLowerCase()}_${issuer.substring(0, 12)}.webp`);
+  }
+
+  // 4. XMagnetic CDN - predictable pattern, works for most tokens!
   if (issuer) {
     urls.push(`${XMAGNETIC_CDN}/${issuer}_${currency}.webp`);
   }
