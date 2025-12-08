@@ -316,8 +316,11 @@ export const SecureWalletConnect = ({
           } else {
             opts.algorithm = 'ecdsa-secp256k1';
           }
-          const wallet = Wallet.fromMnemonic(words, opts);
-          return wallet.seed!;
+          // Validate by creating wallet - will throw if invalid
+          Wallet.fromMnemonic(words, opts);
+          // Return the mnemonic itself as the secret (same as generated wallets)
+          // The mnemonic can recreate the wallet just like a family seed can
+          return words;
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Invalid mnemonic phrase';
           throw new Error(message);
