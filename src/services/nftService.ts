@@ -13,8 +13,8 @@ interface NFTCheckResult {
  * Check if an address holds Pixel Bear NFTs and determine fee tier
  *
  * Fee Tiers:
- * - Regular: 0.8% (no Pixel Bear)
- * - Pixel Bear: 0.65% (holds any Pixel Bear)
+ * - Regular: 0.7% (no Pixel Bear)
+ * - Pixel Bear: 0.6% (holds any Pixel Bear)
  * - Ultra Rare: 0.5% (holds Ultra Rare Pixel Bear)
  */
 export async function checkPixelBearNFTs(
@@ -147,9 +147,9 @@ export function getFeeRate(tier: FeeTier): number {
     case 'ultra_rare':
       return 0.005; // 0.5%
     case 'pixel_bear':
-      return 0.0065; // 0.65%
+      return 0.006; // 0.6%
     default:
-      return 0.008; // 0.8%
+      return 0.007; // 0.7%
   }
 }
 
@@ -161,8 +161,8 @@ export function formatFeePercent(tier: FeeTier): string {
     case 'ultra_rare':
       return '0.5%';
     case 'pixel_bear':
-      return '0.65%';
+      return '0.6%';
     default:
-      return '0.8%';
+      return '0.7%';
   }
 }
