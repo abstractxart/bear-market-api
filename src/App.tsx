@@ -114,7 +114,7 @@ const App: React.FC = () => {
                     >
                       {/* Fee comparison */}
                       <p className="text-base md:text-lg text-gray-300">
-                        <span className="text-bearpark-gold font-bold">0.5% swap fees</span>
+                        <span className="text-bearpark-gold font-bold">0.5% to 0.7% swap fees</span>
                         <br />
                         <span className="text-gray-400 text-sm">Competitors charge 0.8–1%+</span>
                       </p>
@@ -184,7 +184,7 @@ const App: React.FC = () => {
                         {/* Content - centered */}
                         <div className="relative z-10 p-6 h-full flex flex-col items-center justify-center text-center">
                           <h3 className="font-bold text-gray-300 mb-1 text-lg drop-shadow-lg">Regular</h3>
-                          <div className="text-3xl font-black text-white mb-2 drop-shadow-lg">0.8%</div>
+                          <div className="text-3xl font-black text-white mb-2 drop-shadow-lg">0.7%</div>
                           <p className="text-sm text-gray-400 drop-shadow">Default rate for all users</p>
                         </div>
                       </div>
@@ -216,7 +216,7 @@ const App: React.FC = () => {
                         {/* Content - centered */}
                         <div className="relative z-10 p-6 h-full flex flex-col items-center justify-center text-center">
                           <h3 className="font-bold text-bear-purple-300 mb-1 text-lg drop-shadow-lg">Pixel BEAR</h3>
-                          <div className="text-3xl font-black text-white mb-2 drop-shadow-lg">0.65%</div>
+                          <div className="text-3xl font-black text-white mb-2 drop-shadow-lg">0.6%</div>
                           <p className="text-sm text-gray-200 drop-shadow">Hold any Pixel Bear NFT</p>
                         </div>
                       </a>
@@ -349,7 +349,7 @@ const App: React.FC = () => {
                           <div className="flex items-baseline gap-1 mb-1">
                             <span className="text-3xl font-black text-bear-green-400">0.5</span>
                             <span className="text-lg font-bold text-gray-400">-</span>
-                            <span className="text-3xl font-black text-bear-green-400">0.8%</span>
+                            <span className="text-3xl font-black text-bear-green-400">0.7%</span>
                           </div>
                           <div className="text-xs text-bearpark-gold mb-3">$BEAR NFT holders get lower fees</div>
                           <div className="space-y-2 text-sm">
