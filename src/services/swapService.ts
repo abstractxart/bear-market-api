@@ -16,6 +16,22 @@ const ONTHEDEX_API = 'https://api.onthedex.live/public/v1';
 export const BEAR_TREASURY_WALLET = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 
 /**
+ * Extract a clean error message from XRPL errors or other error types
+ */
+function getErrorMessage(error: any): string {
+  if (!error) return 'Unknown error';
+
+  // XRPL errors often have nested error structures
+  if (error.data?.error_message) return error.data.error_message;
+  if (error.data?.error) return error.data.error;
+  if (error.message) return error.message;
+  if (typeof error === 'string') return error;
+
+  // Fallback: stringify but avoid showing internal objects
+  return 'Transaction failed';
+}
+
+/**
  * Convert currency code to XRPL-compatible format
  * - 3-char codes stay as-is (USD, EUR, etc)
  * - Longer codes get hex-encoded (BEAR -> 4245415200...)
@@ -989,7 +1005,7 @@ export async function executeSwap(
     console.error('Swap execution error:', error);
     return {
       success: false,
-      error: error.message || 'Transaction failed',
+      error: getErrorMessage(error),
     };
   }
 }

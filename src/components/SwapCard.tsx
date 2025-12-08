@@ -126,7 +126,12 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
           }
         }
       } catch (err: any) {
-        setError(err.message);
+        // Extract clean error message from XRPL errors
+        const errorMessage = err?.data?.error_message
+          || err?.data?.error
+          || err?.message
+          || (typeof err === 'string' ? err : 'Failed to get quote');
+        setError(errorMessage);
         setQuote(null);
       } finally {
         setIsLoading(false);
@@ -202,7 +207,12 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
         setError(result.error || 'Swap failed');
       }
     } catch (err: any) {
-      setError(err.message);
+      // Extract clean error message from XRPL errors
+      const errorMessage = err?.data?.error_message
+        || err?.data?.error
+        || err?.message
+        || (typeof err === 'string' ? err : 'Swap failed');
+      setError(errorMessage);
     } finally {
       setIsSwapping(false);
       setSwapStatus('');
@@ -596,25 +606,17 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
 
       {/* Swap button */}
       {!wallet.isConnected ? (
-        /* Connect Wallet - Purple 3D clicky button */
+        /* Connect Wallet - PRIMO SPINNING TRI-GRADIENT BORDER */
         <motion.button
           onClick={() => setShowWalletConnect(true)}
-          className="w-full mt-6 py-4 rounded-xl font-bold text-lg text-white transition-all"
-          style={{
-            background: '#8B5CF6',
-            boxShadow: '0 6px 0 #6D28D9, 0 8px 15px rgba(139, 92, 246, 0.4)',
-            transform: 'translateY(0)',
-          }}
-          whileHover={{
-            boxShadow: '0 4px 0 #6D28D9, 0 6px 10px rgba(139, 92, 246, 0.4)',
-            transform: 'translateY(2px)',
-          }}
-          whileTap={{
-            boxShadow: '0 2px 0 #6D28D9, 0 3px 5px rgba(139, 92, 246, 0.4)',
-            transform: 'translateY(4px)',
-          }}
+          className="relative w-full mt-6 py-4 rounded-full font-bold text-lg text-white overflow-hidden group transition-all"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
-          Connect Wallet
+          {/* Spinning tri-gradient border - IDENTICAL to header Connect button */}
+          <span className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></span>
+          <span className="absolute inset-[2px] rounded-full bg-bear-dark-800 group-hover:bg-bear-dark-700 transition-colors"></span>
+          <span className="relative z-10">Connect Wallet</span>
         </motion.button>
       ) : (
         /* Swap button - normal state */
