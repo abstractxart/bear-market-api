@@ -463,7 +463,7 @@ const App: React.FC = () => {
                           }}
                         >
                           {/* Black opacity overlay */}
-                          <div className="absolute inset-0 bg-black/60 -z-10"></div>
+                          <div className="absolute inset-0 bg-black/75 -z-10"></div>
                           <div className="flex items-start gap-4 relative z-10">
                             <div className="w-12 h-12 rounded-xl bg-bearpark-gold/20 group-hover:bg-bearpark-gold/30 flex items-center justify-center flex-shrink-0 transition-colors">
                               <svg className="w-6 h-6 text-bearpark-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -471,19 +471,19 @@ const App: React.FC = () => {
                               </svg>
                             </div>
                             <div>
-                              <h3 className="font-bold text-white text-lg mb-2">Every Swap Burns $BEAR</h3>
-                              <p className="text-gray-400 text-sm mb-3">
+                              <h3 className="font-bold text-white text-lg mb-2 drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">Every Swap Burns $BEAR</h3>
+                              <p className="text-gray-300 text-sm mb-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
                                 50% of fees go to referrers (if used), the other 50% gets deposited into the
                                 <span className="text-bearpark-gold font-bold"> $BEAR liquidity pool</span> — permanently locked in a blackholed wallet.
                               </p>
                               <div className="p-3 bg-bearpark-gold/10 rounded-lg border border-bearpark-gold/30 space-y-2">
-                                <p className="text-xs text-bearpark-gold font-bold">
+                                <p className="text-xs text-bearpark-gold font-bold drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
                                   🔥 LP is <a href="https://bithomp.com/en/account/rBEARmPLNA8CMu92P4vj95fkyCt1N4jrNm" target="_blank" rel="noopener noreferrer" className="underline hover:text-bearpark-gold/80">BLACKHOLED</a> — keys destroyed forever
                                 </p>
-                                <p className="text-xs text-white/80">
+                                <p className="text-xs text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
                                   Each swap permanently removes $BEAR from circulation → increasing scarcity → deflationary tokenomics
                                 </p>
-                                <p className="text-xs text-bear-green-400 font-bold">
+                                <p className="text-xs text-bear-green-400 font-bold drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
                                   No referrer? 100% of fees → Blackholed LP = More burn!
                                 </p>
                               </div>
