@@ -1,16 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TerminalHeader } from '../components/terminal/TerminalHeader';
-import { TradingViewChart, type ChartTrade } from '../components/terminal/TradingViewChart';
+import { DexScreenerChart } from '../components/terminal/DexScreenerChart';
 import { OrderBook } from '../components/terminal/OrderBook';
 import { LimitOrderPanel } from '../components/terminal/LimitOrderPanel';
-import { TokenWatchlist } from '../components/terminal/TokenWatchlist';
-import { LiveTradesFeed, type Trade } from '../components/terminal/LiveTradesFeed';
+import { LiveTradesFeed } from '../components/terminal/LiveTradesFeed';
+import { KickStreamPlayer } from '../components/terminal/KickStreamPlayer';
+import { FloatingKickStream } from '../components/terminal/FloatingKickStream';
+import { TokenDetailsPanel } from '../components/terminal/TokenDetailsPanel';
+import { TokenAdminModal } from '../components/terminal/TokenAdminModal';
 import SwapCard from '../components/SwapCard';
 import type { Token } from '../types';
 import { hexToString } from '../utils/currency';
 import { getTokenFromXRPL } from '../services/xrplDirectService';
+import { useWallet } from '../context/WalletContext';
+import { getTokenMetadata, type TokenMetadata } from '../services/tokenMetadataService';
 
 interface TokenInfo {
   token: Token;
@@ -23,7 +28,7 @@ interface TokenInfo {
 
 const TokenTerminal: React.FC = () => {
   const { currency, issuer } = useParams<{ currency: string; issuer?: string }>();
-  const navigate = useNavigate();
+  const { wallet } = useWallet();
 
   // State
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
@@ -32,18 +37,19 @@ const TokenTerminal: React.FC = () => {
   const [limitOrderPrice, setLimitOrderPrice] = useState<string>('');
   const [mobilePanel, setMobilePanel] = useState<'swap' | 'limit'>('swap');
   const [tradingMode, setTradingMode] = useState<'swap' | 'limit'>('swap');
-  const [chartTrades, setChartTrades] = useState<ChartTrade[]>([]);
+  const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata | null>(null);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showFloatingStream, setShowFloatingStream] = useState(true);
 
-  // Handle trades update from LiveTradesFeed - convert to chart format
-  const handleTradesUpdate = useCallback((trades: Trade[]) => {
-    const converted: ChartTrade[] = trades.map(t => ({
-      type: t.type,
-      timestamp: t.timestamp,
-      price: t.price,
-      amount: t.amount,
-    }));
-    setChartTrades(converted);
-  }, []);
+  // CTO wallet mapping - wallets that can manage tokens (for Community Take Overs)
+  const CTO_WALLETS: Record<string, string> = {
+    // $BEAR CTO wallet (CORRECT issuer address)
+    'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW': 'rKkkYMCvC63HEgxjQHmayKADaxYqnsMUkT',
+  };
+
+  // Check if current user is the token issuer OR the CTO wallet
+  const ctoWallet = issuer ? CTO_WALLETS[issuer] : undefined;
+  const isIssuer = wallet.isConnected && (wallet.address === issuer || wallet.address === ctoWallet);
 
   // Decode currency if hex
   const decodedCurrency = currency && currency.length === 40 ? hexToString(currency) : currency;
@@ -172,14 +178,17 @@ const TokenTerminal: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchTokenInfo]);
 
-  // Handle token switch from watchlist
-  const handleTokenSelect = (token: Token) => {
-    if (token.currency === 'XRP') {
-      navigate('/tokens');
-    } else {
-      navigate(`/tokens/${token.currency}/${token.issuer}`);
-    }
-  };
+  // Load token metadata
+  useEffect(() => {
+    const loadMetadata = async () => {
+      if (!currentToken?.issuer) return;
+
+      const metadata = await getTokenMetadata(currentToken.currency, currentToken.issuer);
+      setTokenMetadata(metadata);
+    };
+
+    loadMetadata();
+  }, [currentToken?.currency, currentToken?.issuer]);
 
   // Handle price click from order book
   const handlePriceClick = (price: string) => {
@@ -219,103 +228,120 @@ const TokenTerminal: React.FC = () => {
         <div className="flex flex-col gap-2 h-full">
           {/* Chart - Takes ~48% of available height */}
           <div className="flex-[0.95] min-h-[420px] max-h-[650px]">
-            <TradingViewChart token={currentToken} trades={chartTrades} />
+            <DexScreenerChart token={currentToken} />
           </div>
           {/* Trades - Takes ~52% of available height with scroll */}
           <div className="flex-[1.05] min-h-[450px]">
-            <LiveTradesFeed token={currentToken} onTradesUpdate={handleTradesUpdate} />
+            <LiveTradesFeed token={currentToken} />
           </div>
         </div>
 
-        {/* Right Column - Watchlist + Swap/Limit */}
-        <div className="flex flex-col gap-2 h-full">
-          {/* Watchlist */}
-          <div className="h-[240px]">
-            <TokenWatchlist
-              currentToken={currentToken}
-              onTokenSelect={handleTokenSelect}
+        {/* Right Column - Swap/Limit + Kick Stream + Token Details (SCROLLABLE) */}
+        <div className="flex flex-col gap-2 h-full overflow-y-auto custom-scrollbar">
+          {/* Trading Mode Toggle */}
+          <div className="flex items-center justify-center gap-1">
+            <div className="inline-flex p-1 bg-bear-dark-800 rounded-xl border border-bear-dark-600">
+              <button
+                onClick={() => setTradingMode('swap')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  tradingMode === 'swap'
+                    ? 'bg-gradient-to-r from-bear-green-500 to-bear-green-600 text-white shadow-lg shadow-bear-green-500/25'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                ⚡ MARKET SWAP
+              </button>
+              <button
+                onClick={() => setTradingMode('limit')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  tradingMode === 'limit'
+                    ? 'bg-gradient-to-r from-bearpark-gold to-yellow-500 text-black shadow-lg shadow-bearpark-gold/25'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                🎯 LIMIT ORDER
+              </button>
+            </div>
+          </div>
+
+          {/* Trading Card */}
+          <div className="shrink-0">
+            <AnimatePresence mode="wait">
+              {tradingMode === 'swap' ? (
+                <motion.div
+                  key="swap"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <SwapCard presetOutputToken={currentToken} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="limit"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <LimitOrderPanel
+                    token={currentToken}
+                    initialPrice={limitOrderPrice}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Kick Stream Player */}
+          <div className="shrink-0">
+            <KickStreamPlayer
+              streamUrl={tokenMetadata?.kick_stream_url}
+              isIssuer={isIssuer}
+              onEditClick={() => setShowAdminModal(true)}
             />
           </div>
 
-          {/* Trading Panel - Compact */}
-          <div className="flex-1 min-h-0 flex flex-col">
-            {/* Trading Mode Toggle */}
-            <div className="flex items-center justify-center gap-1 mb-2">
-              <div className="inline-flex p-1 bg-bear-dark-800 rounded-xl border border-bear-dark-600">
-                <button
-                  onClick={() => setTradingMode('swap')}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    tradingMode === 'swap'
-                      ? 'bg-gradient-to-r from-bear-green-500 to-bear-green-600 text-white shadow-lg shadow-bear-green-500/25'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  ⚡ MARKET SWAP
-                </button>
-                <button
-                  onClick={() => setTradingMode('limit')}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    tradingMode === 'limit'
-                      ? 'bg-gradient-to-r from-bearpark-gold to-yellow-500 text-black shadow-lg shadow-bearpark-gold/25'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  🎯 LIMIT ORDER
-                </button>
-              </div>
-            </div>
-
-            {/* Trading Card */}
-            <div className="flex-1 overflow-hidden">
-              <AnimatePresence mode="wait">
-                {tradingMode === 'swap' ? (
-                  <motion.div
-                    key="swap"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="h-full"
-                  >
-                    <SwapCard presetOutputToken={currentToken} />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="limit"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="h-full"
-                  >
-                    <LimitOrderPanel
-                      token={currentToken}
-                      initialPrice={limitOrderPrice}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+          {/* Token Details Panel */}
+          <div className="shrink-0">
+            <TokenDetailsPanel
+              token={currentToken}
+              data={{
+                trustlines: tokenInfo?.holders || 0,
+                holders: tokenInfo?.holders || 0,
+                rank: 21,
+                issuerFee: '0%',
+                marketCap: tokenInfo?.marketCap || 0,
+                circulatingSupply: 528700000,
+                totalSupply: 528700000,
+                socialLinks: {
+                  discord: tokenMetadata?.discord_url,
+                  twitter: tokenMetadata?.twitter_url,
+                  telegram: tokenMetadata?.telegram_url,
+                  website1: tokenMetadata?.website1_url,
+                  website2: tokenMetadata?.website2_url,
+                  website3: tokenMetadata?.website3_url,
+                },
+              }}
+              isIssuer={isIssuer}
+              onEditClick={() => setShowAdminModal(true)}
+            />
           </div>
         </div>
       </div>
 
       {/* Tablet Layout (md-lg) */}
       <div className="hidden md:grid lg:hidden grid-cols-2 gap-2 p-2 h-[calc(100vh-120px)]">
-        {/* Top Row - Trades (full width) - 35% of height */}
-        <div className="col-span-2 h-[35vh] min-h-[300px]">
-          <LiveTradesFeed token={currentToken} onTradesUpdate={handleTradesUpdate} />
+        {/* Top Row - Trades (full width) - 50% of height */}
+        <div className="col-span-2 h-[50vh] min-h-[400px]">
+          <LiveTradesFeed token={currentToken} />
         </div>
 
-        {/* Middle Row - Order Book & Swap - 40% of height */}
-        <div className="h-[40vh] min-h-[350px]">
+        {/* Bottom Row - Order Book & Swap - 50% of height */}
+        <div className="h-[50vh] min-h-[400px]">
           <OrderBook token={currentToken} onPriceClick={handlePriceClick} />
         </div>
-        <div className="flex flex-col gap-2 h-[40vh] min-h-[350px]">
+        <div className="flex flex-col gap-2 h-[50vh] min-h-[400px]">
           <SwapCard presetOutputToken={currentToken} />
-        </div>
-
-        {/* Bottom Row - Watchlist - remaining height */}
-        <div className="col-span-2 flex-1 min-h-[180px]">
-          <TokenWatchlist currentToken={currentToken} onTokenSelect={handleTokenSelect} />
         </div>
       </div>
 
@@ -349,7 +375,7 @@ const TokenTerminal: React.FC = () => {
               className="flex flex-col gap-2"
             >
               <div className="h-[40vh] min-h-[280px]">
-                <TradingViewChart token={currentToken} trades={chartTrades} />
+                <DexScreenerChart token={currentToken} />
               </div>
 
               {/* Swap/Limit Toggle */}
@@ -408,21 +434,48 @@ const TokenTerminal: React.FC = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="flex flex-col gap-2"
+              className="h-[70vh] min-h-[450px]"
             >
-              <div className="h-[25vh] min-h-[180px]">
-                <TokenWatchlist
-                  currentToken={currentToken}
-                  onTokenSelect={handleTokenSelect}
-                />
-              </div>
-              <div className="h-[50vh] min-h-[380px]">
-                <LiveTradesFeed token={currentToken} onTradesUpdate={handleTradesUpdate} />
-              </div>
+              <LiveTradesFeed token={currentToken} />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
+
+      {/* Floating Kick Stream - Mobile Only (PiP style) */}
+      {showFloatingStream && tokenMetadata?.kick_stream_url && (
+        <FloatingKickStream
+          streamUrl={tokenMetadata.kick_stream_url}
+          onClose={() => setShowFloatingStream(false)}
+        />
+      )}
+
+      {/* Kick Stream Toggle Button - Mobile Only */}
+      {tokenMetadata?.kick_stream_url && !showFloatingStream && (
+        <button
+          onClick={() => setShowFloatingStream(true)}
+          className="md:hidden fixed bottom-20 right-4 w-14 h-14 rounded-full bg-gradient-to-br from-[#53fc18] to-[#00d95f] shadow-lg shadow-[#53fc18]/50 flex items-center justify-center text-2xl z-[9998] hover:scale-110 transition-transform"
+          aria-label="Show Kick Stream"
+        >
+          🎮
+        </button>
+      )}
+
+      {/* Admin Modal */}
+      {currentToken?.issuer && tokenMetadata && (
+        <TokenAdminModal
+          isOpen={showAdminModal}
+          onClose={() => setShowAdminModal(false)}
+          token={currentToken}
+          walletAddress={wallet.address || ''}
+          currentMetadata={tokenMetadata}
+          onSuccess={async () => {
+            // Reload metadata after successful save
+            const metadata = await getTokenMetadata(currentToken.currency, currentToken.issuer!);
+            setTokenMetadata(metadata);
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -187,17 +187,29 @@ const TRUSTED_ISSUERS = new Set([
 ]);
 
 /**
- * Filter out scam/fake tokens
+ * Filter out scam/fake tokens and tokens with missing data
  */
 function filterScamTokens(tokens: LeaderboardToken[]): LeaderboardToken[] {
   return tokens.filter(token => {
+    // CRITICAL: Filter out tokens with completely missing currency/symbol
+    if (!token.currency && !token.symbol) {
+      console.log(`[Leaderboard] Filtered token with missing currency/symbol: ${token.issuer?.slice(0, 8)}...`);
+      return false;
+    }
+
+    // Filter out tokens with missing issuer
+    if (!token.issuer) {
+      console.log(`[Leaderboard] Filtered token with missing issuer: ${token.currency}`);
+      return false;
+    }
+
     // Always allow trusted issuers
     if (TRUSTED_ISSUERS.has(token.issuer || '')) {
       return true;
     }
 
     // Check if token name/currency matches a scam pattern
-    const upperCurrency = token.currency.toUpperCase();
+    const upperCurrency = (token.currency || '').toUpperCase();
     const upperName = (token.name || '').toUpperCase();
     const upperSymbol = (token.symbol || '').toUpperCase();
 

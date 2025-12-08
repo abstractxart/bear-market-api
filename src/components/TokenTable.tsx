@@ -408,7 +408,7 @@ const TokenRow: React.FC<TokenRowProps> = ({ token, rank, flashDirection }) => {
             <TokenIcon token={token} />
             <div className="min-w-0">
               <div className="font-black text-sm text-bearpark-gold drop-shadow-[0_0_8px_rgba(237,183,35,0.5)]">
-                ${token.symbol || token.currency}
+                ${token.symbol || token.currency || 'Unknown'}
               </div>
               <div className="text-[10px] text-bearpark-gold/60 truncate hidden sm:block font-medium">
                 {token.issuer?.slice(0, 8)}...
@@ -492,7 +492,7 @@ const TokenRow: React.FC<TokenRowProps> = ({ token, rank, flashDirection }) => {
           <TokenIcon token={token} />
           <div className="min-w-0">
             <div className="font-semibold text-sm truncate text-white">
-              ${token.symbol || token.currency}
+              ${token.symbol || token.currency || 'Unknown'}
             </div>
             <div className="text-[10px] text-gray-500 truncate hidden sm:block">
               {token.issuer?.slice(0, 8)}...
@@ -594,7 +594,7 @@ const MobileTokenRow: React.FC<TokenRowProps> = ({ token, rank, flashDirection }
           <div className="flex items-center gap-1.5">
             <TokenIcon token={token} />
             <span className="font-black text-sm text-bearpark-gold truncate max-w-[70px]">
-              ${token.symbol || token.currency}
+              ${token.symbol || token.currency || 'Unknown'}
             </span>
           </div>
         </td>
@@ -657,7 +657,7 @@ const MobileTokenRow: React.FC<TokenRowProps> = ({ token, rank, flashDirection }
         <div className="flex items-center gap-1.5">
           <TokenIcon token={token} />
           <span className="font-semibold text-sm text-white truncate max-w-[70px]">
-            ${token.symbol || token.currency}
+            ${token.symbol || token.currency || 'Unknown'}
           </span>
         </div>
       </td>
@@ -720,18 +720,21 @@ const TokenIcon: React.FC<{ token: LeaderboardToken }> = ({ token }) => {
     }
   };
 
+  // Defensive: Handle tokens with missing symbol/currency
+  const displayText = (token.symbol || token.currency || '??').slice(0, 2);
+
   return (
     <div className="w-6 h-6 rounded-full bg-bear-dark-600 flex items-center justify-center overflow-hidden flex-shrink-0">
       {imgSrc ? (
         <img
           src={imgSrc}
-          alt={token.symbol || token.currency}
+          alt={token.symbol || token.currency || 'Token'}
           className="w-full h-full object-cover"
           onError={handleError}
         />
       ) : (
         <span className="text-[10px] font-bold text-gray-400">
-          {(token.symbol || token.currency).slice(0, 2)}
+          {displayText}
         </span>
       )}
     </div>
