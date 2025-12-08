@@ -13,7 +13,7 @@ export const DexScreenerChart: React.FC<DexScreenerChartProps> = ({ token }) => 
 
   // Build DexScreener embed URL - Format: currencyHex.issuerLowercase_xrp
   // Add quote=XRP to default to XRP pricing instead of USD
-  const embedUrl = `https://dexscreener.com/xrpl/${currencyHex}.${token.issuer.toLowerCase()}_xrp?embed=1&theme=dark&trades=0&info=0&quote=XRP`;
+  const embedUrl = `https://dexscreener.com/xrpl/${currencyHex}.${token.issuer?.toLowerCase()}_xrp?embed=1&theme=dark&trades=0&info=0&quote=XRP`;
 
   // Debug logging
   console.log('[DexScreener] Chart URL:', {

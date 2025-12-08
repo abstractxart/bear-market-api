@@ -30,7 +30,6 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [makerFilter, setMakerFilter] = useState<string | null>(null);
-  const [xrpUsdPrice, setXrpUsdPrice] = useState<number>(2.5); // XRP/USD price
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Format time like DexScreener: "11m ago", "1h 43m ago", "1d 22h ago"
@@ -87,7 +86,7 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
   const fetchDexScreenerTrades = async (): Promise<Trade[]> => {
     try {
       const currencyHex = currencyToHex(token.currency);
-      const pairId = `${currencyHex}.${token.issuer.toLowerCase()}_xrp`;
+      const pairId = `${currencyHex}.${token.issuer?.toLowerCase()}_xrp`;
       const url = `https://api.dexscreener.com/latest/dex/pairs/xrpl/${pairId}`;
 
       console.log('[LiveTradesFeed] Fetching from DexScreener:', url);
@@ -170,18 +169,6 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
     }
   };
 
-  // Fetch XRP/USD price
-  const fetchXrpPrice = async () => {
-    try {
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ripple&vs_currencies=usd');
-      const data = await response.json();
-      if (data?.ripple?.usd) {
-        setXrpUsdPrice(data.ripple.usd);
-      }
-    } catch (e) {
-      console.warn('[LiveTradesFeed] Could not fetch XRP price');
-    }
-  };
 
   // Initialize DexScreener trade polling
   const initializeTradeStream = useCallback(async () => {
