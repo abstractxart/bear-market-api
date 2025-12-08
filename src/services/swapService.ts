@@ -794,60 +794,31 @@ export async function executeSwap(
     const feeTxs: any[] = [];
     let referrerWallet: string | null = null;
 
-    // Check if user has a referrer
-    try {
-      console.log('[Swap] Checking for referrer...', senderAddress);
-      const referralData = await api.getReferralData(senderAddress);
-      console.log('[Swap] Referral API response:', referralData);
-      if (referralData.success && referralData.data?.referrerWallet) {
-        // Backend has resolved the referral code to the actual wallet address
-        referrerWallet = referralData.data.referrerWallet;
-        console.log('[Swap] User was referred by wallet:', referrerWallet);
-      } else {
-        console.log('[Swap] No referrer from API, checking localStorage...');
-        // Fallback: Check localStorage for referral data
-        const storedReferral = localStorage.getItem('bear_market_referral');
-        if (storedReferral) {
-          try {
-            const localData = JSON.parse(storedReferral);
-            // Prefer referrerWallet (resolved address) over referredBy
-            const wallet = localData.referrerWallet || localData.referredBy;
-            if (wallet) {
-              referrerWallet = wallet;
-              console.log('[Swap] Found referrer in localStorage:', referrerWallet);
-            } else {
-              console.log('[Swap] No referrer found (localStorage has no referrerWallet or referredBy)');
-            }
-          } catch (e) {
-            console.log('[Swap] No referrer found (localStorage parse error)');
+    // Check localStorage for referrer wallet address
+    console.log('[Swap] Checking for referrer...');
+    const storedReferral = localStorage.getItem('bear_market_referral');
+    if (storedReferral) {
+      try {
+        const localData = JSON.parse(storedReferral);
+        // Get referrer wallet address (stored as referredBy)
+        referrerWallet = localData.referredBy;
+
+        if (referrerWallet) {
+          // Validate it's a valid XRPL address
+          if (referrerWallet.startsWith('r')) {
+            console.log('[Swap] ✓ Found referrer wallet:', referrerWallet);
+          } else {
+            console.warn('[Swap] Invalid referrer wallet format (must start with "r"), skipping referral payment:', referrerWallet);
+            referrerWallet = null;
           }
         } else {
           console.log('[Swap] No referrer found');
         }
+      } catch (e) {
+        console.log('[Swap] No referrer found (localStorage parse error)');
       }
-    } catch (err) {
-      console.warn('[Swap] Could not check referrer from API:', err);
-      // Fallback: Check localStorage even if API fails
-      const storedReferral = localStorage.getItem('bear_market_referral');
-      if (storedReferral) {
-        try {
-          const localData = JSON.parse(storedReferral);
-          // Prefer referrerWallet (resolved address) over referredBy
-          const wallet = localData.referrerWallet || localData.referredBy;
-          if (wallet) {
-            referrerWallet = wallet;
-            console.log('[Swap] Found referrer in localStorage (API fallback):', referrerWallet);
-          }
-        } catch (e) {
-          // Ignore parse errors
-        }
-      }
-    }
-
-    // Validate referrer is a valid XRPL address before attempting payment
-    if (referrerWallet && !referrerWallet.startsWith('r')) {
-      console.warn('[Swap] Invalid referrer wallet format (must start with "r"), skipping referral payment:', referrerWallet);
-      referrerWallet = null;
+    } else {
+      console.log('[Swap] No referrer found (not referred)');
     }
 
     // MINIMUM FEE THRESHOLD: 1 drop = 0.000001 XRP

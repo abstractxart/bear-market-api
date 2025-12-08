@@ -112,11 +112,6 @@ const ReferralsPage: React.FC = () => {
             </span>
           </button>
         </div>
-
-        <div className="mt-6 p-4 bg-bear-dark-700 rounded-xl">
-          <div className="text-sm text-gray-400 mb-2">Your Referral Code</div>
-          <div className="text-2xl font-bold text-bear-gold-400 font-mono">{referralData.referralCode}</div>
-        </div>
       </div>
 
       {/* Stats Grid */}
