@@ -362,8 +362,9 @@ const App: React.FC = () => {
                               <span className="text-bearpark-gold font-bold">50%</span>
                             </div>
                           </div>
-                          <div className="mt-3 pt-3 border-t border-bear-dark-600">
+                          <div className="mt-3 pt-3 border-t border-bear-dark-600 space-y-1">
                             <p className="text-bear-green-400 text-[10px] font-bold">No team cuts. Instant payouts.</p>
+                            <p className="text-bearpark-gold text-[10px] font-bold">No referrer? 100% → $BEAR LP!</p>
                             <p className="text-red-400 text-[9px] mt-1 font-semibold">LP deposits = locked forever = $BEAR deflationary</p>
                           </div>
                         </div>
