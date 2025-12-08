@@ -11,9 +11,6 @@ import SlippageSlider from './SlippageSlider';
 import { SecureWalletConnect } from './SecureWalletConnect';
 import { getKeyManager } from '../security/SecureKeyManager';
 
-// Shorten address for display
-const shortenAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-
 interface SwapCardProps {
   presetOutputToken?: Token;
 }
@@ -28,6 +25,7 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
   const [outputAmount, setOutputAmount] = useState('');
   const [editingField, setEditingField] = useState<'input' | 'output'>('input');
   const [quote, setQuote] = useState<SwapQuote | null>(null);
+  const [hasReferrer, setHasReferrer] = useState(false);
   const [slippage, setSlippage] = useState(0.5);
 
   // UI state
@@ -51,6 +49,19 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
       setOutputToken(presetOutputToken);
     }
   }, [presetOutputToken]);
+
+  // Check if user has a referrer on mount
+  useEffect(() => {
+    const storedReferral = localStorage.getItem('bear_market_referral');
+    if (storedReferral) {
+      try {
+        const data = JSON.parse(storedReferral);
+        setHasReferrer(!!data.referredBy);
+      } catch (e) {
+        setHasReferrer(false);
+      }
+    }
+  }, []);
 
   // Handle wallet connection
   const handleWalletConnect = async () => {
@@ -474,16 +485,19 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
               <span>Fee ({formatFeePercent(wallet.feeTier)})</span>
               <span className="text-white">{quote.feeAmount} XRP</span>
             </div>
-            <div className="flex justify-between text-gray-400 text-xs">
-              <span>Fee goes to</span>
-              <a
-                href={`https://xrpscan.com/account/${BEAR_TREASURY_WALLET}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-bear-purple-400 hover:text-bear-purple-300 underline"
-              >
-                BEAR Treasury ({shortenAddress(BEAR_TREASURY_WALLET)})
-              </a>
+            <div className="space-y-1">
+              <div className="flex justify-between text-gray-400 text-xs">
+                <span>Fee split:</span>
+                <span className="text-white font-medium">
+                  {hasReferrer ? '50% Referrer / 50% LP' : '100% → $BEAR LP'}
+                </span>
+              </div>
+              {hasReferrer && (
+                <div className="flex justify-between text-gray-500 text-[10px] italic">
+                  <span>You're referred!</span>
+                  <span className="text-bear-green-400">Earning rewards for referrer</span>
+                </div>
+              )}
             </div>
             <div className="flex justify-between text-gray-400">
               <span>Minimum received</span>
@@ -619,26 +633,36 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
           <span className="relative z-10">Connect Wallet</span>
         </motion.button>
       ) : (
-        /* Swap button - normal state */
+        /* Swap button - MODERN SPINNING BORDER */
         <motion.button
           onClick={handleSwap}
           disabled={!quote || isSwapping}
-          className={`w-full mt-6 py-4 rounded-xl font-bold text-lg transition-all ${
-            quote
-              ? 'btn-primary'
-              : 'bg-bear-dark-600 text-gray-500 cursor-not-allowed'
+          className={`relative w-full mt-6 py-4 rounded-full font-bold text-lg overflow-hidden group transition-all ${
+            !quote || isSwapping ? 'opacity-50 cursor-not-allowed' : ''
           }`}
-          whileTap={{ scale: 0.98 }}
+          whileHover={quote && !isSwapping ? { scale: 1.02 } : {}}
+          whileTap={quote && !isSwapping ? { scale: 0.98 } : {}}
         >
-          {isSwapping
-            ? 'Swapping...'
-            : !outputToken
-              ? 'Select a token'
-              : (!inputAmount && !outputAmount)
-                ? 'Enter an amount'
-                : quote
-                  ? 'Swap'
-                  : 'Loading...'}
+          {/* Spinning tri-gradient border - SAME as Connect button */}
+          <span className={`absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] ${
+            quote && !isSwapping ? 'animate-spin-slow' : 'opacity-30'
+          }`}></span>
+          <span className={`absolute inset-[2px] rounded-full transition-colors ${
+            quote && !isSwapping
+              ? 'bg-bear-dark-800 group-hover:bg-bear-dark-700'
+              : 'bg-bear-dark-700'
+          }`}></span>
+          <span className="relative z-10 text-white">
+            {isSwapping
+              ? 'Swapping...'
+              : !outputToken
+                ? 'Select a token'
+                : (!inputAmount && !outputAmount)
+                  ? 'Enter an amount'
+                  : quote
+                    ? 'Swap'
+                    : 'Loading...'}
+          </span>
         </motion.button>
       )}
 
