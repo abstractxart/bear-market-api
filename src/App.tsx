@@ -179,13 +179,13 @@ const App: React.FC = () => {
                             }}
                           ></div>
                           {/* Dark overlay */}
-                          <div className="absolute inset-0 bg-black/70"></div>
+                          <div className="absolute inset-0 bg-black/80"></div>
                         </div>
                         {/* Content - centered */}
                         <div className="relative z-10 p-6 h-full flex flex-col items-center justify-center text-center">
-                          <h3 className="font-bold text-gray-300 mb-1 text-lg drop-shadow-lg">Regular</h3>
-                          <div className="text-3xl font-black text-white mb-2 drop-shadow-lg">0.7%</div>
-                          <p className="text-sm text-gray-400 drop-shadow">Default rate for all users</p>
+                          <h3 className="font-bold text-gray-200 mb-1 text-lg drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">Regular</h3>
+                          <div className="text-3xl font-black text-white mb-2 drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">0.7%</div>
+                          <p className="text-sm text-gray-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">Default rate for all users</p>
                         </div>
                       </div>
 
@@ -211,13 +211,13 @@ const App: React.FC = () => {
                             <source src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/BEARRAVE_1.mp4" type="video/mp4" />
                           </video>
                           {/* Dark overlay */}
-                          <div className="absolute inset-0 bg-black/60"></div>
+                          <div className="absolute inset-0 bg-black/75"></div>
                         </div>
                         {/* Content - centered */}
                         <div className="relative z-10 p-6 h-full flex flex-col items-center justify-center text-center">
-                          <h3 className="font-bold text-bear-purple-300 mb-1 text-lg drop-shadow-lg">Pixel BEAR</h3>
-                          <div className="text-3xl font-black text-white mb-2 drop-shadow-lg">0.6%</div>
-                          <p className="text-sm text-gray-200 drop-shadow">Hold any Pixel Bear NFT</p>
+                          <h3 className="font-bold text-bear-purple-200 mb-1 text-lg drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">Pixel BEAR</h3>
+                          <div className="text-3xl font-black text-white mb-2 drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">0.6%</div>
+                          <p className="text-sm text-gray-100 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">Hold any Pixel Bear NFT</p>
                         </div>
                       </a>
 
@@ -240,13 +240,13 @@ const App: React.FC = () => {
                             }}
                           ></div>
                           {/* Dark overlay */}
-                          <div className="absolute inset-0 bg-black/50"></div>
+                          <div className="absolute inset-0 bg-black/70"></div>
                         </div>
                         {/* Content - centered */}
                         <div className="relative z-10 p-6 h-full flex flex-col items-center justify-center text-center">
-                          <h3 className="font-bold text-bear-gold-300 mb-1 text-lg drop-shadow-lg">Ultra Rare BEAR</h3>
-                          <div className="text-3xl font-black text-white mb-2 drop-shadow-lg">0.5%</div>
-                          <p className="text-sm text-gray-200 drop-shadow">Hold an Ultra Rare BEAR</p>
+                          <h3 className="font-bold text-bear-gold-200 mb-1 text-lg drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]">Ultra Rare BEAR</h3>
+                          <div className="text-3xl font-black text-white mb-2 drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">0.5%</div>
+                          <p className="text-sm text-gray-100 drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">Hold an Ultra Rare BEAR</p>
                         </div>
                       </a>
                     </motion.div>
