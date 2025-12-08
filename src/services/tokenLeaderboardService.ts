@@ -451,7 +451,7 @@ let xrpRateCacheTime = 0;
 const XRP_RATE_CACHE_DURATION = 60 * 1000; // 1 minute
 
 /**
- * Get XRP/USD exchange rate from xrpl.to
+ * Get XRP/USD exchange rate from CoinGecko (free, reliable, no auth needed)
  */
 async function getXrpUsdRate(): Promise<number> {
   // Return cached rate if fresh
@@ -460,12 +460,12 @@ async function getXrpUsdRate(): Promise<number> {
   }
 
   try {
-    // xrpl.to has an endpoint that returns XRP price - USE VITE PROXY!
-    const response = await fastFetch(`${XRPL_TO_API}/xrp`, 5000);
+    // CoinGecko free API - no auth required, reliable XRP price
+    const response = await fastFetch('https://api.coingecko.com/api/v3/simple/price?ids=ripple&vs_currencies=usd', 5000);
     if (response.ok) {
       const data = await response.json();
-      // The API returns { price: number } or similar
-      const rate = data.price || data.usd || data.rate || 2.5; // fallback to ~$2.50
+      // Response format: { "ripple": { "usd": 2.5 } }
+      const rate = data?.ripple?.usd || 2.5; // fallback to ~$2.50
       cachedXrpUsdRate = rate;
       xrpRateCacheTime = Date.now();
       console.log(`[Leaderboard] XRP/USD rate: $${rate}`);
