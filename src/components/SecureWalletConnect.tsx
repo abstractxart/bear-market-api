@@ -85,8 +85,14 @@ export const SecureWalletConnect = ({
   type ImportMethod = 'family-seed' | 'mnemonic' | 'private-key' | 'xaman-numbers';
   const [importMethod, setImportMethod] = useState<ImportMethod>('family-seed');
   const [algorithm, setAlgorithm] = useState<'secp256k1' | 'ed25519'>('secp256k1');
-  const [mnemonicWords, setMnemonicWords] = useState('');
+  const [mnemonicWordCount, setMnemonicWordCount] = useState<12 | 16 | 24>(12);
+  const [mnemonicWords, setMnemonicWords] = useState<string[]>(Array(12).fill(''));
   const [xamanNumbers, setXamanNumbers] = useState<string[]>(Array(8).fill(''));
+
+  // Update mnemonic words array when word count changes
+  useEffect(() => {
+    setMnemonicWords(Array(mnemonicWordCount).fill(''));
+  }, [mnemonicWordCount]);
 
   // Check for saved vault on mount
   useEffect(() => {
@@ -287,7 +293,18 @@ export const SecureWalletConnect = ({
 
       case 'mnemonic':
         try {
-          const words = mnemonicWords.trim();
+          // Join the array of words with spaces and validate
+          const words = mnemonicWords.map(w => w.trim().toLowerCase()).filter(w => w).join(' ');
+          if (!words) {
+            throw new Error('Please enter your mnemonic phrase');
+          }
+
+          // Validate word count
+          const wordArray = words.split(' ');
+          if (![12, 16, 24].includes(wordArray.length)) {
+            throw new Error(`Invalid mnemonic length. Expected 12, 16, or 24 words, got ${wordArray.length}`);
+          }
+
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const opts: any = {};
           if (algorithm === 'ed25519') {
@@ -297,8 +314,9 @@ export const SecureWalletConnect = ({
           }
           const wallet = Wallet.fromMnemonic(words, opts);
           return wallet.seed!;
-        } catch {
-          throw new Error('Invalid mnemonic phrase');
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Invalid mnemonic phrase';
+          throw new Error(message);
         }
 
       case 'xaman-numbers':
@@ -862,33 +880,30 @@ export const SecureWalletConnect = ({
           </div>
         )}
 
-        {/* Green 3D Button */}
+        {/* GLASS UNLOCK BUTTON WITH SICK SPINNING TRI-GRADIENT BORDER */}
         <motion.button
           type="submit"
           disabled={loading || !unlockPassword}
-          className="w-full mt-5 py-4 rounded-xl font-bold text-lg text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            background: '#10B981',
-            boxShadow: '0 6px 0 #059669, 0 8px 20px rgba(16, 185, 129, 0.4)',
-          }}
-          whileHover={!loading && unlockPassword ? {
-            boxShadow: '0 4px 0 #059669, 0 6px 15px rgba(16, 185, 129, 0.4)',
-            y: 2,
-          } : {}}
-          whileTap={!loading && unlockPassword ? {
-            boxShadow: '0 2px 0 #059669, 0 3px 8px rgba(16, 185, 129, 0.4)',
-            y: 4,
-          } : {}}
+          className="relative w-full mt-5 py-4 rounded-full font-bold text-lg text-white overflow-hidden group transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          whileHover={!loading && unlockPassword ? { scale: 1.02 } : {}}
+          whileTap={!loading && unlockPassword ? { scale: 0.98 } : {}}
         >
-          {loading ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Unlocking...
-            </span>
-          ) : 'Unlock Wallet'}
+          {/* Spinning tri-gradient border - PRIMO AS FUCK */}
+          <span className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></span>
+          {/* Glass inner - backdrop blur with semi-transparent bg */}
+          <span className="absolute inset-[2px] rounded-full bg-bear-dark-800/80 backdrop-blur-xl group-hover:bg-bear-dark-700/80 transition-colors"></span>
+          {/* Content */}
+          <span className="relative z-10 flex items-center justify-center gap-2">
+            {loading ? (
+              <>
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Unlocking...
+              </>
+            ) : 'Unlock Wallet'}
+          </span>
         </motion.button>
       </form>
 
@@ -1098,44 +1113,26 @@ export const SecureWalletConnect = ({
           </motion.div>
         )}
 
-        {/* Epic Purple Save Button */}
+        {/* GLASS SAVE BUTTON WITH SICK SPINNING TRI-GRADIENT BORDER */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
           className="relative group mt-5"
         >
-          <div className={`absolute inset-0 rounded-2xl blur-xl transition-opacity duration-500 ${
-            !(loading || newPassword.length < 12 || newPassword !== confirmPassword)
-              ? 'bg-gradient-to-r from-bear-purple-500/40 to-purple-500/40 opacity-100'
-              : 'opacity-0'
-          }`}></div>
           <motion.button
             type="submit"
             disabled={loading || newPassword.length < 12 || newPassword !== confirmPassword}
-            className="relative w-full py-5 rounded-2xl font-black text-xl text-white disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
-            style={{
-              background: !(loading || newPassword.length < 12 || newPassword !== confirmPassword)
-                ? 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)'
-                : 'linear-gradient(135deg, #4B5563 0%, #374151 100%)',
-              boxShadow: !(loading || newPassword.length < 12 || newPassword !== confirmPassword)
-                ? '0 8px 0 #5B21B6, 0 12px 40px rgba(139, 92, 246, 0.5)'
-                : '0 8px 0 #1F2937, 0 12px 40px rgba(0, 0, 0, 0.3)',
-            }}
-            whileHover={!(loading || newPassword.length < 12 || newPassword !== confirmPassword) ? {
-              boxShadow: '0 6px 0 #5B21B6, 0 10px 30px rgba(139, 92, 246, 0.5)',
-              y: 2,
-            } : {}}
-            whileTap={!(loading || newPassword.length < 12 || newPassword !== confirmPassword) ? {
-              boxShadow: '0 2px 0 #5B21B6, 0 4px 15px rgba(139, 92, 246, 0.5)',
-              y: 6,
-            } : {}}
+            className="relative w-full py-5 rounded-full font-black text-xl text-white overflow-hidden group transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={!(loading || newPassword.length < 12 || newPassword !== confirmPassword) ? { scale: 1.02 } : {}}
+            whileTap={!(loading || newPassword.length < 12 || newPassword !== confirmPassword) ? { scale: 0.98 } : {}}
           >
-            {/* Shine effect */}
-            {!(loading || newPassword.length < 12 || newPassword !== confirmPassword) && (
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-            )}
-            <span className="relative flex items-center justify-center gap-3">
+            {/* Spinning tri-gradient border - PRIMO AS FUCK */}
+            <span className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></span>
+            {/* Glass inner - backdrop blur with semi-transparent bg */}
+            <span className="absolute inset-[2px] rounded-full bg-bear-dark-800/80 backdrop-blur-xl group-hover:bg-bear-dark-700/80 transition-colors"></span>
+            {/* Content */}
+            <span className="relative z-10 flex items-center justify-center gap-3">
               {loading ? (
                 <>
                   <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -1542,36 +1539,26 @@ export const SecureWalletConnect = ({
           </motion.div>
         )}
 
-        {/* Epic Green Continue Button */}
+        {/* GLASS INSTANT WALLET BUTTON WITH SICK SPINNING TRI-GRADIENT BORDER */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
           className="relative group"
         >
-          <div className={`absolute inset-0 rounded-2xl blur-xl transition-opacity duration-500 ${seedAcknowledged ? 'bg-gradient-to-r from-bear-green-500/40 to-emerald-500/40 opacity-100' : 'opacity-0'}`}></div>
           <motion.button
             onClick={handleInstantConnect}
             disabled={loading || !seedAcknowledged}
-            className="relative w-full py-5 rounded-2xl font-black text-xl text-white disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
-            style={{
-              background: seedAcknowledged ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)' : 'linear-gradient(135deg, #4B5563 0%, #374151 100%)',
-              boxShadow: seedAcknowledged ? '0 8px 0 #047857, 0 12px 40px rgba(16, 185, 129, 0.5)' : '0 8px 0 #1F2937, 0 12px 40px rgba(0, 0, 0, 0.3)',
-            }}
-            whileHover={!loading && seedAcknowledged ? {
-              boxShadow: '0 6px 0 #047857, 0 10px 30px rgba(16, 185, 129, 0.5)',
-              y: 2,
-            } : {}}
-            whileTap={!loading && seedAcknowledged ? {
-              boxShadow: '0 2px 0 #047857, 0 4px 15px rgba(16, 185, 129, 0.5)',
-              y: 6,
-            } : {}}
+            className="relative w-full py-5 rounded-full font-black text-xl text-white overflow-hidden group transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={!loading && seedAcknowledged ? { scale: 1.02 } : {}}
+            whileTap={!loading && seedAcknowledged ? { scale: 0.98 } : {}}
           >
-            {/* Shine effect */}
-            {seedAcknowledged && (
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-            )}
-            <span className="relative flex items-center justify-center gap-3">
+            {/* Spinning tri-gradient border - PRIMO AS FUCK */}
+            <span className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></span>
+            {/* Glass inner - backdrop blur with semi-transparent bg */}
+            <span className="absolute inset-[2px] rounded-full bg-bear-dark-800/80 backdrop-blur-xl group-hover:bg-bear-dark-700/80 transition-colors"></span>
+            {/* Content */}
+            <span className="relative z-10 flex items-center justify-center gap-3">
               {loading ? (
                 <>
                   <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -1723,26 +1710,107 @@ export const SecureWalletConnect = ({
             {/* Mnemonic Phrase input */}
             {importMethod === 'mnemonic' && (
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Enter your mnemonic phrase words
-                </label>
-                <textarea
-                  value={mnemonicWords}
-                  onChange={(e) => setMnemonicWords(e.target.value)}
-                  placeholder="word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12"
-                  rows={3}
-                  className="w-full px-4 py-3 bg-black/60 border-2 border-gray-700 rounded-xl text-white font-mono text-sm focus:outline-none focus:border-purple-500 resize-none"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  data-gramm="false"
-                  data-gramm_editor="false"
-                  data-enable-grammarly="false"
-                  data-lpignore="true"
-                  data-form-type="other"
-                />
-                <p className="text-xs text-gray-500 mt-1">Enter 12 or 24 words separated by spaces</p>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-gray-300">
+                    Enter your mnemonic phrase
+                  </label>
+                  {/* Word count toggle */}
+                  <div className="flex gap-2">
+                    {([12, 16, 24] as const).map((count) => (
+                      <button
+                        key={count}
+                        onClick={() => setMnemonicWordCount(count)}
+                        className={`px-3 py-1 rounded-lg text-sm font-bold transition-all ${
+                          mnemonicWordCount === count
+                            ? 'bg-purple-500 text-white'
+                            : 'bg-bear-dark-600 text-gray-400 hover:bg-bear-dark-500'
+                        }`}
+                      >
+                        {count}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Individual word inputs in grid */}
+                <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto pr-2">
+                  {mnemonicWords.map((word, index) => {
+                    const isComplete = word.trim().length > 0;
+                    const currentIndex = mnemonicWords.findIndex(w => !w.trim());
+                    const isActive = currentIndex === -1 ? index === mnemonicWords.length - 1 : index === currentIndex;
+
+                    return (
+                      <div key={index} className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-600">
+                          {index + 1}.
+                        </div>
+                        <input
+                          type="text"
+                          value={word}
+                          onChange={(e) => {
+                            const value = e.target.value.toLowerCase().replace(/[^a-z]/g, '');
+                            const newWords = [...mnemonicWords];
+                            newWords[index] = value;
+                            setMnemonicWords(newWords);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              // Move to next input
+                              const nextIndex = index + 1;
+                              if (nextIndex < mnemonicWords.length) {
+                                const nextInput = document.querySelector(`input[data-word-index="${nextIndex}"]`) as HTMLInputElement;
+                                nextInput?.focus();
+                              }
+                            } else if (e.key === 'Backspace' && !word && index > 0) {
+                              e.preventDefault();
+                              // Move to previous input
+                              const prevInput = document.querySelector(`input[data-word-index="${index - 1}"]`) as HTMLInputElement;
+                              prevInput?.focus();
+                            }
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            const pastedText = e.clipboardData.getData('text');
+                            const words = pastedText.toLowerCase().trim().split(/\s+/).filter(w => w);
+
+                            if (words.length > 0) {
+                              const newWords = [...mnemonicWords];
+                              words.forEach((w, i) => {
+                                if (index + i < mnemonicWords.length) {
+                                  newWords[index + i] = w;
+                                }
+                              });
+                              setMnemonicWords(newWords);
+                            }
+                          }}
+                          placeholder={`word ${index + 1}`}
+                          autoFocus={index === 0}
+                          data-word-index={index}
+                          className={`w-full pl-10 pr-3 py-2.5 rounded-lg font-mono text-sm transition-all ${
+                            isComplete
+                              ? 'bg-green-500/10 border-2 border-green-500/30 text-green-400'
+                              : isActive
+                                ? 'bg-purple-500/10 border-2 border-purple-500 text-white'
+                                : 'bg-black/40 border-2 border-gray-700 text-gray-400'
+                          } focus:outline-none focus:border-purple-500`}
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck={false}
+                          data-gramm="false"
+                          data-gramm_editor="false"
+                          data-enable-grammarly="false"
+                          data-lpignore="true"
+                          data-form-type="other"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Enter each word separately or paste all {mnemonicWordCount} words at once
+                </p>
               </div>
             )}
 
@@ -1883,33 +1951,30 @@ export const SecureWalletConnect = ({
             </div>
           )}
 
-          {/* Gold 3D Button */}
+          {/* GLASS BUTTON WITH SICK SPINNING TRI-GRADIENT BORDER */}
           <motion.button
             type="submit"
             disabled={loading || !canSubmit()}
-            className="w-full mt-5 py-4 rounded-xl font-bold text-lg text-bear-dark-900 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              background: 'linear-gradient(135deg, #edb723 0%, #d4a31e 100%)',
-              boxShadow: '0 6px 0 #b8941a, 0 8px 20px rgba(237, 183, 35, 0.4)',
-            }}
-            whileHover={!(loading || !canSubmit()) ? {
-              boxShadow: '0 4px 0 #b8941a, 0 6px 15px rgba(237, 183, 35, 0.4)',
-              y: 2,
-            } : {}}
-            whileTap={!(loading || !canSubmit()) ? {
-              boxShadow: '0 2px 0 #b8941a, 0 3px 8px rgba(237, 183, 35, 0.4)',
-              y: 4,
-            } : {}}
+            className="relative w-full mt-5 py-4 rounded-full font-bold text-lg text-white overflow-hidden group transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={!(loading || !canSubmit()) ? { scale: 1.02 } : {}}
+            whileTap={!(loading || !canSubmit()) ? { scale: 0.98 } : {}}
           >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Validating...
-              </span>
-            ) : 'Continue'}
+            {/* Spinning tri-gradient border - PRIMO AS FUCK */}
+            <span className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></span>
+            {/* Glass inner - backdrop blur with semi-transparent bg */}
+            <span className="absolute inset-[2px] rounded-full bg-bear-dark-800/80 backdrop-blur-xl group-hover:bg-bear-dark-700/80 transition-colors"></span>
+            {/* Content */}
+            <span className="relative z-10 flex items-center justify-center gap-2">
+              {loading ? (
+                <>
+                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Validating...
+                </>
+              ) : 'Continue'}
+            </span>
           </motion.button>
         </form>
       </div>
