@@ -305,16 +305,9 @@ export const SecureWalletConnect = ({
             throw new Error(`Invalid mnemonic length. Expected 12, 16, or 24 words, got ${wordArray.length}`);
           }
 
-          // Validate mnemonic with BIP39 first for better error messages
-          if (!bip39.validateMnemonic(words)) {
-            // Find which words are invalid
-            const validWords = bip39.wordlists.english;
-            const invalidWords = wordArray.filter(word => !validWords.includes(word));
-            if (invalidWords.length > 0) {
-              throw new Error(`Invalid BIP39 words: ${invalidWords.slice(0, 3).join(', ')}${invalidWords.length > 3 ? '...' : ''}. Please check your mnemonic phrase.`);
-            }
-            throw new Error('Invalid mnemonic phrase. Please check your words.');
-          }
+          // Let Wallet.fromMnemonic handle validation directly (same as XAMAN)
+          // XRPL uses its own validation, not standard BIP39
+          // This allows XRPL-compatible mnemonics that may not be in the standard BIP39 word list
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const opts: any = {};
