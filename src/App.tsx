@@ -156,7 +156,7 @@ const App: React.FC = () => {
                       transition={{ duration: 0.5 }}
                       className="relative text-2xl font-bold text-white text-center mb-8 font-display"
                     >
-                      Fee Tiers
+                      Want Lower Fees?
                     </motion.h2>
                     <motion.div
                       initial={{ opacity: 0, y: 30 }}
