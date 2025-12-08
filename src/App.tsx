@@ -397,25 +397,46 @@ const App: React.FC = () => {
                               </svg>
                             </div>
                             <div>
-                              <h3 className="font-bold text-white text-lg mb-2">50% Referrer Payouts — Paid Instantly</h3>
+                              <h3 className="font-bold text-white text-lg mb-2">Highest Referral Earnings on XRPL 💰</h3>
                               <p className="text-gray-400 text-sm mb-3">
-                                Refer friends and earn <span className="text-bear-green-400 font-bold">half of every swap fee</span> they pay — <span className="text-white font-black">paid immediately when the swap occurs</span>.
-                                That's <span className="text-white font-bold">2x better</span> than First Ledger's 20% referral cut!
+                                Earn <span className="text-bear-green-400 font-bold">50% of EVERY swap fee</span> your referrals pay — <span className="text-white font-black">paid instantly, on-chain, the moment they swap</span>.
                               </p>
+
+                              {/* Comparison Box */}
+                              <div className="mb-3 p-3 bg-bearpark-gold/10 rounded-lg border border-bearpark-gold/30">
+                                <p className="text-xs text-white font-bold mb-2">💵 Example: Friend swaps $10,000 in tokens</p>
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-xs text-gray-400">First Ledger (1.0% fee)</span>
+                                    <span className="text-xs text-gray-300">You earn: <span className="text-red-400 font-bold">$20</span> (20% cut)</span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-xs text-gray-400">Xaman / Joey (0.8% fee)</span>
+                                    <span className="text-xs text-gray-300">You earn: <span className="text-red-400 font-bold">$0</span> (no referrals)</span>
+                                  </div>
+                                  <div className="pt-1 border-t border-bearpark-gold/30">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-xs text-bearpark-gold font-bold">BEAR SWAP (0.7% fee)</span>
+                                      <span className="text-xs text-bear-green-400 font-bold">You earn: $35 (50% cut)</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <p className="text-xs text-bear-green-400 font-bold mt-2">
+                                  ↑ That's <span className="text-white">75% MORE</span> than First Ledger! ↑
+                                </p>
+                              </div>
+
                               <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-bear-green-500/10 rounded-lg border border-bear-green-500/30">
                                 <svg className="w-4 h-4 text-bear-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
-                                <p className="text-xs text-bear-green-300 font-semibold">No waiting. No delays. Instant on-chain payouts.</p>
+                                <p className="text-xs text-bear-green-300 font-semibold">No waiting. No delays. Instant XRP payouts on every swap.</p>
                               </div>
                               <a
                                 href="/referrals"
                                 className="text-bearpark-gold hover:text-bearpark-gold/80 text-sm font-semibold inline-flex items-center gap-1"
                               >
-                                Start Earning
-                                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
+                                Start Earning →
                               </a>
                             </div>
                           </div>
@@ -465,7 +486,7 @@ const App: React.FC = () => {
                     {/* Bottom CTA */}
                     <div className="text-center">
                       <p className="text-gray-500 text-sm">
-                        Same base fees as Xaman & Joey. <span className="text-bear-green-400 font-semibold">Cheaper with any BEAR NFT.</span> <span className="text-bearpark-gold font-bold">100% transparent.</span>
+                        Lower fees than Xaman & Joey. <span className="text-bear-green-400 font-semibold">Even cheaper with BEAR NFTs.</span> <span className="text-bearpark-gold font-bold">100% transparent.</span>
                       </p>
                     </div>
                   </div>
