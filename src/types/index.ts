@@ -14,18 +14,18 @@ export interface FeeConfig {
 export const FEE_TIERS: Record<FeeTier, FeeConfig> = {
   regular: {
     tier: 'regular',
-    rate: 0.00589,
-    label: '0.589%',
+    rate: 0.008,
+    label: '0.8%',
   },
   pixel_bear: {
     tier: 'pixel_bear',
-    rate: 0.00485,
-    label: '0.485%',
+    rate: 0.0065,
+    label: '0.65%',
   },
   ultra_rare: {
     tier: 'ultra_rare',
-    rate: 0.00321,
-    label: '0.321%',
+    rate: 0.005,
+    label: '0.5%',
   },
 };
 
