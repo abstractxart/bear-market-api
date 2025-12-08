@@ -39,7 +39,7 @@ export const applySecurityPolicy = (): void => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: https: blob:",
     "font-src 'self' data: https://fonts.gstatic.com",
-    "connect-src 'self' https://s1.ripple.com https://s2.ripple.com https://xrplcluster.com https://*.xrpl.org https://api.xrpl.to https://*.xrpl.to https://api.coingecko.com wss://s1.ripple.com wss://s2.ripple.com wss://xrplcluster.com wss://*.xrpl.org",
+    "connect-src 'self' https://s1.ripple.com https://s2.ripple.com https://xrplcluster.com https://*.xrpl.org https://api.xrpl.to https://*.xrpl.to https://api.coingecko.com https://bear-market-api-production.up.railway.app wss://s1.ripple.com wss://s2.ripple.com wss://xrplcluster.com wss://*.xrpl.org",
     "frame-ancestors 'none'",
     "form-action 'self'",
     "base-uri 'self'",
