@@ -1,7 +1,6 @@
 import { Client } from 'xrpl';
 import type { Token, SwapQuote, FeeTier } from '../types';
 import { getFeeRate } from './nftService';
-import { api } from './apiClient';
 
 /**
  * BEAR MARKET Swap Service

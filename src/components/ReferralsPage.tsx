@@ -1,25 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useWallet } from '../context/WalletContext';
-import { getUserReferralData, copyReferralLink, getReferralStats, type ReferralData, type ReferralStats } from '../services/referralService';
+import { getUserReferralData, copyReferralLink, type ReferralData } from '../services/referralService';
 
 const ReferralsPage: React.FC = () => {
   const { wallet } = useWallet();
   const [copySuccess, setCopySuccess] = useState(false);
   const [referralData, setReferralData] = useState<ReferralData | null>(null);
-  const [stats, setStats] = useState<ReferralStats>({ totalReferrals: 0, totalEarned: '0', pendingPayouts: '0' });
+  const [stats] = useState({ totalReferrals: 0, totalEarned: '0.000000', pendingPayouts: '0.000000' });
   const [loading, setLoading] = useState(true);
 
   // Fetch referral data when wallet connects
   useEffect(() => {
     if (wallet.isConnected && wallet.address) {
       setLoading(true);
-      Promise.all([
-        getUserReferralData(wallet.address),
-        getReferralStats(wallet.address)
-      ])
-        .then(([data, statsData]) => {
+      getUserReferralData(wallet.address)
+        .then((data) => {
           setReferralData(data);
-          setStats(statsData);
         })
         .catch(error => {
           console.error('[Referrals] Failed to fetch data:', error);
