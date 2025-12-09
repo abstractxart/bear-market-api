@@ -1,0 +1,29 @@
+{
+  "name": "bear-swap-backend",
+  "version": "1.0.0",
+  "description": "BEAR SWAP backend for token metadata management",
+  "main": "server.ts",
+  "scripts": {
+    "dev": "tsx watch server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "db:init": "psql $DATABASE_URL -f schema.sql",
+    "db:init-burn": "psql $DATABASE_URL -f burn-schema.sql"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1",
+    "xrpl": "^4.4.3",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/pg": "^8.10.9",
+    "@types/node": "^20.10.6",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

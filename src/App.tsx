@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { WalletProvider } from './context/WalletContext';
 import Header from './components/Header';
 import SwapCard from './components/SwapCard';
+import { BurnTracker } from './components/BurnTracker';
 import BearAttackMode from './components/BearAttackMode';
 import ReferralsPage from './components/ReferralsPage';
 import TokensPage from './pages/TokensPage';
@@ -135,6 +136,11 @@ const App: React.FC = () => {
                   {/* Swap card */}
                   <div className="flex justify-center">
                     <SwapCard />
+                  </div>
+
+                  {/* Burn Tracker - Live transparency */}
+                  <div className="max-w-4xl mx-auto mt-12 px-4">
+                    <BurnTracker />
                   </div>
 
                   {/* Fee tiers info - with background effects */}
