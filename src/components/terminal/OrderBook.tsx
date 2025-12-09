@@ -138,6 +138,9 @@ export const OrderBook: React.FC<OrderBookProps> = ({ token, onPriceClick: _onPr
         { currency: xrplCurrency, issuer: token.issuer }
       );
 
+      // Check if we need to invert prices (for RLUSD and other USD-pegged tokens)
+      const isUSDPegged = token.currency === 'RLUSD' || token.currency === 'USD';
+
       // Process ASKS (sell orders) - RED
       // Price = XRP they want / TOKEN they're selling
       const asks: OrderLevel[] = [];
@@ -153,10 +156,18 @@ export const OrderBook: React.FC<OrderBookProps> = ({ token, onPriceClick: _onPr
 
         // Filter dust orders - skip if below minimum XRP threshold
         if (tokenAmount > 0 && xrpAmount >= MIN_ORDER_XRP) {
-          const price = xrpAmount / tokenAmount; // XRP per token
+          let price = xrpAmount / tokenAmount; // XRP per token
+          // Invert price for USD-pegged tokens (show TOKEN/XRP instead of XRP/TOKEN)
+          if (isUSDPegged && price > 0) {
+            price = 1 / price;
+          }
           askCumulative += tokenAmount;
           askCumulativeXrp += xrpAmount;
-          const avgPrice = askCumulativeXrp / askCumulative;
+          let avgPrice = askCumulativeXrp / askCumulative;
+          // Invert average price for USD-pegged tokens
+          if (isUSDPegged && avgPrice > 0) {
+            avgPrice = 1 / avgPrice;
+          }
 
           asks.push({
             price,
@@ -185,10 +196,18 @@ export const OrderBook: React.FC<OrderBookProps> = ({ token, onPriceClick: _onPr
 
         // Filter dust orders AND spam orders (over 10M tokens)
         if (tokenAmount > 0 && xrpAmount >= MIN_ORDER_XRP && tokenAmount <= MAX_BUY_AMOUNT) {
-          const price = xrpAmount / tokenAmount; // XRP per token
+          let price = xrpAmount / tokenAmount; // XRP per token
+          // Invert price for USD-pegged tokens (show TOKEN/XRP instead of XRP/TOKEN)
+          if (isUSDPegged && price > 0) {
+            price = 1 / price;
+          }
           bidCumulative += tokenAmount;
           bidCumulativeXrp += xrpAmount;
-          const avgPrice = bidCumulativeXrp / bidCumulative;
+          let avgPrice = bidCumulativeXrp / bidCumulative;
+          // Invert average price for USD-pegged tokens
+          if (isUSDPegged && avgPrice > 0) {
+            avgPrice = 1 / avgPrice;
+          }
 
           bids.push({
             price,
@@ -216,7 +235,12 @@ export const OrderBook: React.FC<OrderBookProps> = ({ token, onPriceClick: _onPr
         askCumXrp += ask.total;
         ask.cumulative = askCum;
         ask.cumulativeXrp = askCumXrp;
-        ask.avgPrice = askCumXrp / askCum;
+        let avgPrice = askCumXrp / askCum;
+        // Invert average price for USD-pegged tokens
+        if (isUSDPegged && avgPrice > 0) {
+          avgPrice = 1 / avgPrice;
+        }
+        ask.avgPrice = avgPrice;
       }
       let bidCum = 0;
       let bidCumXrp = 0;
@@ -225,7 +249,12 @@ export const OrderBook: React.FC<OrderBookProps> = ({ token, onPriceClick: _onPr
         bidCumXrp += bid.total;
         bid.cumulative = bidCum;
         bid.cumulativeXrp = bidCumXrp;
-        bid.avgPrice = bidCumXrp / bidCum;
+        let avgPrice = bidCumXrp / bidCum;
+        // Invert average price for USD-pegged tokens
+        if (isUSDPegged && avgPrice > 0) {
+          avgPrice = 1 / avgPrice;
+        }
+        bid.avgPrice = avgPrice;
       }
 
       // Set state: sellOrders = ASKS (red), buyOrders = BIDS (green)
