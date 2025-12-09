@@ -3,7 +3,7 @@
  * Displays real-time LP token burning for fee transparency
  */
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface BurnTransaction {
   id: number;
