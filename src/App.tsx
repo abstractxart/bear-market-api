@@ -77,63 +77,54 @@ const App: React.FC = () => {
                       <div className="w-[500px] h-[400px] bg-bearpark-gold/5 rounded-full blur-[120px]"></div>
                     </div>
 
+                    {/* BEAR SWAP Logo with tri-gradient spinning border */}
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.6, ease: 'easeOut' }}
+                      className="relative w-28 h-28 mx-auto mb-8"
+                    >
+                      <div className="absolute inset-0 rounded-2xl bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></div>
+                      <div className="absolute inset-[3px] rounded-2xl bg-bear-dark-800 flex items-center justify-center overflow-hidden">
+                        <img
+                          src="https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/BEARSWAPLOGO3.png"
+                          alt="BEAR SWAP"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </motion.div>
+
+                    {/* Concise headline */}
                     <motion.h1
                       initial={{ opacity: 0, y: 30 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, ease: 'easeOut' }}
+                      transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
                       className="relative text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-6"
                     >
                       <span className="text-white">The</span>{' '}
                       <span className="text-gradient-bear">Lowest Fees</span>{' '}
                       <span className="text-white">on XRPL.</span>
                       <br />
-                      <motion.span
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.3, duration: 0.5 }}
-                        className="text-bear-green-400"
-                      >
-                        Highest Referral Payouts.
-                      </motion.span>
-                      <br />
-                      <motion.span
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.6, duration: 0.4 }}
-                        className="text-bearpark-gold font-luckiest inline-block"
-                      >
-                        Period.
-                      </motion.span>
+                      <span className="text-bear-green-400">Highest Referral Payouts</span>.{' '}
+                      <span className="text-bearpark-gold font-luckiest">Period</span>.
                     </motion.h1>
-                    {/* Value props - CRYSTAL CLEAR with proper spacing */}
+
+                    {/* Clean value props */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4, duration: 0.5 }}
-                      className="relative max-w-md mx-auto space-y-3 text-center px-4"
+                      className="relative max-w-2xl mx-auto space-y-4 text-center"
                     >
-                      {/* Fee comparison */}
-                      <p className="text-base md:text-lg text-gray-300">
-                        <span className="text-bearpark-gold font-bold">0.5% to 0.7% swap fees</span>
-                        <br />
-                        <span className="text-gray-400 text-sm">Competitors charge 0.8–1%+</span>
+                      {/* Concise bullet points */}
+                      <p className="text-lg text-gray-400">
+                        <span className="text-bearpark-gold font-bold">0.5%-0.7%</span> •
+                        <span className="text-bear-green-400 font-semibold"> 50% instant payouts</span> •
+                        <span className="text-bear-purple-400 font-semibold"> 50% to blackholed LP (100% if no referrer)</span>
                       </p>
 
-                      {/* Where fees go */}
-                      <div className="flex flex-col gap-2 py-2">
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-bear-purple-500"></span>
-                          <span className="text-bear-purple-400 font-semibold">50% → $BEAR Liquidity Pool</span>
-                        </div>
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-bear-green-500"></span>
-                          <span className="text-bear-green-400 font-semibold">50% → Referrers</span>
-                          <span className="text-white font-black text-sm bg-bear-green-500/20 px-2 py-0.5 rounded-full">PAID INSTANTLY</span>
-                        </div>
-                      </div>
-
-                      {/* Zero team cuts - emphasized */}
-                      <p className="text-white font-bold text-lg border-t border-bear-dark-600 pt-3">
+                      {/* Tagline */}
+                      <p className="text-white font-bold text-lg border-t border-bear-dark-600 pt-4 max-w-md mx-auto">
                         Zero team cuts. Ever.
                       </p>
                     </motion.div>
@@ -145,7 +136,7 @@ const App: React.FC = () => {
                   </div>
 
                   {/* Fee tiers info - with background effects */}
-                  <div className="relative max-w-2xl mx-auto mt-16 px-4">
+                  <div id="lower-fees" className="relative max-w-2xl mx-auto mt-16 px-4">
                     {/* Background orb for fee tiers */}
                     <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 bg-bear-purple-500/5 rounded-full blur-[80px] pointer-events-none"></div>
 
@@ -282,11 +273,21 @@ const App: React.FC = () => {
                     {/* Single Clean Comparison Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                       {/* First Ledger */}
-                      <div className="bg-bear-dark-800/50 backdrop-blur border border-red-500/30 rounded-2xl p-5">
-                        <h4 className="text-white font-semibold mb-3">First Ledger</h4>
-                        <div className="text-3xl font-black text-red-400 mb-1">1.0%</div>
-                        <div className="text-xs text-gray-500 mb-3">Swap Fee</div>
-                        <div className="space-y-2 text-sm">
+                      <div className="relative bg-bear-dark-800/50 backdrop-blur border border-red-500/30 rounded-2xl p-5 overflow-hidden">
+                        {/* Background logo with blur */}
+                        <div
+                          className="absolute inset-0 opacity-10 blur-sm"
+                          style={{
+                            backgroundImage: 'url(https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/FL.jpg)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                        ></div>
+                        <h4 className="text-white font-semibold mb-3 relative z-10">First Ledger</h4>
+                        <div className="text-3xl font-black text-red-400 mb-1 relative z-10">1.0%</div>
+                        <div className="text-xs text-gray-500 mb-3 relative z-10">Swap Fee</div>
+                        <div className="space-y-2 text-sm relative z-10">
                           <div className="flex justify-between text-xs">
                             <span className="text-gray-400">Referrer cut</span>
                             <span className="text-gray-300">20%</span>
@@ -296,17 +297,27 @@ const App: React.FC = () => {
                             <span className="text-red-400 font-semibold">0%</span>
                           </div>
                         </div>
-                        <div className="mt-3 pt-3 border-t border-bear-dark-600">
+                        <div className="mt-3 pt-3 border-t border-bear-dark-600 relative z-10">
                           <p className="text-red-400 text-[10px] font-medium">70% goes to team/unknown</p>
                         </div>
                       </div>
 
                       {/* Xaman */}
-                      <div className="bg-bear-dark-800/50 backdrop-blur border border-yellow-500/30 rounded-2xl p-5">
-                        <h4 className="text-white font-semibold mb-3">Xaman</h4>
-                        <div className="text-3xl font-black text-yellow-400 mb-1">0.8%</div>
-                        <div className="text-xs text-gray-500 mb-3">+ 0.09 XRP min</div>
-                        <div className="space-y-2 text-sm">
+                      <div className="relative bg-bear-dark-800/50 backdrop-blur border border-yellow-500/30 rounded-2xl p-5 overflow-hidden">
+                        {/* Background logo with blur */}
+                        <div
+                          className="absolute inset-0 opacity-10 blur-sm"
+                          style={{
+                            backgroundImage: 'url(https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/XAMAN%20LOGO.png)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                        ></div>
+                        <h4 className="text-white font-semibold mb-3 relative z-10">Xaman</h4>
+                        <div className="text-3xl font-black text-yellow-400 mb-1 relative z-10">0.8%</div>
+                        <div className="text-xs text-gray-500 mb-3 relative z-10">+ 0.09 XRP min</div>
+                        <div className="space-y-2 text-sm relative z-10">
                           <div className="flex justify-between text-xs">
                             <span className="text-gray-400">Referrer cut</span>
                             <span className="text-gray-500">None</span>
@@ -316,17 +327,27 @@ const App: React.FC = () => {
                             <span className="text-yellow-400 font-semibold">0%</span>
                           </div>
                         </div>
-                        <div className="mt-3 pt-3 border-t border-bear-dark-600">
+                        <div className="mt-3 pt-3 border-t border-bear-dark-600 relative z-10">
                           <p className="text-yellow-400/70 text-[10px] font-medium">100% to XRPL Labs</p>
                         </div>
                       </div>
 
                       {/* Joey Wallet */}
-                      <div className="bg-bear-dark-800/50 backdrop-blur border border-orange-500/30 rounded-2xl p-5">
-                        <h4 className="text-white font-semibold mb-3">Joey Wallet</h4>
-                        <div className="text-3xl font-black text-orange-400 mb-1">0.8%</div>
-                        <div className="text-xs text-gray-500 mb-3">Swap Fee</div>
-                        <div className="space-y-2 text-sm">
+                      <div className="relative bg-bear-dark-800/50 backdrop-blur border border-orange-500/30 rounded-2xl p-5 overflow-hidden">
+                        {/* Background logo with blur */}
+                        <div
+                          className="absolute inset-0 opacity-10 blur-sm"
+                          style={{
+                            backgroundImage: 'url(https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/JOEY.png)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                        ></div>
+                        <h4 className="text-white font-semibold mb-3 relative z-10">Joey Wallet</h4>
+                        <div className="text-3xl font-black text-orange-400 mb-1 relative z-10">0.8%</div>
+                        <div className="text-xs text-gray-500 mb-3 relative z-10">Swap Fee</div>
+                        <div className="space-y-2 text-sm relative z-10">
                           <div className="flex justify-between text-xs">
                             <span className="text-gray-400">Referrer cut</span>
                             <span className="text-gray-500">None</span>
@@ -336,7 +357,7 @@ const App: React.FC = () => {
                             <span className="text-orange-400 font-semibold">0%</span>
                           </div>
                         </div>
-                        <div className="mt-3 pt-3 border-t border-bear-dark-600">
+                        <div className="mt-3 pt-3 border-t border-bear-dark-600 relative z-10">
                           <p className="text-orange-400/70 text-[10px] font-medium">100% to Joey team</p>
                         </div>
                       </div>
@@ -344,15 +365,25 @@ const App: React.FC = () => {
                       {/* BEAR SWAP - Highlighted */}
                       <div className="relative rounded-2xl overflow-hidden sm:row-span-1">
                         <div className="absolute inset-0 bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></div>
-                        <div className="relative m-[2px] rounded-2xl bg-gradient-to-br from-bear-dark-900 to-bear-dark-800 p-5 h-full">
-                          <h4 className="text-white font-bold font-luckiest mb-3">BEAR SWAP</h4>
-                          <div className="flex items-baseline gap-1 mb-1">
+                        <div className="relative m-[2px] rounded-2xl bg-gradient-to-br from-bear-dark-900 to-bear-dark-800 p-5 h-full overflow-hidden">
+                          {/* Background logo with blur */}
+                          <div
+                            className="absolute inset-0 opacity-10 blur-sm"
+                            style={{
+                              backgroundImage: 'url(https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/BEARSWAPLOGO3.png)',
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              backgroundRepeat: 'no-repeat'
+                            }}
+                          ></div>
+                          <h4 className="text-white font-bold font-luckiest mb-3 relative z-10">BEAR SWAP</h4>
+                          <div className="flex items-baseline gap-1 mb-1 relative z-10">
                             <span className="text-3xl font-black text-bear-green-400">0.5</span>
                             <span className="text-lg font-bold text-gray-400">-</span>
                             <span className="text-3xl font-black text-bear-green-400">0.7%</span>
                           </div>
-                          <div className="text-xs text-bearpark-gold mb-3">$BEAR NFT holders get lower fees</div>
-                          <div className="space-y-2 text-sm">
+                          <div className="text-xs text-bearpark-gold mb-3 relative z-10">$BEAR NFT holders get lower fees</div>
+                          <div className="space-y-2 text-sm relative z-10">
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-400">Referrer cut</span>
                               <span className="text-bear-green-400 font-bold">50%</span>
@@ -362,7 +393,7 @@ const App: React.FC = () => {
                               <span className="text-bearpark-gold font-bold">50%</span>
                             </div>
                           </div>
-                          <div className="mt-3 pt-3 border-t border-bear-dark-600 space-y-1">
+                          <div className="mt-3 pt-3 border-t border-bear-dark-600 space-y-1 relative z-10">
                             <p className="text-bear-green-400 text-[10px] font-bold">No team cuts. Instant payouts.</p>
                             <p className="text-bearpark-gold text-[10px] font-bold">No referrer? 100% → $BEAR LP!</p>
                             <p className="text-red-400 text-[9px] mt-1 font-semibold">LP deposits = locked forever = $BEAR deflationary</p>
@@ -389,8 +420,18 @@ const App: React.FC = () => {
                         <div className="absolute inset-0 z-0 rounded-2xl bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] opacity-0 group-hover:opacity-100 group-hover:animate-spin-slow transition-opacity duration-300"></div>
                         {/* Static gradient border when not hovering */}
                         <div className="absolute inset-0 z-0 rounded-2xl bg-gradient-to-r from-[#680cd9] via-[#feb501] to-[#07ae08] group-hover:opacity-0 transition-opacity duration-300"></div>
-                        <div className="relative z-10 m-[2px] rounded-2xl bg-bear-dark-800 group-hover:bg-bear-dark-800/90 p-6 h-full transition-colors">
-                          <div className="flex items-start gap-4">
+                        <div
+                          className="relative z-10 m-[2px] rounded-2xl p-6 h-full transition-colors overflow-hidden"
+                          style={{
+                            backgroundImage: 'url(https://pub-58cecf0785cc4738a3496a79699fdf1e.r2.dev/images/BEAR%20CASH.gif)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat'
+                          }}
+                        >
+                          {/* Black opacity overlay */}
+                          <div className="absolute inset-0 bg-black/80 -z-10"></div>
+                          <div className="flex items-start gap-4 relative z-10">
                             <div className="w-12 h-12 rounded-xl bg-bear-green-500/20 group-hover:bg-bear-green-500/30 flex items-center justify-center flex-shrink-0 transition-colors">
                               <svg className="w-6 h-6 text-bear-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -463,7 +504,7 @@ const App: React.FC = () => {
                           }}
                         >
                           {/* Black opacity overlay */}
-                          <div className="absolute inset-0 bg-black/75 -z-10"></div>
+                          <div className="absolute inset-0 bg-black/80 -z-10"></div>
                           <div className="flex items-start gap-4 relative z-10">
                             <div className="w-12 h-12 rounded-xl bg-bearpark-gold/20 group-hover:bg-bearpark-gold/30 flex items-center justify-center flex-shrink-0 transition-colors">
                               <svg className="w-6 h-6 text-bearpark-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -1,21 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Token } from '../../types';
+import { fetchSwapsForToken, type Trade } from '../../services/xrplDirectService';
 
-// Export Trade interface for use by other components
-export interface Trade {
-  id: string;
-  type: 'buy' | 'sell';
-  price: number;
-  priceUsd: number;
-  amount: number;
-  amountXrp: number;
-  amountUsd: number;
-  maker: string;
-  timestamp: Date;
-  hash: string;
-  isNew?: boolean;
-}
+// Re-export Trade interface for use by other components
+export type { Trade };
 
 interface LiveTradesFeedProps {
   token: Token;
@@ -76,121 +65,48 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
     return `${addr.slice(0, 6)}`;
   };
 
-  // Convert currency to hex for DexScreener pair ID
-  const currencyToHex = (currency: string): string => {
-    if (currency.length === 40) return currency;
-    return currency.split('').map(c => c.charCodeAt(0).toString(16)).join('').padEnd(40, '0');
-  };
-
-  // Fetch trades from DexScreener API
-  const fetchDexScreenerTrades = async (): Promise<Trade[]> => {
-    try {
-      const currencyHex = currencyToHex(token.currency);
-      const pairId = `${currencyHex}.${token.issuer?.toLowerCase()}_xrp`;
-      const url = `https://api.dexscreener.com/latest/dex/pairs/xrpl/${pairId}`;
-
-      console.log('[LiveTradesFeed] Fetching from DexScreener:', url);
-
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const data = await response.json();
-      const pair = data.pair || data.pairs?.[0];
-
-      if (!pair) {
-        console.warn('[LiveTradesFeed] No pair data from DexScreener');
-        return [];
-      }
-
-      // DexScreener provides txns data but not individual trades
-      // We'll show summary stats instead
-      const txns = pair.txns || {};
-      const h24 = txns.h24 || {};
-
-      // Create mock trades from transaction data
-      const mockTrades: Trade[] = [];
-      const now = new Date();
-      const priceNative = parseFloat(pair.priceNative || '0');
-      const priceUsd = parseFloat(pair.priceUsd || '0');
-
-      // Generate representative trades based on volume
-      const buys = h24.buys || 0;
-      const sells = h24.sells || 0;
-
-      for (let i = 0; i < Math.min(buys, 50); i++) {
-        const timestamp = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
-        const amount = Math.random() * 10000;
-        const amountXrp = amount * priceNative;
-        const amountUsd = amount * priceUsd;
-
-        mockTrades.push({
-          id: `buy-${i}-${timestamp.getTime()}`,
-          type: 'buy',
-          price: priceNative,
-          priceUsd,
-          amount,
-          amountXrp,
-          amountUsd,
-          maker: `r${Math.random().toString(36).slice(2, 8)}...`,
-          timestamp,
-          hash: `0x${Math.random().toString(16).slice(2, 10)}...`,
-        });
-      }
-
-      for (let i = 0; i < Math.min(sells, 50); i++) {
-        const timestamp = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
-        const amount = Math.random() * 10000;
-        const amountXrp = amount * priceNative;
-        const amountUsd = amount * priceUsd;
-
-        mockTrades.push({
-          id: `sell-${i}-${timestamp.getTime()}`,
-          type: 'sell',
-          price: priceNative,
-          priceUsd,
-          amount,
-          amountXrp,
-          amountUsd,
-          maker: `r${Math.random().toString(36).slice(2, 8)}...`,
-          timestamp,
-          hash: `0x${Math.random().toString(16).slice(2, 10)}...`,
-        });
-      }
-
-      // Sort by timestamp
-      mockTrades.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-      console.log(`[LiveTradesFeed] Generated ${mockTrades.length} trades from DexScreener data`);
-      return mockTrades;
-
-    } catch (error) {
-      console.error('[LiveTradesFeed] DexScreener fetch error:', error);
-      return [];
-    }
-  };
-
-
-  // Initialize DexScreener trade polling
+  // Initialize XRPL trade polling - fetches 2+ days of transaction history (OfferCreate support added!)
   const initializeTradeStream = useCallback(async () => {
     if (token.currency === 'XRP' || !token.issuer) return;
 
     setIsLoading(true);
     setIsConnected(true);
 
+    // Fetch real trades from XRPL issuer account (last 3 days, fast query with ledger range)
+    const fetchRealTrades = async (): Promise<Trade[]> => {
+      try {
+        console.log('[LiveTradesFeed] Fetching real trades from XRPL...');
+        const trades = await fetchSwapsForToken(token.currency, token.issuer, 50);
+        console.log(`[LiveTradesFeed] Loaded ${trades.length} real trades from XRPL!`);
+        return trades;
+      } catch (error) {
+        console.error('[LiveTradesFeed] XRPL fetch error:', error);
+        return [];
+      }
+    };
+
     // Fetch initial trades
-    const initialTrades = await fetchDexScreenerTrades();
+    const initialTrades = await fetchRealTrades();
     setTrades(initialTrades);
     setIsLoading(false);
 
-    // Poll for updates every 30 seconds
+    // Poll for updates every 10 seconds
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
 
     pollIntervalRef.current = setInterval(async () => {
-      const updatedTrades = await fetchDexScreenerTrades();
-      setTrades(updatedTrades);
-    }, 30000); // 30 seconds to avoid rate limiting
+      const updatedTrades = await fetchRealTrades();
 
-    console.log('[LiveTradesFeed] DexScreener polling started (30s interval)');
+      // Mark new trades for animation
+      setTrades(prevTrades => {
+        const previousHashes = new Set(prevTrades.map(t => t.hash));
+        return updatedTrades.map(t => ({
+          ...t,
+          isNew: !previousHashes.has(t.hash)
+        }));
+      });
+    }, 10000); // 10 seconds for responsive updates
+
+    console.log('[LiveTradesFeed] XRPL polling started (10s interval)');
   }, [token.currency, token.issuer]);
 
   useEffect(() => {

@@ -288,10 +288,21 @@ const SwapCard: React.FC<SwapCardProps> = ({ presetOutputToken }) => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-white font-display">Swap</h2>
         <div className="flex items-center gap-2">
-          {/* Fee tier badge - rounded pill, purple */}
-          <span className="px-3 py-1 rounded-full text-sm font-bold bg-bear-purple-500 text-white">
+          {/* Fee tier badge - clickable pill that scrolls to lower fees section */}
+          <button
+            onClick={() => {
+              const element = document.getElementById('lower-fees');
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }}
+            className={`px-3 py-1 rounded-full text-sm font-bold bg-bear-purple-500 text-white hover:bg-bear-purple-400 transition-all cursor-pointer ${
+              wallet.feeTier === 'regular' ? 'animate-wiggle' : ''
+            }`}
+            title="Click to see how to get lower fees"
+          >
             {formatFeePercent(wallet.feeTier)} fee
-          </span>
+          </button>
           {/* Settings button */}
           <button
             onClick={() => setShowSettings(!showSettings)}

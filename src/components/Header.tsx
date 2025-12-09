@@ -142,12 +142,12 @@ const Header: React.FC = () => {
               ) : (
                 <button
                   onClick={() => setShowWalletConnect(true)}
-                  className="relative px-4 py-2 text-sm font-bold text-white rounded-full overflow-hidden group transition-all hover:scale-105 active:scale-95"
+                  className="relative px-6 py-3 text-lg font-black text-white rounded-full overflow-hidden group transition-all hover:scale-105 active:scale-95 animate-pulse-glow"
                 >
                   {/* Tri-gradient border */}
                   <span className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></span>
-                  <span className="absolute inset-[2px] rounded-full bg-bear-dark-800 group-hover:bg-bear-dark-700 transition-colors"></span>
-                  <span className="relative z-10">Connect</span>
+                  <span className="absolute inset-[2px] rounded-full bg-bear-green-500/20 group-hover:bg-bear-green-500/30 transition-colors"></span>
+                  <span className="relative z-10">Create/Connect Wallet</span>
                 </button>
               )}
             </div>
@@ -170,11 +170,11 @@ const Header: React.FC = () => {
               ) : (
                 <button
                   onClick={() => setShowWalletConnect(true)}
-                  className="relative px-3 py-1.5 text-xs font-bold text-white rounded-full overflow-hidden group"
+                  className="relative px-4 py-2 text-sm font-black text-white rounded-full overflow-hidden group transition-all hover:scale-105 active:scale-95 animate-pulse-glow"
                 >
                   <span className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></span>
-                  <span className="absolute inset-[2px] rounded-full bg-bear-dark-800"></span>
-                  <span className="relative z-10">Connect</span>
+                  <span className="absolute inset-[2px] rounded-full bg-bear-green-500/20 group-hover:bg-bear-green-500/30 transition-colors"></span>
+                  <span className="relative z-10">Create/Connect Wallet</span>
                 </button>
               )}
             </div>

@@ -65,6 +65,7 @@ export default {
         'slide-down': 'slide-down 0.3s ease-out',
         'fade-in': 'fade-in 0.2s ease-out',
         'bear-attack': 'bear-attack 0.5s ease-out',
+        'wiggle': 'wiggle 1.5s ease-in-out infinite',
       },
       keyframes: {
         'pulse-glow': {
@@ -87,6 +88,11 @@ export default {
           '0%': { transform: 'scale(1)' },
           '50%': { transform: 'scale(1.1)' },
           '100%': { transform: 'scale(1)' },
+        },
+        'wiggle': {
+          '0%, 100%': { transform: 'rotate(0deg)' },
+          '25%': { transform: 'rotate(-2deg)' },
+          '75%': { transform: 'rotate(2deg)' },
         },
       },
       backgroundImage: {
