@@ -139,11 +139,6 @@ const App: React.FC = () => {
                     <SwapCard />
                   </div>
 
-                  {/* Burn Tracker - Live transparency */}
-                  <div className="max-w-4xl mx-auto mt-12 px-4">
-                    <BurnTracker />
-                  </div>
-
                   {/* Fee tiers info - with background effects */}
                   <div id="lower-fees" className="relative max-w-2xl mx-auto mt-16 px-4">
                     {/* Background orb for fee tiers */}
