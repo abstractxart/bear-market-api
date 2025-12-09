@@ -7,6 +7,7 @@ import SwapCard from './components/SwapCard';
 import { BurnTracker } from './components/BurnTracker';
 import BearAttackMode from './components/BearAttackMode';
 import ReferralsPage from './components/ReferralsPage';
+import BurnPage from './pages/BurnPage';
 import TokensPage from './pages/TokensPage';
 import TokenTerminal from './pages/TokenTerminal';
 import { MnemonicChecksumHelper } from './components/MnemonicChecksumHelper';
@@ -554,6 +555,9 @@ const App: React.FC = () => {
 
               {/* Referrals page */}
               <Route path="/referrals" element={<ReferralsPage />} />
+
+              {/* Burn page */}
+              <Route path="/burn" element={<BurnPage />} />
 
               {/* Tokens leaderboard page */}
               <Route path="/tokens" element={<TokensPage />} />

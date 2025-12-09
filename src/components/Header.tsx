@@ -10,6 +10,7 @@ import { getKeyManager } from '../security/SecureKeyManager';
 const NAV_ITEMS = [
   { label: 'Tokens', path: '/tokens' },
   { label: 'Swap', path: '/' },
+  { label: '$BEAR Burn', path: '/burn' },
   { label: 'Referrals', path: '/referrals' },
   { label: 'Docs', href: 'https://docs.bearpark.xyz', external: true },
   { label: 'BEARpark', href: 'https://bearpark.xyz', external: true },
