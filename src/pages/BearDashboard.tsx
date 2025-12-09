@@ -8,6 +8,18 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Client } from 'xrpl';
 
+// Crossmark types
+declare global {
+  interface Window {
+    xrpl?: {
+      crossmark?: {
+        signInAndWait: () => Promise<{ response: { data: { address: string; publicKey: string } } }>;
+        signMessage: (params: { message: string }) => Promise<{ response: { data: { signature: string } } }>;
+      };
+    };
+  }
+}
+
 const TREASURY_WALLET = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 const BLACKHOLE_WALLET = 'rBEARmPLNA8CMu92P4vj95fkyCt1N4jrNm';
 const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
@@ -78,6 +90,102 @@ export default function BearDashboard() {
   const [txStatus, setTxStatus] = useState<string>('');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+
+  // Wallet Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string>('');
+
+  // Check for existing auth token on mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem('bear_admin_token');
+    const storedWallet = localStorage.getItem('bear_admin_wallet');
+    if (storedToken && storedWallet) {
+      setAuthToken(storedToken);
+      setWalletAddress(storedWallet);
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  // Connect wallet and authenticate
+  const handleConnectWallet = async () => {
+    try {
+      setAuthError('');
+
+      // Check if Crossmark is available
+      if (!window.xrpl || !window.xrpl.crossmark) {
+        setAuthError('Crossmark wallet not found. Please install Crossmark extension.');
+        return;
+      }
+
+      // Request wallet connection
+      const { response } = await window.xrpl.crossmark.signInAndWait();
+
+      if (!response || !response.data) {
+        setAuthError('Failed to connect wallet');
+        return;
+      }
+
+      const userWallet = response.data.address;
+      const publicKey = response.data.publicKey;
+
+      // Get auth challenge from backend
+      const challengeRes = await fetch(`${API_URL}/auth/challenge`);
+      const challengeData = await challengeRes.json();
+      const message = challengeData.data.message;
+
+      // Request signature from Crossmark
+      const signResult = await window.xrpl.crossmark.signMessage({
+        message,
+      });
+
+      if (!signResult.response || !signResult.response.data) {
+        setAuthError('Failed to sign message');
+        return;
+      }
+
+      const signature = signResult.response.data.signature;
+
+      // Verify signature with backend
+      const verifyRes = await fetch(`${API_URL}/auth/verify-wallet`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress: userWallet,
+          signature,
+          publicKey,
+        }),
+      });
+
+      const verifyData = await verifyRes.json();
+
+      if (verifyData.success) {
+        const token = verifyData.data.token;
+        localStorage.setItem('bear_admin_token', token);
+        localStorage.setItem('bear_admin_wallet', userWallet);
+        setAuthToken(token);
+        setWalletAddress(userWallet);
+        setIsAuthenticated(true);
+        setTxStatus('✅ Wallet connected successfully!');
+      } else {
+        setAuthError(verifyData.error || 'Wallet not authorized for admin access');
+      }
+    } catch (error: any) {
+      console.error('Wallet connection error:', error);
+      setAuthError(error.message || 'Failed to connect wallet');
+    }
+  };
+
+  // Disconnect wallet
+  const handleDisconnectWallet = () => {
+    localStorage.removeItem('bear_admin_token');
+    localStorage.removeItem('bear_admin_wallet');
+    setAuthToken(null);
+    setWalletAddress(null);
+    setIsAuthenticated(false);
+    setTxStatus('');
+  };
 
   // Fetch comprehensive data
   const fetchAllData = async () => {
@@ -231,6 +339,11 @@ export default function BearDashboard() {
 
   // Manual burn LP tokens - backend call
   const handleBurnLP = async () => {
+    if (!authToken) {
+      setTxStatus('❌ Please connect your wallet first');
+      return;
+    }
+
     setLoading(true);
     setTxStatus('🔄 Burning LP tokens...');
 
@@ -239,6 +352,7 @@ export default function BearDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
         },
       });
 
@@ -259,6 +373,11 @@ export default function BearDashboard() {
 
   // Manual convert XRP to LP - backend call
   const handleConvertXRP = async () => {
+    if (!authToken) {
+      setTxStatus('❌ Please connect your wallet first');
+      return;
+    }
+
     setLoading(true);
     setTxStatus('🔄 Converting XRP to LP tokens...');
 
@@ -267,6 +386,7 @@ export default function BearDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
         },
       });
 
@@ -316,6 +436,36 @@ export default function BearDashboard() {
             🐻 <span className="text-gradient-bear">BEAR</span> Admin Dashboard
           </h1>
           <p className="text-gray-400 mb-4">Complete Manual Control & Real-Time Analytics</p>
+
+          {/* Wallet Connection */}
+          {!isAuthenticated ? (
+            <div className="mb-6">
+              <button
+                onClick={handleConnectWallet}
+                className="px-6 py-3 bg-gradient-to-r from-bearpark-gold to-yellow-500 text-black font-bold rounded-lg hover:from-yellow-500 hover:to-bearpark-gold transition-all shadow-lg"
+              >
+                🔐 Connect Wallet to Access Admin Functions
+              </button>
+              {authError && (
+                <div className="mt-4 px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm max-w-md mx-auto">
+                  ❌ {authError}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mb-6">
+              <div className="inline-flex items-center gap-3 px-4 py-2 bg-bear-green-500/20 border border-bear-green-500/30 rounded-lg">
+                <span className="text-bear-green-400 text-sm font-semibold">✓ Connected:</span>
+                <span className="text-white text-sm font-mono">{walletAddress}</span>
+                <button
+                  onClick={handleDisconnectWallet}
+                  className="px-3 py-1 bg-red-500/20 text-red-400 text-xs rounded hover:bg-red-500/30 transition-colors"
+                >
+                  Disconnect
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Controls */}
           <div className="flex items-center justify-center gap-6 text-sm">
@@ -565,7 +715,7 @@ export default function BearDashboard() {
           <div className="grid md:grid-cols-2 gap-4">
             <button
               onClick={handleConvertXRP}
-              disabled={loading || !balances || parseFloat(balances.xrp) <= 1.1}
+              disabled={!isAuthenticated || loading || !balances || parseFloat(balances.xrp) <= 1.1}
               className="px-6 py-4 bg-blue-500 text-white rounded-xl font-bold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               💎 Convert XRP → LP Tokens
@@ -573,12 +723,18 @@ export default function BearDashboard() {
 
             <button
               onClick={handleBurnLP}
-              disabled={loading || !balances?.lpTokens}
+              disabled={!isAuthenticated || loading || !balances?.lpTokens}
               className="px-6 py-4 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               🔥 Burn LP → Blackhole
             </button>
           </div>
+
+          {!isAuthenticated && (
+            <div className="mt-4 text-center text-orange-400 text-sm">
+              ⚠️ Connect your wallet above to enable manual burn controls
+            </div>
+          )}
 
           <div className="mt-4 p-4 bg-bear-green-500/10 rounded-lg border border-bear-green-500/30">
             <p className="text-xs text-bear-green-400 text-center font-semibold">

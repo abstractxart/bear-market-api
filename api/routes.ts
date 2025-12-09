@@ -7,6 +7,7 @@ import { getTokenMetadata, updateTokenMetadata, setCTOWallet } from './tokenMeta
 import { initiateKickOAuth, handleKickCallback, verifyKickChannel } from './kickOAuth';
 import { getRecentBurnTransactions, getBurnStatistics } from './burnRoutes';
 import { manualConvertXRP, manualBurnLP } from './adminRoutes';
+import { verifyWalletAuth, verifyWalletSignature, getAuthChallenge } from './authMiddleware';
 
 const router = express.Router();
 
@@ -24,8 +25,12 @@ router.post('/kick/verify', verifyKickChannel);
 router.get('/burn/recent', getRecentBurnTransactions);
 router.get('/burn/stats', getBurnStatistics);
 
-// Admin Routes (NO PASSWORD - OPEN ACCESS)
-router.post('/admin/convert-xrp', manualConvertXRP);
-router.post('/admin/burn-lp', manualBurnLP);
+// Authentication Routes
+router.get('/auth/challenge', getAuthChallenge);
+router.post('/auth/verify-wallet', verifyWalletSignature);
+
+// Admin Routes (WALLET-PROTECTED)
+router.post('/admin/convert-xrp', verifyWalletAuth, manualConvertXRP);
+router.post('/admin/burn-lp', verifyWalletAuth, manualBurnLP);
 
 export default router;
