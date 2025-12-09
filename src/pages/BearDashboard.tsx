@@ -11,6 +11,7 @@ import { Client } from 'xrpl';
 const TREASURY_WALLET = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 const BLACKHOLE_WALLET = 'rBEARmPLNA8CMu92P4vj95fkyCt1N4jrNm';
 const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
+const BEAR_CURRENCY = '4245415200000000000000000000000000000000'; // "BEAR" in hex format
 const API_URL = import.meta.env.VITE_API_URL ||
   (import.meta.env.MODE === 'production'
     ? 'https://bear-market-api-production.up.railway.app/api'
@@ -98,7 +99,7 @@ export default function BearDashboard() {
       const ammData = await client.request({
         command: 'amm_info',
         asset: {
-          currency: 'BEAR',
+          currency: BEAR_CURRENCY,
           issuer: BEAR_ISSUER,
         },
         asset2: {
@@ -127,7 +128,7 @@ export default function BearDashboard() {
 
         const bearLine = treasuryLines.result.lines.find(
           (line: any) =>
-            line.currency === 'BEAR' &&
+            line.currency === BEAR_CURRENCY &&
             line.account === BEAR_ISSUER
         );
 

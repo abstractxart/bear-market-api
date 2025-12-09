@@ -11,6 +11,7 @@ import { logBurnTransaction } from './db';
 const TREASURY_WALLET = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 const BLACKHOLE_WALLET = 'rBEARmPLNA8CMu92P4vj95fkyCt1N4jrNm';
 const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
+const BEAR_CURRENCY = '4245415200000000000000000000000000000000'; // "BEAR" in hex format
 const TREASURY_WALLET_SECRET = process.env.TREASURY_WALLET_SECRET;
 
 /**
@@ -55,7 +56,7 @@ export async function manualConvertXRP(req: Request, res: Response) {
       TransactionType: 'AMMDeposit',
       Account: wallet.address,
       Asset: {
-        currency: 'BEAR',
+        currency: BEAR_CURRENCY,
         issuer: BEAR_ISSUER,
       },
       Asset2: {
@@ -156,7 +157,7 @@ export async function manualBurnLP(req: Request, res: Response) {
     const ammInfo = await client.request({
       command: 'amm_info',
       asset: {
-        currency: 'BEAR',
+        currency: BEAR_CURRENCY,
         issuer: BEAR_ISSUER,
       },
       asset2: {

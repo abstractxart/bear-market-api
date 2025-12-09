@@ -7,7 +7,7 @@ import { Client, Wallet, xrpToDrops } from 'xrpl';
 
 // BEAR Token Details
 const BEAR_TOKEN = {
-  currency: 'BEAR',
+  currency: '4245415200000000000000000000000000000000', // "BEAR" in hex format
   issuer: 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW',
 };
 
