@@ -8,6 +8,8 @@ import BearAttackMode from './components/BearAttackMode';
 import ReferralsPage from './components/ReferralsPage';
 import TokensPage from './pages/TokensPage';
 import TokenTerminal from './pages/TokenTerminal';
+import { MnemonicChecksumHelper } from './components/MnemonicChecksumHelper';
+import { LocalStorageRecovery } from './components/LocalStorageRecovery';
 import { getReferralCodeFromURL, storeReferralCode } from './services/referralService';
 import { preloadLeaderboardTokens } from './services/tokenLeaderboardService';
 
@@ -552,6 +554,10 @@ const App: React.FC = () => {
 
               {/* Token Terminal - Trading Interface */}
               <Route path="/tokens/:currency/:issuer?" element={<TokenTerminal />} />
+
+              {/* Checksum Helper - Wallet Recovery Tool */}
+              <Route path="/checksum-helper" element={<MnemonicChecksumHelper />} />
+              <Route path="/recover-wallet" element={<LocalStorageRecovery />} />
             </Routes>
           </main>
 

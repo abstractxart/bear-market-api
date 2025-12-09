@@ -31,6 +31,7 @@ import {
   logSecurityEvent,
   isSecureContext,
 } from '../security/SecurityPolicy';
+import { MnemonicChecksumHelper } from './MnemonicChecksumHelper';
 
 interface SecureWalletConnectProps {
   isOpen: boolean;
@@ -81,6 +82,12 @@ export const SecureWalletConnect = ({
   const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
+  // MANDATORY mnemonic verification - prevents user from proceeding without proving they wrote it down
+  const [mnemonicVerified, setMnemonicVerified] = useState(false);
+  const [verificationWords, setVerificationWords] = useState<Array<{ index: number; word: string }>>([]);
+  const [verificationInputs, setVerificationInputs] = useState<string[]>(['', '', '']);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+
   // Import method states
   type ImportMethod = 'family-seed' | 'mnemonic' | 'private-key' | 'xaman-numbers';
   const [importMethod, setImportMethod] = useState<ImportMethod>('family-seed');
@@ -88,6 +95,7 @@ export const SecureWalletConnect = ({
   const [mnemonicWordCount, setMnemonicWordCount] = useState<12 | 16 | 24>(12);
   const [mnemonicWords, setMnemonicWords] = useState<string[]>(Array(12).fill(''));
   const [xamanNumbers, setXamanNumbers] = useState<string[]>(Array(8).fill(''));
+  const [showChecksumHelper, setShowChecksumHelper] = useState(false);
 
   // Update mnemonic words array when word count changes
   useEffect(() => {
@@ -133,6 +141,7 @@ export const SecureWalletConnect = ({
       setPendingSecret(null);
       setPendingAddress(null);
       setShowDeleteConfirmation(false);
+      setShowChecksumHelper(false);
     }
   }, [isOpen]);
 
@@ -223,6 +232,28 @@ export const SecureWalletConnect = ({
         seed: wallet.seed!, // Keep seed for encryption/storage
         mnemonic: mnemonic, // Store mnemonic for display
       });
+
+      // Generate 3 random word positions for MANDATORY verification
+      const words = mnemonic.split(' ');
+      const indices: number[] = [];
+      while (indices.length < 3) {
+        const randomIndex = Math.floor(Math.random() * 12);
+        if (!indices.includes(randomIndex)) {
+          indices.push(randomIndex);
+        }
+      }
+      indices.sort((a, b) => a - b); // Sort for better UX
+
+      setVerificationWords(
+        indices.map(index => ({
+          index,
+          word: words[index]
+        }))
+      );
+      setVerificationInputs(['', '', '']);
+      setMnemonicVerified(false);
+      setVerificationError(null);
+
       setMode('instant-wallet');
       logSecurityEvent('wallet_created', `New wallet: ${wallet.classicAddress.slice(0, 8)}...`);
     } catch (err) {
@@ -246,9 +277,37 @@ export const SecureWalletConnect = ({
     }
   };
 
+  // MANDATORY verification - user must type 3 random words correctly
+  const handleVerifyMnemonic = () => {
+    setVerificationError(null);
+
+    // Check each word
+    for (let i = 0; i < 3; i++) {
+      const input = verificationInputs[i].trim().toLowerCase();
+      const expected = verificationWords[i].word.toLowerCase();
+
+      if (input !== expected) {
+        setVerificationError(
+          `Word #${verificationWords[i].index + 1} is incorrect. Please check your written phrase and try again.`
+        );
+        return;
+      }
+    }
+
+    // All words match!
+    setMnemonicVerified(true);
+    setVerificationError(null);
+    logSecurityEvent('mnemonic_verified', 'User successfully verified mnemonic phrase');
+  };
+
   // Complete instant wallet - shows confirmation first
   const handleInstantConnect = async () => {
     if (!newWallet) return;
+
+    if (!mnemonicVerified) {
+      setError('Please verify your recovery phrase first by entering the requested words.');
+      return;
+    }
 
     if (!seedAcknowledged) {
       setError('Please confirm you saved your secret key');
@@ -305,9 +364,24 @@ export const SecureWalletConnect = ({
             throw new Error(`Invalid mnemonic length. Expected 12, 16, or 24 words, got ${wordArray.length}`);
           }
 
-          // Let Wallet.fromMnemonic handle validation directly (same as XAMAN)
-          // XRPL uses its own validation, not standard BIP39
-          // This allows XRPL-compatible mnemonics that may not be in the standard BIP39 word list
+          // Validate each word is in the BIP39 wordlist
+          const wordlist = bip39.wordlists.english;
+          const invalidWords = wordArray.filter(word => !wordlist.includes(word));
+          if (invalidWords.length > 0) {
+            throw new Error(
+              `Invalid word${invalidWords.length > 1 ? 's' : ''} not in BIP39 wordlist: ${invalidWords.join(', ')}. ` +
+              `Please check your spelling.`
+            );
+          }
+
+          // CRITICAL: Validate BIP39 checksum BEFORE attempting wallet creation
+          if (!bip39.validateMnemonic(words)) {
+            throw new Error(
+              'Invalid mnemonic checksum. The last word contains a checksum that doesn\'t match. ' +
+              'Please verify you wrote down all 12 words correctly, especially the last word. ' +
+              'Would you like help finding the correct last word?'
+            );
+          }
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const opts: any = {};
@@ -323,6 +397,10 @@ export const SecureWalletConnect = ({
           return words;
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Invalid mnemonic phrase';
+          // If it's a checksum error, offer the helper tool
+          if (message.includes('checksum')) {
+            setShowChecksumHelper(true);
+          }
           throw new Error(message);
         }
 
@@ -1470,17 +1548,135 @@ export const SecureWalletConnect = ({
               ))}
             </div>
 
-            {/* Warning box */}
-            <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-orange-500/10 to-red-500/10 rounded-xl border border-orange-500/30">
-              <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+            {/* Enhanced Warning box with specific instructions */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-xl border-2 border-red-500/50">
+                <div className="w-8 h-8 rounded-lg bg-red-500/30 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs text-red-200 font-bold uppercase tracking-wide">
+                    Critical - Write Down EXACTLY
+                  </p>
+                  <ul className="text-xs text-orange-200 leading-relaxed space-y-1">
+                    <li>• Write down <strong className="text-white">ALL 12 words</strong> in the <strong className="text-white">EXACT order</strong> shown</li>
+                    <li>• Double-check <strong className="text-white">each word's spelling</strong> - one wrong letter = different wallet</li>
+                    <li>• The <strong className="text-white">last word (#12)</strong> contains a checksum - it's not random!</li>
+                    <li>• Write on <strong className="text-white">paper</strong> - do NOT take a screenshot</li>
+                    <li>• This is the <strong className="text-white">ONLY</strong> way to recover your wallet</li>
+                  </ul>
+                </div>
               </div>
-              <p className="text-xs text-orange-200 leading-relaxed">
-                <strong className="text-orange-400">Write these 12 words down</strong> in order and store them safely. This is the <span className="text-white font-bold">ONLY</span> way to recover your wallet!
-              </p>
             </div>
+          </div>
+        </motion.div>
+
+        {/* MANDATORY VERIFICATION - User MUST prove they wrote it down correctly */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+          className="relative"
+        >
+          <div className={`relative p-5 rounded-2xl border-2 transition-all duration-500 ${
+            mnemonicVerified
+              ? 'bg-gradient-to-br from-bear-green-500/10 to-emerald-500/10 border-bear-green-500/50 shadow-lg shadow-bear-green-500/20'
+              : 'bg-gradient-to-br from-bear-purple-500/10 to-blue-500/10 border-bear-purple-500/50 shadow-lg shadow-bear-purple-500/20'
+          }`}>
+            {/* Verification header */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-all ${
+                mnemonicVerified
+                  ? 'bg-bear-green-500/20 border-bear-green-500/30'
+                  : 'bg-bear-purple-500/20 border-bear-purple-500/30'
+              }`}>
+                {mnemonicVerified ? (
+                  <svg className="w-5 h-5 text-bear-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-bear-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+              </div>
+              <div className="flex-1">
+                <h4 className={`text-sm font-bold uppercase tracking-widest ${
+                  mnemonicVerified ? 'text-bear-green-400' : 'text-bear-purple-400'
+                }`}>
+                  {mnemonicVerified ? '✓ Verified!' : 'Verification Required'}
+                </h4>
+                <p className="text-xs text-gray-400">
+                  {mnemonicVerified ? 'You may proceed' : 'Prove you wrote down the correct words'}
+                </p>
+              </div>
+            </div>
+
+            {!mnemonicVerified && (
+              <>
+                <p className="text-sm text-gray-300 mb-4">
+                  Enter the following words from your recovery phrase to verify you wrote them down correctly:
+                </p>
+
+                {/* Verification inputs */}
+                <div className="space-y-3 mb-4">
+                  {verificationWords.map((wordData, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-sm text-gray-400 font-bold w-20">
+                        Word #{wordData.index + 1}:
+                      </span>
+                      <input
+                        type="text"
+                        value={verificationInputs[i]}
+                        onChange={(e) => {
+                          const newInputs = [...verificationInputs];
+                          newInputs[i] = e.target.value;
+                          setVerificationInputs(newInputs);
+                          setVerificationError(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleVerifyMnemonic();
+                          }
+                        }}
+                        placeholder={`Enter word #${wordData.index + 1}`}
+                        className="flex-1 bg-bear-dark-700 text-white px-4 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-bear-purple-500 border border-bear-dark-600"
+                        autoComplete="off"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Verification error */}
+                {verificationError && (
+                  <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-sm text-red-300 mb-4">
+                    {verificationError}
+                  </div>
+                )}
+
+                {/* Verify button */}
+                <button
+                  onClick={handleVerifyMnemonic}
+                  disabled={verificationInputs.some(input => !input.trim())}
+                  className="w-full bg-bear-purple-500 hover:bg-bear-purple-600 text-white font-bold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Verify Words
+                </button>
+              </>
+            )}
+
+            {mnemonicVerified && (
+              <div className="flex items-center gap-3 p-4 bg-bear-green-500/20 rounded-lg border border-bear-green-500/30">
+                <svg className="w-6 h-6 text-bear-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm text-bear-green-300 font-semibold">
+                  Recovery phrase verified! You may now proceed to secure your wallet.
+                </span>
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -1555,10 +1751,10 @@ export const SecureWalletConnect = ({
         >
           <motion.button
             onClick={handleInstantConnect}
-            disabled={loading || !seedAcknowledged}
+            disabled={loading || !mnemonicVerified || !seedAcknowledged}
             className="relative w-full py-5 rounded-full font-black text-xl text-white overflow-hidden group transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={!loading && seedAcknowledged ? { scale: 1.02 } : {}}
-            whileTap={!loading && seedAcknowledged ? { scale: 0.98 } : {}}
+            whileHover={!loading && mnemonicVerified && seedAcknowledged ? { scale: 1.02 } : {}}
+            whileTap={!loading && mnemonicVerified && seedAcknowledged ? { scale: 0.98 } : {}}
           >
             {/* Spinning tri-gradient border - PRIMO AS FUCK */}
             <span className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></span>
@@ -1950,11 +2146,29 @@ export const SecureWalletConnect = ({
           </div>
 
           {error && (
-            <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300 flex items-center gap-2 mt-4">
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              {error}
+            <div className="mt-4 space-y-3">
+              <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 text-sm text-red-300 flex items-center gap-2">
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                {error}
+              </div>
+
+              {/* Checksum Recovery Helper Button */}
+              {showChecksumHelper && importMethod === 'mnemonic' && (
+                <button
+                  onClick={() => {
+                    // Open checksum helper in a new modal/page
+                    window.open('/checksum-helper', '_blank');
+                  }}
+                  className="w-full bg-bear-gold-500 hover:bg-bear-gold-600 text-bear-dark-900 font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Find Correct Last Word
+                </button>
+              )}
             </div>
           )}
 
