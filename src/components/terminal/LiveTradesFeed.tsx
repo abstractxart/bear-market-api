@@ -262,11 +262,11 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
                   <div className="absolute right-0 h-full flex items-center justify-end" style={{ width: '100%' }}>
                     <div
                       className={`h-full rounded-sm transition-all ${
-                        trade.type === 'buy' ? 'bg-bear-green-500/10' : 'bg-red-500/10'
+                        trade.type === 'buy' ? 'bg-bear-green-500/30' : 'bg-red-500/30'
                       }`}
                       style={{
                         width: `${(trade.amountUsd / maxUsdValue) * 100}%`,
-                        minWidth: '20px'
+                        minWidth: '2px'
                       }}
                     />
                   </div>
