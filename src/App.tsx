@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { WalletProvider } from './context/WalletContext';
 import Header from './components/Header';
 import SwapCard from './components/SwapCard';
-import { BurnTracker } from './components/BurnTracker';
 import BearAttackMode from './components/BearAttackMode';
 import ReferralsPage from './components/ReferralsPage';
 import BurnPage from './pages/BurnPage';
