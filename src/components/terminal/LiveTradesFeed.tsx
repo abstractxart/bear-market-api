@@ -187,8 +187,9 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
 
       {/* Column Headers - DexScreener Style - Horizontally scrollable */}
       <div className="overflow-x-auto border-b border-bear-dark-700 bg-bear-dark-900/50">
-        <div className="grid grid-cols-[minmax(100px,1fr)_minmax(70px,0.8fr)_minmax(80px,1fr)_minmax(100px,1.2fr)_minmax(90px,1fr)_minmax(100px,1.2fr)_minmax(90px,1fr)_60px] gap-4 px-5 py-3 text-sm font-semibold text-gray-500" style={{ minWidth: '800px' }}>
-          <span>DATE</span>
+        <div className="grid grid-cols-[4px_minmax(100px,1fr)_minmax(70px,0.8fr)_minmax(80px,1fr)_minmax(100px,1.2fr)_minmax(90px,1fr)_minmax(100px,1.2fr)_minmax(90px,1fr)_60px] gap-4 py-3 text-sm font-semibold text-gray-500" style={{ minWidth: '800px' }}>
+          <span></span> {/* Bar column */}
+          <span className="pl-5">DATE</span>
           <span>TYPE</span>
           <span className="text-right">USD</span>
           <span className="text-right">{token.symbol || token.currency}</span>
@@ -200,7 +201,7 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
           </span>
-          <span className="text-right">TXN</span>
+          <span className="text-right pr-5">TXN</span>
         </div>
       </div>
 
@@ -229,12 +230,25 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
                 animate={{ opacity: 1, y: 0, backgroundColor: 'transparent' }}
                 transition={{ duration: 0.3 }}
                 style={{ minWidth: '800px' }}
-                className={`grid grid-cols-[minmax(100px,1fr)_minmax(70px,0.8fr)_minmax(80px,1fr)_minmax(100px,1.2fr)_minmax(90px,1fr)_minmax(100px,1.2fr)_minmax(90px,1fr)_60px] gap-4 px-5 py-4 text-sm hover:bg-bear-dark-700/30 transition-colors border-b border-bear-dark-700/50 ${
+                className={`grid grid-cols-[4px_minmax(100px,1fr)_minmax(70px,0.8fr)_minmax(80px,1fr)_minmax(100px,1.2fr)_minmax(90px,1fr)_minmax(100px,1.2fr)_minmax(90px,1fr)_60px] gap-4 py-3 text-sm hover:bg-bear-dark-700/30 transition-colors border-b border-bear-dark-700/50 ${
                   trade.type === 'buy' ? 'hover:bg-bear-green-500/5' : 'hover:bg-red-500/5'
                 }`}
               >
+                {/* DEXScreener-Style Volume Bar on LEFT */}
+                <div className="relative">
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 rounded-r-sm transition-all ${
+                      trade.type === 'buy' ? 'bg-bear-green-400' : 'bg-red-400'
+                    }`}
+                    style={{
+                      width: '4px',
+                      opacity: Math.max(0.3, (trade.amountUsd / maxUsdValue))
+                    }}
+                  />
+                </div>
+
                 {/* Date */}
-                <span className="text-gray-400 text-sm">
+                <span className="text-gray-400 text-sm pl-5">
                   {formatTime(trade.timestamp)}
                 </span>
 
@@ -243,23 +257,10 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
                   {trade.type === 'buy' ? 'Buy' : 'Sell'}
                 </span>
 
-                {/* USD with Volume Bar */}
-                <div className="relative flex items-center justify-end">
-                  <div className="absolute right-0 h-5 flex items-center justify-end" style={{ width: '100%' }}>
-                    <div
-                      className={`h-5 rounded-sm transition-all ${
-                        trade.type === 'buy' ? 'bg-bear-green-500/20' : 'bg-red-500/20'
-                      }`}
-                      style={{
-                        width: `${(trade.amountUsd / maxUsdValue) * 100}%`,
-                        minWidth: '20px'
-                      }}
-                    />
-                  </div>
-                  <span className="relative z-10 text-gray-300 font-mono text-sm px-2">
-                    {formatUsd(trade.amountUsd)}
-                  </span>
-                </div>
+                {/* USD */}
+                <span className="text-right text-gray-300 font-mono text-sm">
+                  {formatUsd(trade.amountUsd)}
+                </span>
 
                 {/* Token Amount */}
                 <span className={`text-right font-mono text-sm ${trade.type === 'buy' ? 'text-bear-green-400' : 'text-red-400'}`}>
@@ -299,7 +300,7 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
                   href={`https://xrpscan.com/tx/${trade.hash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-right text-gray-500 hover:text-bearpark-gold transition-colors flex items-center justify-end"
+                  className="text-right text-gray-500 hover:text-bearpark-gold transition-colors flex items-center justify-end pr-5"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
