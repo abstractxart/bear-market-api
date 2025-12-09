@@ -139,7 +139,7 @@ export const handleKickCallback = async (req: Request, res: Response) => {
       throw new Error('Failed to exchange code for token');
     }
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = await tokenResponse.json() as any;
     const accessToken = tokenData.access_token;
 
     console.log('[Kick OAuth] Token exchange successful, fetching user channels...');
@@ -158,7 +158,7 @@ export const handleKickCallback = async (req: Request, res: Response) => {
       throw new Error('Failed to get channel info');
     }
 
-    const channelsData = await channelsResponse.json();
+    const channelsData = await channelsResponse.json() as any;
     const channel = channelsData.data?.[0]; // Get first channel
 
     if (!channel) {
