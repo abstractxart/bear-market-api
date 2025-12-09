@@ -8,9 +8,7 @@ interface TokenMetricsBarProps {
 }
 
 export const TokenMetricsBar: React.FC<TokenMetricsBarProps> = ({
-  token,
   priceChange24h,
-  volume24h,
 }) => {
   // Mock data for now - these would come from real API calls
   const metrics = {

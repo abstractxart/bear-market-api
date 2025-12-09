@@ -190,16 +190,18 @@ const TokenTerminal: React.FC = () => {
         const allTokens = await getAllTokens();
         const isBear = currentToken.currency === 'BEAR' && currentToken.issuer === 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
 
+        let rank = 0;
         if (isBear) {
           // BEAR is always #1!
-          setTokenRank(1);
+          rank = 1;
         } else {
           // Find token's rank in sorted array
           const tokenIndex = allTokens.findIndex(
             t => t.currency === currentToken.currency && t.issuer === currentToken.issuer
           );
-          setTokenRank(tokenIndex >= 0 ? tokenIndex + 1 : 0); // +1 for 1-based ranking
+          rank = tokenIndex >= 0 ? tokenIndex + 1 : 0; // +1 for 1-based ranking
         }
+        setTokenRank(rank);
 
         // Fetch real supply from XRPL
         const supply = await getTokenSupply(currentToken.currency, currentToken.issuer);
@@ -208,7 +210,7 @@ const TokenTerminal: React.FC = () => {
           total: supply, // For now, circulating = total (can be different for some tokens)
         });
 
-        console.log(`[TokenTerminal] Token rank: ${isBear ? 1 : tokenIndex + 1}, Supply: ${supply.toLocaleString()}`);
+        console.log(`[TokenTerminal] Token rank: ${rank}, Supply: ${supply.toLocaleString()}`);
       } catch (error) {
         console.error('[TokenTerminal] Failed to fetch rank/supply:', error);
       }

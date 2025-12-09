@@ -10,7 +10,6 @@ import { Client, Wallet } from 'xrpl';
 
 const TREASURY_WALLET = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 const BLACKHOLE_WALLET = 'rBEARmPLNA8CMu92P4vj95fkyCt1N4jrNm';
-const BEAR_AMM_ACCOUNT = 'rwE86ARLXfyKYCVmFpk511ddYfs5Fh6Vcp';
 const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -184,8 +183,8 @@ export default function BearDashboard() {
 
       setAmmInfo({
         ammAccountId: amm.account,
-        amount: amm.amount,
-        amount2: amm.amount2,
+        amount: typeof amm.amount === 'string' ? amm.amount : amm.amount.value,
+        amount2: typeof amm.amount2 === 'string' ? amm.amount2 : amm.amount2.value,
         lpTokenBalance: amm.lp_token.value,
         tradingFee: amm.trading_fee,
         auctionSlot: amm.auction_slot,
@@ -355,10 +354,6 @@ export default function BearDashboard() {
   // Calculate some extra metrics
   const totalLPLocked = blackholeBalances?.lpTokens
     ? parseFloat(blackholeBalances.lpTokens.balance)
-    : 0;
-
-  const treasuryLPValue = balances?.lpTokens
-    ? parseFloat(balances.lpTokens.balance)
     : 0;
 
   const percentageLocked = ammInfo
