@@ -6,6 +6,7 @@ import express from 'express';
 import { getTokenMetadata, updateTokenMetadata, setCTOWallet } from './tokenMetadata';
 import { initiateKickOAuth, handleKickCallback, verifyKickChannel } from './kickOAuth';
 import { getRecentBurnTransactions, getBurnStatistics } from './burnRoutes';
+import { manualConvertXRP, manualBurnLP, verifyAdminPassword, requireAdminAuth } from './adminRoutes';
 
 const router = express.Router();
 
@@ -22,5 +23,10 @@ router.post('/kick/verify', verifyKickChannel);
 // Burn Statistics Routes (Public - for transparency)
 router.get('/burn/recent', getRecentBurnTransactions);
 router.get('/burn/stats', getBurnStatistics);
+
+// Admin Routes (Password-protected)
+router.post('/admin/verify-password', verifyAdminPassword);
+router.post('/admin/convert-xrp', requireAdminAuth, manualConvertXRP);
+router.post('/admin/burn-lp', requireAdminAuth, manualBurnLP);
 
 export default router;

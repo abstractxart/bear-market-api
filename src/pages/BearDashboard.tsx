@@ -1,12 +1,12 @@
 /**
  * BEAR Admin Dashboard
  * Comprehensive manual control and analytics for LP token burning
- * ALL THE STATS. LITERALLY EVERYTHING.
+ * SECURE: Password-protected, all transactions signed on backend
  */
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Client, Wallet } from 'xrpl';
+import { Client } from 'xrpl';
 
 const TREASURY_WALLET = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 const BLACKHOLE_WALLET = 'rBEARmPLNA8CMu92P4vj95fkyCt1N4jrNm';
@@ -38,7 +38,6 @@ interface AMMInfo {
   amount2: string;
   lpTokenBalance: string;
   tradingFee: number;
-  auctionSlot?: any;
 }
 
 interface BurnStats {
@@ -48,8 +47,6 @@ interface BurnStats {
   totalLPTokensBurned: string;
   lastDepositTime: string | null;
   lastBurnTime: string | null;
-  treasuryWallet: string;
-  blackholeWallet: string;
 }
 
 interface RecentBurn {
@@ -62,6 +59,11 @@ interface RecentBurn {
 }
 
 export default function BearDashboard() {
+  const [authenticated, setAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [authError, setAuthError] = useState('');
+
   const [balances, setBalances] = useState<WalletBalances | null>(null);
   const [blackholeBalances, setBlackholeBalances] = useState<BlackholeBalances | null>(null);
   const [ammInfo, setAmmInfo] = useState<AMMInfo | null>(null);
@@ -69,10 +71,32 @@ export default function BearDashboard() {
   const [recentBurns, setRecentBurns] = useState<RecentBurn[]>([]);
   const [loading, setLoading] = useState(false);
   const [txStatus, setTxStatus] = useState<string>('');
-  const [walletSecret, setWalletSecret] = useState('');
-  const [showSecretInput, setShowSecretInput] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+
+  // Verify password
+  const handleLogin = async () => {
+    setAuthError('');
+    try {
+      const res = await fetch(`${API_URL}/admin/verify-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setPassword(passwordInput);
+        setAuthenticated(true);
+        setPasswordInput('');
+      } else {
+        setAuthError('Invalid password');
+      }
+    } catch (error) {
+      setAuthError('Failed to verify password');
+    }
+  };
 
   // Fetch comprehensive data
   const fetchAllData = async () => {
@@ -111,7 +135,7 @@ export default function BearDashboard() {
       const amm = ammData.result.amm;
       const lpToken = amm?.lp_token;
 
-      // Get Treasury LP tokens
+      // Get Treasury LP tokens and BEAR tokens
       let treasuryLPBalance = null;
       let treasuryBEARBalance = '0';
       if (lpToken) {
@@ -187,7 +211,6 @@ export default function BearDashboard() {
         amount2: typeof amm.amount2 === 'string' ? amm.amount2 : amm.amount2.value,
         lpTokenBalance: amm.lp_token.value,
         tradingFee: amm.trading_fee,
-        auctionSlot: amm.auction_slot,
       });
 
       await client.disconnect();
@@ -217,141 +240,75 @@ export default function BearDashboard() {
   };
 
   useEffect(() => {
-    fetchAllData();
+    if (authenticated) {
+      fetchAllData();
 
-    if (autoRefresh) {
-      const interval = setInterval(fetchAllData, 30000); // Refresh every 30s
-      return () => clearInterval(interval);
+      if (autoRefresh) {
+        const interval = setInterval(fetchAllData, 30000);
+        return () => clearInterval(interval);
+      }
     }
-  }, [autoRefresh]);
+  }, [authenticated, autoRefresh]);
 
-  // Manual burn LP tokens
+  // Manual burn LP tokens - SECURE backend call
   const handleBurnLP = async () => {
-    if (!walletSecret) {
-      setTxStatus('❌ Please enter wallet secret first');
-      setShowSecretInput(true);
-      return;
-    }
-
-    if (!balances?.lpTokens) {
-      setTxStatus('❌ No LP tokens to burn');
-      return;
-    }
-
     setLoading(true);
     setTxStatus('🔄 Burning LP tokens...');
 
     try {
-      const client = new Client('wss://xrplcluster.com');
-      await client.connect();
-
-      const wallet = Wallet.fromSeed(walletSecret);
-
-      const paymentTx: any = {
-        TransactionType: 'Payment',
-        Account: wallet.address,
-        Destination: BLACKHOLE_WALLET,
-        Amount: {
-          currency: balances.lpTokens.currency,
-          issuer: balances.lpTokens.issuer,
-          value: balances.lpTokens.balance,
+      const res = await fetch(`${API_URL}/admin/burn-lp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
         },
-        Memos: [
-          {
-            Memo: {
-              MemoData: Buffer.from('BEAR LP Token Manual Burn - Admin Dashboard', 'utf8').toString('hex').toUpperCase(),
-              MemoType: Buffer.from('BEARSwap/ManualBurn', 'utf8').toString('hex').toUpperCase(),
-            },
-          },
-        ],
-      };
+      });
 
-      const prepared = await client.autofill(paymentTx);
-      const signed = wallet.sign(prepared);
-      const result = await client.submitAndWait(signed.tx_blob);
+      const data = await res.json();
 
-      if (result.result.meta && typeof result.result.meta === 'object') {
-        const meta = result.result.meta as any;
-
-        if (meta.TransactionResult === 'tesSUCCESS') {
-          setTxStatus(`✅ Successfully burned ${parseFloat(balances.lpTokens.balance).toFixed(2)} LP tokens!`);
-          setTimeout(() => fetchAllData(), 2000);
-        } else {
-          setTxStatus(`❌ Transaction failed: ${meta.TransactionResult}`);
-        }
+      if (data.success) {
+        setTxStatus(`✅ ${data.data.message}`);
+        setTimeout(() => fetchAllData(), 2000);
+      } else {
+        setTxStatus(`❌ ${data.error}`);
       }
-
-      await client.disconnect();
     } catch (error: any) {
-      console.error('Burn failed:', error);
       setTxStatus(`❌ Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Manual convert XRP to LP
+  // Manual convert XRP to LP - SECURE backend call
   const handleConvertXRP = async () => {
-    if (!walletSecret) {
-      setTxStatus('❌ Please enter wallet secret first');
-      setShowSecretInput(true);
-      return;
-    }
-
-    if (!balances || parseFloat(balances.xrp) <= 1.1) {
-      setTxStatus('❌ Insufficient XRP balance (need > 1.1 XRP)');
-      return;
-    }
-
     setLoading(true);
     setTxStatus('🔄 Converting XRP to LP tokens...');
 
     try {
-      const client = new Client('wss://xrplcluster.com');
-      await client.connect();
-
-      const wallet = Wallet.fromSeed(walletSecret);
-      const depositAmount = (parseFloat(balances.xrp) - 1.1).toFixed(6);
-
-      const ammDepositTx: any = {
-        TransactionType: 'AMMDeposit',
-        Account: wallet.address,
-        Asset: {
-          currency: 'BEAR',
-          issuer: BEAR_ISSUER,
+      const res = await fetch(`${API_URL}/admin/convert-xrp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': password,
         },
-        Asset2: {
-          currency: 'XRP',
-        },
-        Amount: (parseFloat(depositAmount) * 1_000_000).toString(),
-        Flags: 0x00080000, // tfSingleAsset
-      };
+      });
 
-      const prepared = await client.autofill(ammDepositTx);
-      const signed = wallet.sign(prepared);
-      const result = await client.submitAndWait(signed.tx_blob);
+      const data = await res.json();
 
-      if (result.result.meta && typeof result.result.meta === 'object') {
-        const meta = result.result.meta as any;
-
-        if (meta.TransactionResult === 'tesSUCCESS') {
-          setTxStatus(`✅ Successfully converted ${depositAmount} XRP to LP tokens!`);
-          setTimeout(() => fetchAllData(), 2000);
-        } else {
-          setTxStatus(`❌ Transaction failed: ${meta.TransactionResult}`);
-        }
+      if (data.success) {
+        setTxStatus(`✅ ${data.data.message}`);
+        setTimeout(() => fetchAllData(), 2000);
+      } else {
+        setTxStatus(`❌ ${data.error}`);
       }
-
-      await client.disconnect();
     } catch (error: any) {
-      console.error('Convert failed:', error);
       setTxStatus(`❌ Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Calculate some extra metrics
+  // Calculate metrics
   const totalLPLocked = blackholeBalances?.lpTokens
     ? parseFloat(blackholeBalances.lpTokens.balance)
     : 0;
@@ -368,6 +325,54 @@ export default function BearDashboard() {
     ? Math.floor((Date.now() - new Date(burnStats.lastDepositTime).getTime()) / 1000 / 60)
     : null;
 
+  // Login screen
+  if (!authenticated) {
+    return (
+      <div className="min-h-screen pt-24 pb-32 px-4 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full bg-gradient-to-br from-bear-dark-800/80 to-bear-dark-900/80 rounded-2xl p-8 border border-bear-dark-600"
+        >
+          <h1 className="text-3xl font-bold text-white mb-2 text-center">
+            🐻 <span className="text-gradient-bear">BEAR</span> Admin
+          </h1>
+          <p className="text-gray-400 text-center mb-8">Enter password to continue</p>
+
+          <div className="space-y-4">
+            <div>
+              <input
+                type="password"
+                placeholder="Admin Password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                className="w-full px-4 py-3 bg-bear-dark-900 border border-bear-dark-600 rounded-lg text-white focus:outline-none focus:border-bearpark-gold"
+              />
+              {authError && (
+                <p className="text-red-400 text-sm mt-2">{authError}</p>
+              )}
+            </div>
+
+            <button
+              onClick={handleLogin}
+              className="w-full px-6 py-3 bg-bearpark-gold text-black rounded-lg font-bold hover:bg-bearpark-gold/90 transition-colors"
+            >
+              🔐 Login
+            </button>
+          </div>
+
+          <div className="mt-6 p-4 bg-bear-green-500/10 rounded-lg border border-bear-green-500/30">
+            <p className="text-xs text-bear-green-400 text-center">
+              🔒 Secure: Your wallet secret never leaves the server
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Dashboard
   return (
     <div className="min-h-screen pt-24 pb-32 px-4">
       <div className="max-w-7xl mx-auto">
@@ -382,7 +387,7 @@ export default function BearDashboard() {
           </h1>
           <p className="text-gray-400 mb-4">Complete Manual Control & Real-Time Analytics</p>
 
-          {/* Auto-refresh toggle and last update */}
+          {/* Controls */}
           <div className="flex items-center justify-center gap-6 text-sm">
             <button
               onClick={() => setAutoRefresh(!autoRefresh)}
@@ -400,6 +405,15 @@ export default function BearDashboard() {
             >
               🔄 Refresh Now
             </button>
+            <button
+              onClick={() => {
+                setAuthenticated(false);
+                setPassword('');
+              }}
+              className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors border border-red-500/30"
+            >
+              🚪 Logout
+            </button>
             {lastUpdate && (
               <span className="text-gray-500">
                 Last update: {lastUpdate.toLocaleTimeString()}
@@ -408,33 +422,8 @@ export default function BearDashboard() {
           </div>
         </motion.div>
 
-        {/* Wallet Secret Input */}
-        {showSecretInput && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 bg-bear-dark-800/80 rounded-2xl p-6 border border-bear-dark-600"
-          >
-            <h3 className="text-white font-bold mb-4">🔐 Enter Treasury Wallet Secret</h3>
-            <input
-              type="password"
-              placeholder="Enter seed (s...)"
-              value={walletSecret}
-              onChange={(e) => setWalletSecret(e.target.value)}
-              className="w-full px-4 py-3 bg-bear-dark-900 border border-bear-dark-600 rounded-lg text-white focus:outline-none focus:border-bearpark-gold"
-            />
-            <button
-              onClick={() => setShowSecretInput(false)}
-              className="mt-3 px-4 py-2 bg-bear-green-500 text-white rounded-lg hover:bg-bear-green-600 transition-colors"
-            >
-              Save & Continue
-            </button>
-          </motion.div>
-        )}
-
-        {/* CRITICAL STATS - Top Row */}
+        {/* CRITICAL STATS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          {/* Total LP Locked in Blackhole */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -448,7 +437,6 @@ export default function BearDashboard() {
             <div className="text-xs text-gray-400">{percentageLocked}% of total LP supply</div>
           </motion.div>
 
-          {/* Total XRP Converted */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -462,7 +450,6 @@ export default function BearDashboard() {
             <div className="text-xs text-gray-400">XRP → LP conversions</div>
           </motion.div>
 
-          {/* Total Burns */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -476,7 +463,6 @@ export default function BearDashboard() {
             <div className="text-xs text-gray-400">{burnStats ? burnStats.totalDeposits : 0} deposits total</div>
           </motion.div>
 
-          {/* Time Since Last Burn */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -493,7 +479,7 @@ export default function BearDashboard() {
           </motion.div>
         </div>
 
-        {/* WALLET BALANCES - Treasury & Blackhole */}
+        {/* WALLET BALANCES */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Treasury Wallet */}
           <motion.div
@@ -655,7 +641,7 @@ export default function BearDashboard() {
         >
           <h2 className="text-2xl font-bold text-white mb-6">🎮 Manual Burn Controls</h2>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
+          <div className="grid md:grid-cols-2 gap-4">
             <button
               onClick={handleConvertXRP}
               disabled={loading || !balances || parseFloat(balances.xrp) <= 1.1}
@@ -673,20 +659,11 @@ export default function BearDashboard() {
             </button>
           </div>
 
-          {!walletSecret && (
-            <button
-              onClick={() => setShowSecretInput(true)}
-              className="w-full px-6 py-3 bg-bearpark-gold/20 text-bearpark-gold rounded-xl font-semibold hover:bg-bearpark-gold/30 transition-colors"
-            >
-              🔐 Enter Wallet Secret to Enable Actions
-            </button>
-          )}
-
-          {walletSecret && (
-            <div className="text-center text-bear-green-400 text-sm">
-              ✓ Wallet secret configured
-            </div>
-          )}
+          <div className="mt-4 p-4 bg-bear-green-500/10 rounded-lg border border-bear-green-500/30">
+            <p className="text-xs text-bear-green-400 text-center font-semibold">
+              🔒 Secure: All transactions signed on backend server
+            </p>
+          </div>
         </motion.div>
 
         {/* STATUS MESSAGE */}
@@ -705,7 +682,7 @@ export default function BearDashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-gradient-to-br from-bear-dark-800/80 to-bear-dark-900/80 rounded-2xl p-8 border border-bear-dark-600"
+          className="bg-gradient-to-br from-bear-dark-800/80 to-bear-dark-900/80 rounded-2xl p-8 border border-bear-dark-600 mb-6"
         >
           <h2 className="text-2xl font-bold text-white mb-6">📜 Recent Burn History</h2>
 
@@ -758,7 +735,7 @@ export default function BearDashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.55 }}
-          className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4"
+          className="grid grid-cols-1 md:grid-cols-3 gap-4"
         >
           <div className="bg-bear-dark-800/50 rounded-xl p-4 border border-bear-dark-600">
             <div className="text-gray-400 text-xs mb-2">Auto-Burn Service Status</div>
