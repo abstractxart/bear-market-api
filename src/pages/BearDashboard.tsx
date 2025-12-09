@@ -17,6 +17,12 @@ const API_URL = import.meta.env.VITE_API_URL ||
     ? 'https://bear-market-api-production.up.railway.app/api'
     : 'http://localhost:3001/api');
 
+// Format number with commas
+const formatNumber = (num: number | string, decimals: number = 2): string => {
+  const n = typeof num === 'string' ? parseFloat(num) : num;
+  return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+};
+
 interface WalletBalances {
   xrp: string;
   lpTokens: {
@@ -347,7 +353,7 @@ export default function BearDashboard() {
           >
             <div className="text-orange-400 text-sm mb-2 font-semibold">🔥 Total LP Locked Forever</div>
             <div className="text-4xl font-black text-white mb-1">
-              {totalLPLocked.toFixed(2)}
+              {formatNumber(totalLPLocked)}
             </div>
             <div className="text-xs text-gray-400">{percentageLocked}% of total LP supply</div>
           </motion.div>
@@ -360,7 +366,7 @@ export default function BearDashboard() {
           >
             <div className="text-blue-400 text-sm mb-2 font-semibold">💎 Total XRP Converted</div>
             <div className="text-4xl font-black text-white mb-1">
-              {burnStats ? parseFloat(burnStats.totalXRPConverted).toFixed(2) : '0.00'}
+              {burnStats ? formatNumber(burnStats.totalXRPConverted) : '0.00'}
             </div>
             <div className="text-xs text-gray-400">XRP → LP conversions</div>
           </motion.div>
@@ -411,14 +417,14 @@ export default function BearDashboard() {
               <div className="bg-black/30 rounded-xl p-4">
                 <div className="text-gray-400 text-sm mb-2">XRP Balance</div>
                 <div className="text-3xl font-bold text-white">
-                  {balances ? balances.xrp : '...'} XRP
+                  {balances ? formatNumber(balances.xrp, 6) : '...'} XRP
                 </div>
               </div>
 
               <div className="bg-black/30 rounded-xl p-4">
                 <div className="text-gray-400 text-sm mb-2">LP Token Balance</div>
                 <div className="text-3xl font-bold text-white">
-                  {balances?.lpTokens ? parseFloat(balances.lpTokens.balance).toFixed(2) : '0.00'}
+                  {balances?.lpTokens ? formatNumber(balances.lpTokens.balance) : '0.00'}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
                   {balances?.lpTokens?.currency}
@@ -428,7 +434,7 @@ export default function BearDashboard() {
               <div className="bg-black/30 rounded-xl p-4">
                 <div className="text-gray-400 text-sm mb-2">$BEAR Token Balance</div>
                 <div className="text-3xl font-bold text-white">
-                  {balances ? parseFloat(balances.bearTokens).toFixed(2) : '0.00'}
+                  {balances ? formatNumber(balances.bearTokens) : '0.00'}
                 </div>
               </div>
 
@@ -460,14 +466,14 @@ export default function BearDashboard() {
               <div className="bg-black/30 rounded-xl p-4">
                 <div className="text-gray-400 text-sm mb-2">XRP Balance</div>
                 <div className="text-3xl font-bold text-white">
-                  {blackholeBalances ? blackholeBalances.xrp : '...'} XRP
+                  {blackholeBalances ? formatNumber(blackholeBalances.xrp, 6) : '...'} XRP
                 </div>
               </div>
 
               <div className="bg-black/30 rounded-xl p-4 border-2 border-orange-500/30">
                 <div className="text-orange-400 text-sm mb-2 font-bold">🔒 LP Tokens LOCKED FOREVER</div>
                 <div className="text-3xl font-bold text-white">
-                  {blackholeBalances?.lpTokens ? parseFloat(blackholeBalances.lpTokens.balance).toFixed(2) : '0.00'}
+                  {blackholeBalances?.lpTokens ? formatNumber(blackholeBalances.lpTokens.balance) : '0.00'}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
                   {blackholeBalances?.lpTokens?.currency}
@@ -507,21 +513,21 @@ export default function BearDashboard() {
               <div className="bg-black/20 rounded-xl p-4">
                 <div className="text-gray-400 text-xs mb-1">BEAR in Pool</div>
                 <div className="text-white text-xl font-bold">
-                  {(parseFloat(ammInfo.amount) / 1_000_000).toFixed(2)}
+                  {formatNumber(parseFloat(ammInfo.amount) / 1_000_000)}
                 </div>
               </div>
 
               <div className="bg-black/20 rounded-xl p-4">
                 <div className="text-gray-400 text-xs mb-1">XRP in Pool</div>
                 <div className="text-white text-xl font-bold">
-                  {(parseFloat(ammInfo.amount2) / 1_000_000).toFixed(2)}
+                  {formatNumber(parseFloat(ammInfo.amount2) / 1_000_000)}
                 </div>
               </div>
 
               <div className="bg-black/20 rounded-xl p-4">
                 <div className="text-gray-400 text-xs mb-1">Total LP Supply</div>
                 <div className="text-white text-xl font-bold">
-                  {parseFloat(ammInfo.lpTokenBalance).toFixed(2)}
+                  {formatNumber(ammInfo.lpTokenBalance)}
                 </div>
               </div>
 
@@ -623,8 +629,8 @@ export default function BearDashboard() {
                       </span>
                       <span className="text-white font-semibold">
                         {burn.action === 'deposit'
-                          ? `${parseFloat(burn.xrp_amount || '0').toFixed(2)} XRP → LP`
-                          : `${parseFloat(burn.lp_token_amount).toFixed(2)} LP Burned`}
+                          ? `${formatNumber(burn.xrp_amount || '0')} XRP → LP`
+                          : `${formatNumber(burn.lp_token_amount)} LP Burned`}
                       </span>
                     </div>
                     <span className="text-xs text-gray-400">
