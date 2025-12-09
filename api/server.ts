@@ -25,11 +25,18 @@ app.use(cors({
       return callback(null, true);
     }
 
-    // In production, check against FRONTEND_URL
-    if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
+    // Allow production domains
+    const allowedOrigins = [
+      'https://swap.bearpark.xyz',
+      process.env.FRONTEND_URL,
+      process.env.FRONTEND_URL_PROD,
+    ].filter(Boolean);
+
+    if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
+    console.log(`[CORS] Blocked origin: ${origin}`);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
