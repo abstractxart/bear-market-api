@@ -68,6 +68,7 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
   // Initialize XRPL trade polling - fetches 2+ days of transaction history (OfferCreate support added!)
   const initializeTradeStream = useCallback(async () => {
     if (token.currency === 'XRP' || !token.issuer) return;
+    const issuer = token.issuer; // TypeScript guard
 
     setIsLoading(true);
     setIsConnected(true);
@@ -76,7 +77,7 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
     const fetchRealTrades = async (): Promise<Trade[]> => {
       try {
         console.log('[LiveTradesFeed] Fetching real trades from XRPL...');
-        const trades = await fetchSwapsForToken(token.currency, token.issuer, 50);
+        const trades = await fetchSwapsForToken(token.currency, issuer, 50);
         console.log(`[LiveTradesFeed] Loaded ${trades.length} real trades from XRPL!`);
         return trades;
       } catch (error) {

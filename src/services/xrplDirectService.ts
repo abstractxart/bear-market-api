@@ -549,7 +549,9 @@ export async function getAmmAccountForPair(
 /**
  * Fetch recent token swaps from XRPL.to aggregator API
  * This is much faster than scanning individual ledgers
+ * @deprecated Not currently used, but kept for future reference
  */
+// @ts-expect-error - Keeping for future use
 async function fetchTokenSwapsFromAggregator(
   currency: string,
   issuer: string,
@@ -596,10 +598,12 @@ async function fetchTokenSwapsFromAggregator(
 /**
  * Fetch recent ledgers and extract all transactions involving a token
  * FALLBACK METHOD - slower but direct from XRPL
+ * @deprecated Not currently used, but kept for future reference
  */
+// @ts-expect-error - Keeping for future use
 async function fetchRecentTokenTransactions(
   currency: string,
-  issuer: string,
+  _issuer: string,
   limit: number = 50
 ): Promise<any[]> {
   try {
@@ -657,11 +661,11 @@ async function fetchRecentTokenTransactions(
 
           // Check if this payment involves our token
           const involvesToken =
-            (typeof tx.Amount === 'object' && tx.Amount?.currency &&
+            (typeof tx.Amount === 'object' && 'currency' in tx.Amount &&
              (tx.Amount.currency === currency || tx.Amount.currency === currencyHex)) ||
-            (typeof tx.SendMax === 'object' && tx.SendMax?.currency &&
+            (typeof tx.SendMax === 'object' && 'currency' in tx.SendMax &&
              (tx.SendMax.currency === currency || tx.SendMax.currency === currencyHex)) ||
-            (typeof tx.DeliverMin === 'object' && tx.DeliverMin?.currency &&
+            (typeof tx.DeliverMin === 'object' && 'currency' in tx.DeliverMin &&
              (tx.DeliverMin.currency === currency || tx.DeliverMin.currency === currencyHex));
 
           if (involvesToken) {
@@ -738,7 +742,7 @@ function parseSwapTransaction(
  */
 function parseOfferCreateTransaction(
   tx: any,
-  meta: any,
+  _meta: any,
   token: { currency: string; issuer: string },
   hash: string
 ): SwapData | null {
@@ -1021,17 +1025,14 @@ async function fetchIssuerAccountTransactions(
     while (transactions.length < maxTransactions) {
       try {
         // Request only recent transactions using ledger_index_min
-        const response = await client.request(
-          {
-            command: 'account_tx',
-            account: issuer,
-            limit: Math.min(100, maxTransactions - transactions.length),
-            ledger_index_min: ledgerIndexMin, // Only fetch transactions from recent ledgers
-            ledger_index_max: -1, // -1 means "latest validated ledger"
-            marker: marker,
-          },
-          { timeout: 30000 } // 30 second timeout (should be faster with ledger range)
-        );
+        const response = await client.request({
+          command: 'account_tx',
+          account: issuer,
+          limit: Math.min(100, maxTransactions - transactions.length),
+          ledger_index_min: ledgerIndexMin, // Only fetch transactions from recent ledgers
+          ledger_index_max: -1, // -1 means "latest validated ledger"
+          marker: marker,
+        });
 
         const txs = response.result.transactions || [];
         transactions.push(...txs);
