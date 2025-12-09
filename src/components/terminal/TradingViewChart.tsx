@@ -223,13 +223,34 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ token, trade
         throw new Error('No data from xMagnetic');
       }
 
-      const candles: CandlestickData[] = data.map((c: any) => ({
-        time: (typeof c.time === 'number' ? c.time : Math.floor(new Date(c.time).getTime() / 1000)) as Time,
-        open: parseFloat(c.open) || 0,
-        high: parseFloat(c.high) || 0,
-        low: parseFloat(c.low) || 0,
-        close: parseFloat(c.close) || 0,
-      })).filter((c: CandlestickData) => c.open > 0);
+      // Check if we need to invert prices (for RLUSD and other USD-pegged tokens)
+      const isUSDPegged = token.currency === 'RLUSD' || token.currency === 'USD';
+
+      const candles: CandlestickData[] = data.map((c: any) => {
+        const open = parseFloat(c.open) || 0;
+        const high = parseFloat(c.high) || 0;
+        const low = parseFloat(c.low) || 0;
+        const close = parseFloat(c.close) || 0;
+
+        // Invert prices for USD-pegged tokens (show TOKEN/XRP instead of XRP/TOKEN)
+        if (isUSDPegged && open > 0) {
+          return {
+            time: (typeof c.time === 'number' ? c.time : Math.floor(new Date(c.time).getTime() / 1000)) as Time,
+            open: 1 / open,
+            high: 1 / low,  // Inverted: lowest becomes highest
+            low: 1 / high,  // Inverted: highest becomes lowest
+            close: 1 / close,
+          };
+        }
+
+        return {
+          time: (typeof c.time === 'number' ? c.time : Math.floor(new Date(c.time).getTime() / 1000)) as Time,
+          open,
+          high,
+          low,
+          close,
+        };
+      }).filter((c: CandlestickData) => c.open > 0);
 
       const volume = data.map((c: any) => ({
         time: (typeof c.time === 'number' ? c.time : Math.floor(new Date(c.time).getTime() / 1000)) as Time,
@@ -273,13 +294,34 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({ token, trade
         throw new Error('No data from xrpl.to');
       }
 
-      const candles: CandlestickData[] = data.data.map((c: any) => ({
-        time: Math.floor(c.time / 1000) as Time,
-        open: parseFloat(c.open) || 0,
-        high: parseFloat(c.high) || 0,
-        low: parseFloat(c.low) || 0,
-        close: parseFloat(c.close) || 0,
-      })).filter((c: CandlestickData) => c.open > 0);
+      // Check if we need to invert prices (for RLUSD and other USD-pegged tokens)
+      const isUSDPegged = token.currency === 'RLUSD' || token.currency === 'USD';
+
+      const candles: CandlestickData[] = data.data.map((c: any) => {
+        const open = parseFloat(c.open) || 0;
+        const high = parseFloat(c.high) || 0;
+        const low = parseFloat(c.low) || 0;
+        const close = parseFloat(c.close) || 0;
+
+        // Invert prices for USD-pegged tokens (show TOKEN/XRP instead of XRP/TOKEN)
+        if (isUSDPegged && open > 0) {
+          return {
+            time: Math.floor(c.time / 1000) as Time,
+            open: 1 / open,
+            high: 1 / low,  // Inverted: lowest becomes highest
+            low: 1 / high,  // Inverted: highest becomes lowest
+            close: 1 / close,
+          };
+        }
+
+        return {
+          time: Math.floor(c.time / 1000) as Time,
+          open,
+          high,
+          low,
+          close,
+        };
+      }).filter((c: CandlestickData) => c.open > 0);
 
       const volume = data.data.map((c: any) => ({
         time: Math.floor(c.time / 1000) as Time,
