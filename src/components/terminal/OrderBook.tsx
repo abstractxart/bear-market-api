@@ -40,9 +40,13 @@ export const OrderBook: React.FC<OrderBookProps> = ({ token, onPriceClick: _onPr
   const [longPressOrder, setLongPressOrder] = useState<{ id: string; order: OrderLevel; type: 'buy' | 'sell'; x: number; y: number } | null>(null);
 
   const formatPrice = (price: number): string => {
+    // Never use scientific notation - always show decimal places
     if (price >= 1) return price.toFixed(6);
-    if (price >= 0.0001) return price.toFixed(8);
-    return price.toExponential(4);
+    if (price >= 0.001) return price.toFixed(8);
+    if (price >= 0.00001) return price.toFixed(10);
+    // For extremely small prices, calculate how many decimals we need to show at least 4 significant digits
+    const decimals = Math.max(10, Math.ceil(-Math.log10(price)) + 4);
+    return price.toFixed(Math.min(decimals, 15)); // Max 15 decimals to avoid floating point issues
   };
 
   const formatAmount = (amount: number): string => {
