@@ -1,7 +1,7 @@
 /**
  * BEAR Admin Dashboard
  * Comprehensive manual control and analytics for LP token burning
- * SECURE: Password-protected, all transactions signed on backend
+ * SECURE: All transactions signed on backend
  */
 
 import { useState, useEffect } from 'react';
@@ -324,15 +324,6 @@ export default function BearDashboard() {
               className="px-4 py-2 bg-bear-dark-800 text-white rounded-lg hover:bg-bear-dark-700 transition-colors border border-bear-dark-600"
             >
               🔄 Refresh Now
-            </button>
-            <button
-              onClick={() => {
-                setAuthenticated(false);
-                setPassword('');
-              }}
-              className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors border border-red-500/30"
-            >
-              🚪 Logout
             </button>
             {lastUpdate && (
               <span className="text-gray-500">

@@ -1,6 +1,6 @@
 /**
  * Admin API Routes
- * Password-protected endpoints for manual burn control
+ * Open access endpoints for manual burn control
  * SECURITY: Wallet secret stays on server, never exposed to client
  */
 
@@ -11,7 +11,6 @@ import { logBurnTransaction } from './db';
 const TREASURY_WALLET = 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9';
 const BLACKHOLE_WALLET = 'rBEARmPLNA8CMu92P4vj95fkyCt1N4jrNm';
 const BEAR_ISSUER = 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'changeme123';
 const TREASURY_WALLET_SECRET = process.env.TREASURY_WALLET_SECRET;
 
 /**
