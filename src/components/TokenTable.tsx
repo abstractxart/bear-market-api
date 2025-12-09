@@ -706,7 +706,7 @@ const TokenIcon: React.FC<{ token: LeaderboardToken }> = ({ token }) => {
 
   useEffect(() => {
     iconUrls.current = getTokenIconUrls(token.currency, token.issuer || '');
-    setImgSrc(token.icon || iconUrls.current[0] || null);
+    setImgSrc(iconUrls.current[0] || token.icon || null);
     setErrorIndex(0);
   }, [token.currency, token.issuer, token.icon]);
 

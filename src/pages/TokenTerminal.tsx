@@ -6,6 +6,7 @@ import { DexScreenerChart } from '../components/terminal/DexScreenerChart';
 import { OrderBook } from '../components/terminal/OrderBook';
 import { LimitOrderPanel } from '../components/terminal/LimitOrderPanel';
 import { LiveTradesFeed } from '../components/terminal/LiveTradesFeed';
+import { TokenMetricsBar } from '../components/terminal/TokenMetricsBar';
 import { KickStreamPlayer } from '../components/terminal/KickStreamPlayer';
 import { FloatingKickStream } from '../components/terminal/FloatingKickStream';
 import { TokenDetailsPanel } from '../components/terminal/TokenDetailsPanel';
@@ -13,9 +14,10 @@ import { TokenAdminModal } from '../components/terminal/TokenAdminModal';
 import SwapCard from '../components/SwapCard';
 import type { Token } from '../types';
 import { hexToString } from '../utils/currency';
-import { getTokenFromXRPL } from '../services/xrplDirectService';
+import { getTokenFromXRPL, getTokenSupply } from '../services/xrplDirectService';
 import { useWallet } from '../context/WalletContext';
 import { getTokenMetadata, type TokenMetadata } from '../services/tokenMetadataService';
+import { getAllTokens } from '../services/tokenService';
 
 interface TokenInfo {
   token: Token;
@@ -33,13 +35,15 @@ const TokenTerminal: React.FC = () => {
   // State
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'chart' | 'orderbook' | 'trades'>('chart');
+  const [activeTab, setActiveTab] = useState<'chart' | 'orderbook' | 'trades' | 'info'>('chart');
   const [limitOrderPrice, setLimitOrderPrice] = useState<string>('');
   const [mobilePanel, setMobilePanel] = useState<'swap' | 'limit'>('swap');
   const [tradingMode, setTradingMode] = useState<'swap' | 'limit'>('swap');
   const [tokenMetadata, setTokenMetadata] = useState<TokenMetadata | null>(null);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showFloatingStream, setShowFloatingStream] = useState(true);
+  const [tokenRank, setTokenRank] = useState<number>(0);
+  const [tokenSupply, setTokenSupply] = useState<{ circulating: number; total: number }>({ circulating: 0, total: 0 });
 
   // CTO wallet mapping - wallets that can manage tokens (for Community Take Overs)
   const CTO_WALLETS: Record<string, string> = {
@@ -97,25 +101,23 @@ const TokenTerminal: React.FC = () => {
       // 1. Get PRICE from Pure XRPL (most accurate!)
       if (xrplResult.status === 'fulfilled' && xrplResult.value) {
         price = xrplResult.value.price || 0;
-        marketCap = xrplResult.value.marketCap || 0;
         console.log(`[TokenTerminal] ✅ XRPL Direct: price=${price} XRP`);
       }
 
-      // 2. Get 24h CHANGE, VOLUME, MARKET CAP from DexScreener
+      // 2. Get 24h CHANGE, VOLUME, MARKET CAP from DexScreener (USD prices!)
       if (dexResult.status === 'fulfilled' && dexResult.value?.pairs) {
         const pair = dexResult.value.pairs.find((p: any) =>
           p.chainId === 'xrpl' &&
           p.baseToken?.address?.includes(currentToken.issuer || '')
         );
         if (pair) {
-          // DexScreener has the BEST 24h data!
+          // DexScreener has the BEST 24h data and USD market cap!
           priceChange24h = pair.priceChange?.h24 || 0;
           volume24h = pair.volume?.h24 || 0;
-          // Use DexScreener market cap if we don't have one yet
-          if (!marketCap) marketCap = pair.marketCap || pair.fdv || 0;
+          marketCap = pair.marketCap || pair.fdv || 0; // USD market cap
           // Use DexScreener price if XRPL failed
           if (!price) price = parseFloat(pair.priceNative) || 0;
-          console.log(`[TokenTerminal] ✅ DexScreener: change=${priceChange24h}%, vol=${volume24h}, mcap=${marketCap}`);
+          console.log(`[TokenTerminal] ✅ DexScreener: change=${priceChange24h}%, vol=${volume24h}, mcap=$${marketCap}`);
         }
       }
 
@@ -178,6 +180,46 @@ const TokenTerminal: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchTokenInfo]);
 
+  // Fetch token rank and supply
+  useEffect(() => {
+    const fetchRankAndSupply = async () => {
+      if (!currentToken?.issuer) return;
+
+      try {
+        // Fetch rank from leaderboard
+        const allTokens = await getAllTokens();
+        const isBear = currentToken.currency === 'BEAR' && currentToken.issuer === 'rBEARGUAsyu7tUw53rufQzFdWmJHpJEqFW';
+
+        if (isBear) {
+          // BEAR is always #1!
+          setTokenRank(1);
+        } else {
+          // Find token's rank in sorted array
+          const tokenIndex = allTokens.findIndex(
+            t => t.currency === currentToken.currency && t.issuer === currentToken.issuer
+          );
+          setTokenRank(tokenIndex >= 0 ? tokenIndex + 1 : 0); // +1 for 1-based ranking
+        }
+
+        // Fetch real supply from XRPL
+        const supply = await getTokenSupply(currentToken.currency, currentToken.issuer);
+        setTokenSupply({
+          circulating: supply,
+          total: supply, // For now, circulating = total (can be different for some tokens)
+        });
+
+        console.log(`[TokenTerminal] Token rank: ${isBear ? 1 : tokenIndex + 1}, Supply: ${supply.toLocaleString()}`);
+      } catch (error) {
+        console.error('[TokenTerminal] Failed to fetch rank/supply:', error);
+      }
+    };
+
+    fetchRankAndSupply();
+    // Refresh every 60 seconds (less frequent than price updates)
+    const interval = setInterval(fetchRankAndSupply, 60000);
+    return () => clearInterval(interval);
+  }, [currentToken?.currency, currentToken?.issuer]);
+
   // Load token metadata
   useEffect(() => {
     const loadMetadata = async () => {
@@ -224,14 +266,20 @@ const TokenTerminal: React.FC = () => {
           />
         </div>
 
-        {/* Center Column - Chart + Trades */}
+        {/* Center Column - Chart + Metrics + Trades */}
         <div className="flex flex-col gap-2 h-full">
           {/* Chart - Takes ~48% of available height */}
           <div className="flex-[0.95] min-h-[420px] max-h-[650px]">
             <DexScreenerChart token={currentToken} />
           </div>
+          {/* Metrics Bar */}
+          <TokenMetricsBar
+            token={currentToken}
+            priceChange24h={tokenInfo?.priceChange24h || 0}
+            volume24h={tokenInfo?.volume24h || 0}
+          />
           {/* Trades - Takes ~52% of available height with scroll */}
-          <div className="flex-[1.05] min-h-[450px]">
+          <div className="flex-[1.05] min-h-[450px] max-h-[700px]">
             <LiveTradesFeed token={currentToken} />
           </div>
         </div>
@@ -308,11 +356,11 @@ const TokenTerminal: React.FC = () => {
               data={{
                 trustlines: tokenInfo?.holders || 0,
                 holders: tokenInfo?.holders || 0,
-                rank: 21,
+                rank: tokenRank,
                 issuerFee: '0%',
                 marketCap: tokenInfo?.marketCap || 0,
-                circulatingSupply: 528700000,
-                totalSupply: 528700000,
+                circulatingSupply: tokenSupply.circulating,
+                totalSupply: tokenSupply.total,
                 socialLinks: {
                   discord: tokenMetadata?.discord_url,
                   twitter: tokenMetadata?.twitter_url,
@@ -349,7 +397,7 @@ const TokenTerminal: React.FC = () => {
       <div className="md:hidden flex flex-col gap-2 p-2">
         {/* Mobile Tabs */}
         <div className="flex gap-1 p-1 bg-bear-dark-800 rounded-xl">
-          {(['chart', 'orderbook', 'trades'] as const).map((tab) => (
+          {(['chart', 'orderbook', 'trades', 'info'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -359,7 +407,7 @@ const TokenTerminal: React.FC = () => {
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              {tab === 'chart' ? '📈 Chart' : tab === 'orderbook' ? '📊 Orders' : '💹 Trades'}
+              {tab === 'chart' ? '📈 Chart' : tab === 'orderbook' ? '📊 Orders' : tab === 'trades' ? '💹 Trades' : '📺 Info'}
             </button>
           ))}
         </div>
@@ -434,9 +482,59 @@ const TokenTerminal: React.FC = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="h-[70vh] min-h-[450px]"
+              className="flex flex-col gap-2"
             >
-              <LiveTradesFeed token={currentToken} />
+              {/* Metrics Bar */}
+              <TokenMetricsBar
+                token={currentToken}
+                priceChange24h={tokenInfo?.priceChange24h || 0}
+                volume24h={tokenInfo?.volume24h || 0}
+              />
+              {/* Trades Feed */}
+              <div className="h-[60vh] min-h-[400px]">
+                <LiveTradesFeed token={currentToken} />
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'info' && (
+            <motion.div
+              key="info"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="flex flex-col gap-2"
+            >
+              {/* Kick Stream Player */}
+              <KickStreamPlayer
+                streamUrl={tokenMetadata?.kick_stream_url}
+                isIssuer={isIssuer}
+                onEditClick={() => setShowAdminModal(true)}
+              />
+
+              {/* Token Details Panel */}
+              <TokenDetailsPanel
+                token={currentToken}
+                data={{
+                  trustlines: tokenInfo?.holders || 0,
+                  holders: tokenInfo?.holders || 0,
+                  rank: tokenRank,
+                  issuerFee: '0%',
+                  marketCap: tokenInfo?.marketCap || 0,
+                  circulatingSupply: tokenSupply.circulating,
+                  totalSupply: tokenSupply.total,
+                  socialLinks: {
+                    discord: tokenMetadata?.discord_url,
+                    twitter: tokenMetadata?.twitter_url,
+                    telegram: tokenMetadata?.telegram_url,
+                    website1: tokenMetadata?.website1_url,
+                    website2: tokenMetadata?.website2_url,
+                    website3: tokenMetadata?.website3_url,
+                  },
+                }}
+                isIssuer={isIssuer}
+                onEditClick={() => setShowAdminModal(true)}
+              />
             </motion.div>
           )}
         </AnimatePresence>

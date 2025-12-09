@@ -144,6 +144,9 @@ const SCAM_TOKEN_NAMES = new Set([
   'XLM',
   'XRPFI',
   'BNY',
+  // Scam meme tokens
+  'COREUM7C8EB29E07',
+  'SGBENJI',
   // Additional common scam names
   'PAYPAL',
   'TESLA',

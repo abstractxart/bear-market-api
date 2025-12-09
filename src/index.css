@@ -118,6 +118,15 @@
   }
 }
 
+@keyframes fadeInBorder {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* BEAR GODMODE pulse glow */
 .animate-bear-glow {
   animation: bear-glow 2s ease-in-out infinite;
@@ -353,20 +362,12 @@ body::before {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   position: relative;
   /* NO overflow:hidden - allows swap button to stay on top */
+  isolation: isolate; /* Creates stacking context to prevent border flash */
 }
 
-/* Spinning conic-gradient border - premium styling */
+/* Spinning conic-gradient border - DISABLED */
 .glass-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 2rem;
-  background: conic-gradient(from 0deg, #680cd9, #9333ea, #feb501, #84cc16, #07ae08, #10b981, #680cd9);
-  animation: spin 8s linear infinite;
-  will-change: transform;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  z-index: -2;
+  display: none;
 }
 
 /* Inner card background - slight transparency for animated orb visibility */
@@ -375,9 +376,11 @@ body::before {
   position: absolute;
   inset: 3px;
   border-radius: calc(2rem - 3px);
-  background: linear-gradient(180deg, rgba(15, 15, 25, 0.96), rgba(10, 10, 18, 0.98));
-  backdrop-filter: blur(8px);
+  background: linear-gradient(180deg, rgba(15, 15, 25, 0.25), rgba(10, 10, 18, 0.35));
+  backdrop-filter: blur(12px);
   z-index: -1;
+  opacity: 0;
+  animation: fadeInBorder 0.3s ease-in forwards;
 }
 
 /* Content stays above pseudo-elements naturally since they have negative z-index */

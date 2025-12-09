@@ -300,7 +300,7 @@ export function getTokenIconUrls(currency: string, issuer?: string): string[] {
     urls.push(`${XMAGNETIC_CDN}/${issuer}_${currency}.webp`);
   }
 
-  // 4. Local fallback icons
+  // 5. Local fallback icons LAST
   if (LOCAL_TOKEN_ICONS[fullKey]) {
     urls.push(LOCAL_TOKEN_ICONS[fullKey]);
   } else if (LOCAL_TOKEN_ICONS[currency]) {

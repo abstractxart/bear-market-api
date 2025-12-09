@@ -356,11 +356,9 @@ export const OrderBook: React.FC<OrderBookProps> = ({ token, onPriceClick: _onPr
   };
 
   return (
-    <div className="relative h-full flex flex-col rounded-xl overflow-hidden">
-      {/* TRICOLOR BORDER */}
-      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-bear-gold via-bear-purple-500 to-bear-gold p-[2px]">
-        <div className="w-full h-full rounded-xl bg-bear-dark-900 flex flex-col">
-      {/* Header */}
+    <div className="h-full w-full max-h-full overflow-hidden">
+      <div className="glass-card h-full max-h-full flex flex-col overflow-hidden">
+        {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-bear-dark-700">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-bold text-white">Order Book</h3>
@@ -630,7 +628,6 @@ export const OrderBook: React.FC<OrderBookProps> = ({ token, onPriceClick: _onPr
           </>
         )}
       </AnimatePresence>
-        </div>
       </div>
     </div>
   );

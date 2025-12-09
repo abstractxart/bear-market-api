@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import type { Token } from '../../types';
+import { getTokenIconUrls } from '../../services/tokenLeaderboardService';
 
 interface TokenInfo {
   token: Token;
@@ -16,6 +18,48 @@ interface TerminalHeaderProps {
   tokenInfo: TokenInfo | null;
   isLoading: boolean;
 }
+
+// Token Icon Component with fallback handling
+const TokenIcon: React.FC<{ token: Token }> = ({ token }) => {
+  const [imgSrc, setImgSrc] = useState<string | null>(null);
+  const [errorIndex, setErrorIndex] = useState(0);
+  const iconUrls = useRef<string[]>([]);
+
+  useEffect(() => {
+    iconUrls.current = getTokenIconUrls(token.currency, token.issuer || '');
+    setImgSrc(iconUrls.current[0] || token.icon || null);
+    setErrorIndex(0);
+  }, [token.currency, token.issuer, token.icon]);
+
+  const handleError = () => {
+    const nextIndex = errorIndex + 1;
+    if (nextIndex < iconUrls.current.length) {
+      setImgSrc(iconUrls.current[nextIndex]);
+      setErrorIndex(nextIndex);
+    } else {
+      setImgSrc(null);
+    }
+  };
+
+  const displayText = (token.symbol || token.currency || '??').slice(0, 2);
+
+  return (
+    <>
+      {imgSrc ? (
+        <img
+          src={imgSrc}
+          alt={token.symbol || token.currency || 'Token'}
+          className="w-full h-full object-cover"
+          onError={handleError}
+        />
+      ) : (
+        <span className={`text-lg font-bold ${token.currency === 'BEAR' ? 'text-bearpark-gold' : 'text-white'}`}>
+          {displayText}
+        </span>
+      )}
+    </>
+  );
+};
 
 export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
   token,
@@ -53,18 +97,12 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
           </Link>
 
           {/* Token Icon */}
-          <div className={`relative w-10 h-10 rounded-xl overflow-hidden ${isBear ? 'ring-2 ring-bearpark-gold' : ''}`}>
+          <div className={`relative w-10 h-10 rounded-full overflow-hidden ${isBear ? 'ring-2 ring-bearpark-gold' : ''}`}>
             {isBear && (
               <div className="absolute inset-0 bg-[conic-gradient(from_0deg,#680cd9,#feb501,#07ae08,#680cd9)] animate-spin-slow"></div>
             )}
-            <div className={`absolute ${isBear ? 'inset-[2px]' : 'inset-0'} rounded-xl bg-bear-dark-800 flex items-center justify-center overflow-hidden`}>
-              {token.icon ? (
-                <img src={token.icon} alt={token.symbol} className="w-full h-full object-cover" />
-              ) : (
-                <span className={`text-lg font-bold ${isBear ? 'text-bearpark-gold' : 'text-white'}`}>
-                  {token.symbol.slice(0, 2)}
-                </span>
-              )}
+            <div className={`absolute ${isBear ? 'inset-[2px]' : 'inset-0'} rounded-full bg-bear-dark-800 flex items-center justify-center overflow-hidden`}>
+              <TokenIcon token={token} />
             </div>
           </div>
 
@@ -75,15 +113,25 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
                 {token.symbol}
               </h1>
               <span className="text-xs text-gray-500">/XRP</span>
-              {isBear && (
-                <span className="px-2 py-0.5 text-[10px] font-bold bg-bearpark-gold/20 text-bearpark-gold rounded-full">
-                  GODMODE
-                </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <p className="text-xs text-gray-500 font-mono truncate max-w-[150px]">
+                {token.issuer ? `${token.issuer.slice(0, 8)}...${token.issuer.slice(-6)}` : 'Native'}
+              </p>
+              {token.issuer && (
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(token.issuer!);
+                  }}
+                  className="p-1 rounded hover:bg-bear-dark-700 transition-colors"
+                  title="Copy issuer address"
+                >
+                  <svg className="w-3 h-3 text-gray-500 hover:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
               )}
             </div>
-            <p className="text-xs text-gray-500 font-mono truncate max-w-[150px]">
-              {token.issuer ? `${token.issuer.slice(0, 8)}...${token.issuer.slice(-6)}` : 'Native'}
-            </p>
           </div>
         </div>
 
@@ -138,18 +186,6 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
               </p>
             )}
           </div>
-
-          {/* Holders */}
-          <div>
-            <p className="text-xs text-gray-500 uppercase">Holders</p>
-            {isLoading ? (
-              <div className="h-6 w-16 bg-bear-dark-700 rounded animate-pulse"></div>
-            ) : (
-              <p className="text-lg font-bold font-mono text-white">
-                {tokenInfo && tokenInfo.holders > 0 ? formatNumber(tokenInfo.holders, 0) : '—'}
-              </p>
-            )}
-          </div>
         </div>
 
         {/* Right - Actions */}
@@ -183,26 +219,32 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
       </div>
 
       {/* Mobile Price Bar */}
-      <div className="md:hidden flex items-center justify-between px-3 py-2 border-t border-bear-dark-700">
-        <div className="flex items-center gap-4">
-          <div>
-            <p className="text-[10px] text-gray-500">PRICE</p>
+      <div className="md:hidden flex items-center justify-between px-4 py-2.5 border-t border-bear-dark-700 bg-bear-dark-800/50">
+        <div className="flex items-center justify-between w-full gap-3">
+          <div className="flex-1 text-center">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Price</p>
             <p className="text-sm font-bold font-mono text-white">
               {tokenInfo ? formatPrice(tokenInfo.price) : '—'}
             </p>
           </div>
-          <div>
-            <p className="text-[10px] text-gray-500">24H</p>
+          <div className="flex-1 text-center border-l border-r border-bear-dark-700/50 px-2">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">24h</p>
             <p className={`text-sm font-bold font-mono ${
               tokenInfo && tokenInfo.priceChange24h >= 0 ? 'text-bear-green-400' : 'text-red-400'
             }`}>
               {tokenInfo ? `${tokenInfo.priceChange24h >= 0 ? '+' : ''}${tokenInfo.priceChange24h.toFixed(2)}%` : '—'}
             </p>
           </div>
-          <div>
-            <p className="text-[10px] text-gray-500">VOL</p>
+          <div className="flex-1 text-center border-r border-bear-dark-700/50 pr-2">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Vol</p>
             <p className="text-sm font-bold font-mono text-white">
               {tokenInfo ? formatNumber(tokenInfo.volume24h) : '—'}
+            </p>
+          </div>
+          <div className="flex-1 text-center">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">MCap</p>
+            <p className="text-sm font-bold font-mono text-white">
+              {tokenInfo && tokenInfo.marketCap > 0 ? `$${formatNumber(tokenInfo.marketCap)}` : '—'}
             </p>
           </div>
         </div>
