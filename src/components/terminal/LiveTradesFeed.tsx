@@ -257,10 +257,23 @@ export const LiveTradesFeed: React.FC<LiveTradesFeedProps> = ({ token, onTradesU
                   {trade.type === 'buy' ? 'Buy' : 'Sell'}
                 </span>
 
-                {/* USD */}
-                <span className="text-right text-gray-300 font-mono text-sm">
-                  {formatUsd(trade.amountUsd)}
-                </span>
+                {/* USD with Volume Bar */}
+                <div className="relative flex items-center justify-end">
+                  <div className="absolute right-0 h-full flex items-center justify-end" style={{ width: '100%' }}>
+                    <div
+                      className={`h-full rounded-sm transition-all ${
+                        trade.type === 'buy' ? 'bg-bear-green-500/10' : 'bg-red-500/10'
+                      }`}
+                      style={{
+                        width: `${(trade.amountUsd / maxUsdValue) * 100}%`,
+                        minWidth: '20px'
+                      }}
+                    />
+                  </div>
+                  <span className="relative z-10 text-gray-300 font-mono text-sm px-2">
+                    {formatUsd(trade.amountUsd)}
+                  </span>
+                </div>
 
                 {/* Token Amount */}
                 <span className={`text-right font-mono text-sm ${trade.type === 'buy' ? 'text-bear-green-400' : 'text-red-400'}`}>
