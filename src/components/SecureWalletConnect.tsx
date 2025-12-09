@@ -31,7 +31,6 @@ import {
   logSecurityEvent,
   isSecureContext,
 } from '../security/SecurityPolicy';
-import { MnemonicChecksumHelper } from './MnemonicChecksumHelper';
 
 interface SecureWalletConnectProps {
   isOpen: boolean;

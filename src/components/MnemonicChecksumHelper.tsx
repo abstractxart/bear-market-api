@@ -48,7 +48,9 @@ export const MnemonicChecksumHelper: React.FC = () => {
             validCount++;
             try {
               // Try both algorithms
+              // @ts-ignore - XRPL types don't recognize these algorithm strings but they work at runtime
               const walletSecp256k1 = Wallet.fromMnemonic(fullMnemonic, { algorithm: 'ecdsa-secp256k1' });
+              // @ts-ignore - XRPL types don't recognize these algorithm strings but they work at runtime
               const walletEd25519 = Wallet.fromMnemonic(fullMnemonic, { algorithm: 'ed25519' });
 
               // Add both if they're different
