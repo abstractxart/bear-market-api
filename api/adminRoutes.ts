@@ -15,22 +15,6 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'changeme123';
 const TREASURY_WALLET_SECRET = process.env.TREASURY_WALLET_SECRET;
 
 /**
- * Middleware: Check admin password
- */
-function requireAdminAuth(req: Request, res: Response, next: Function) {
-  const password = req.headers['x-admin-password'] as string;
-
-  if (!password || password !== ADMIN_PASSWORD) {
-    return res.status(401).json({
-      success: false,
-      error: 'Unauthorized: Invalid admin password',
-    });
-  }
-
-  next();
-}
-
-/**
  * POST /api/admin/convert-xrp
  * Manually convert XRP to LP tokens
  */
@@ -286,24 +270,3 @@ export async function manualBurnLP(req: Request, res: Response) {
   }
 }
 
-/**
- * POST /api/admin/verify-password
- * Verify admin password
- */
-export async function verifyAdminPassword(req: Request, res: Response) {
-  const { password } = req.body;
-
-  if (!password || password !== ADMIN_PASSWORD) {
-    return res.status(401).json({
-      success: false,
-      error: 'Invalid password',
-    });
-  }
-
-  return res.json({
-    success: true,
-    message: 'Password verified',
-  });
-}
-
-export { requireAdminAuth };

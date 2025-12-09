@@ -59,11 +59,6 @@ interface RecentBurn {
 }
 
 export default function BearDashboard() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
-  const [passwordInput, setPasswordInput] = useState('');
-  const [authError, setAuthError] = useState('');
-
   const [balances, setBalances] = useState<WalletBalances | null>(null);
   const [blackholeBalances, setBlackholeBalances] = useState<BlackholeBalances | null>(null);
   const [ammInfo, setAmmInfo] = useState<AMMInfo | null>(null);
@@ -73,30 +68,6 @@ export default function BearDashboard() {
   const [txStatus, setTxStatus] = useState<string>('');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-
-  // Verify password
-  const handleLogin = async () => {
-    setAuthError('');
-    try {
-      const res = await fetch(`${API_URL}/admin/verify-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: passwordInput }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setPassword(passwordInput);
-        setAuthenticated(true);
-        setPasswordInput('');
-      } else {
-        setAuthError('Invalid password');
-      }
-    } catch (error) {
-      setAuthError('Failed to verify password');
-    }
-  };
 
   // Fetch comprehensive data
   const fetchAllData = async () => {
@@ -240,17 +211,15 @@ export default function BearDashboard() {
   };
 
   useEffect(() => {
-    if (authenticated) {
-      fetchAllData();
+    fetchAllData();
 
-      if (autoRefresh) {
-        const interval = setInterval(fetchAllData, 30000);
-        return () => clearInterval(interval);
-      }
+    if (autoRefresh) {
+      const interval = setInterval(fetchAllData, 30000);
+      return () => clearInterval(interval);
     }
-  }, [authenticated, autoRefresh]);
+  }, [autoRefresh]);
 
-  // Manual burn LP tokens - SECURE backend call
+  // Manual burn LP tokens - backend call
   const handleBurnLP = async () => {
     setLoading(true);
     setTxStatus('🔄 Burning LP tokens...');
@@ -260,7 +229,6 @@ export default function BearDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-password': password,
         },
       });
 
@@ -279,7 +247,7 @@ export default function BearDashboard() {
     }
   };
 
-  // Manual convert XRP to LP - SECURE backend call
+  // Manual convert XRP to LP - backend call
   const handleConvertXRP = async () => {
     setLoading(true);
     setTxStatus('🔄 Converting XRP to LP tokens...');
@@ -289,7 +257,6 @@ export default function BearDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-password': password,
         },
       });
 
@@ -324,53 +291,6 @@ export default function BearDashboard() {
   const timeSinceLastDeposit = burnStats?.lastDepositTime
     ? Math.floor((Date.now() - new Date(burnStats.lastDepositTime).getTime()) / 1000 / 60)
     : null;
-
-  // Login screen
-  if (!authenticated) {
-    return (
-      <div className="min-h-screen pt-24 pb-32 px-4 flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full bg-gradient-to-br from-bear-dark-800/80 to-bear-dark-900/80 rounded-2xl p-8 border border-bear-dark-600"
-        >
-          <h1 className="text-3xl font-bold text-white mb-2 text-center">
-            🐻 <span className="text-gradient-bear">BEAR</span> Admin
-          </h1>
-          <p className="text-gray-400 text-center mb-8">Enter password to continue</p>
-
-          <div className="space-y-4">
-            <div>
-              <input
-                type="password"
-                placeholder="Admin Password"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                className="w-full px-4 py-3 bg-bear-dark-900 border border-bear-dark-600 rounded-lg text-white focus:outline-none focus:border-bearpark-gold"
-              />
-              {authError && (
-                <p className="text-red-400 text-sm mt-2">{authError}</p>
-              )}
-            </div>
-
-            <button
-              onClick={handleLogin}
-              className="w-full px-6 py-3 bg-bearpark-gold text-black rounded-lg font-bold hover:bg-bearpark-gold/90 transition-colors"
-            >
-              🔐 Login
-            </button>
-          </div>
-
-          <div className="mt-6 p-4 bg-bear-green-500/10 rounded-lg border border-bear-green-500/30">
-            <p className="text-xs text-bear-green-400 text-center">
-              🔒 Secure: Your wallet secret never leaves the server
-            </p>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
 
   // Dashboard
   return (
