@@ -4,8 +4,8 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { verify as verifySignature } from 'xrpl';
-import * as jwt from 'jsonwebtoken';
+import { verify as verifySignature, deriveAddress } from 'ripple-keypairs';
+import jwt from 'jsonwebtoken';
 
 // Admin wallet whitelist (configurable via env)
 const ADMIN_WALLETS = (process.env.ADMIN_WALLETS || 'rBEARKfWJS1LYdg2g6t99BgbvpWY5pgMB9').split(',').map(w => w.trim());
