@@ -15,6 +15,98 @@ const BEAR_CURRENCY = '4245415200000000000000000000000000000000'; // "BEAR" in h
 const TREASURY_WALLET_SECRET = process.env.TREASURY_WALLET_SECRET;
 
 /**
+ * POST /api/admin/set-lp-trustline
+ * Set trustline for BEAR/XRP LP tokens
+ */
+export async function setLPTrustline(req: Request, res: Response) {
+  if (!TREASURY_WALLET_SECRET) {
+    return res.status(500).json({
+      success: false,
+      error: 'Treasury wallet secret not configured',
+    });
+  }
+
+  try {
+    const client = new Client('wss://xrplcluster.com');
+    await client.connect();
+
+    // Get AMM LP token info
+    const ammInfo = await client.request({
+      command: 'amm_info',
+      asset: {
+        currency: BEAR_CURRENCY,
+        issuer: BEAR_ISSUER,
+      },
+      asset2: {
+        currency: 'XRP',
+      },
+    });
+
+    const lpToken = ammInfo.result.amm?.lp_token;
+
+    if (!lpToken) {
+      await client.disconnect();
+      return res.status(400).json({
+        success: false,
+        error: 'BEAR/XRP AMM not found',
+      });
+    }
+
+    const wallet = Wallet.fromSeed(TREASURY_WALLET_SECRET);
+
+    // Create TrustSet transaction for LP token
+    const trustSetTx: any = {
+      TransactionType: 'TrustSet',
+      Account: wallet.address,
+      LimitAmount: {
+        currency: lpToken.currency,
+        issuer: lpToken.issuer,
+        value: '100000000000', // Large limit for LP tokens
+      },
+    };
+
+    const prepared = await client.autofill(trustSetTx);
+    const signed = wallet.sign(prepared);
+    const result = await client.submitAndWait(signed.tx_blob);
+
+    if (result.result.meta && typeof result.result.meta === 'object') {
+      const meta = result.result.meta as any;
+
+      if (meta.TransactionResult === 'tesSUCCESS') {
+        await client.disconnect();
+        return res.json({
+          success: true,
+          data: {
+            txHash: signed.hash,
+            lpCurrency: lpToken.currency,
+            lpIssuer: lpToken.issuer,
+            message: 'LP trustline set successfully',
+          },
+        });
+      } else {
+        await client.disconnect();
+        return res.status(400).json({
+          success: false,
+          error: `Transaction failed: ${meta.TransactionResult}`,
+        });
+      }
+    }
+
+    await client.disconnect();
+    return res.status(500).json({
+      success: false,
+      error: 'Unknown transaction result',
+    });
+  } catch (error: any) {
+    console.error('[Set LP Trustline Error]:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to set LP trustline',
+    });
+  }
+}
+
+/**
  * POST /api/admin/convert-xrp
  * Manually convert XRP to LP tokens
  */

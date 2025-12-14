@@ -6,7 +6,7 @@ import express, { Request, Response } from 'express';
 import { getTokenMetadata, updateTokenMetadata, setCTOWallet } from './tokenMetadata';
 import { initiateKickOAuth, handleKickCallback, verifyKickChannel } from './kickOAuth';
 import { getRecentBurnTransactions, getBurnStatistics, getBurnServiceStatus } from './burnRoutes';
-import { manualConvertXRP, manualBurnLP } from './adminRoutes';
+import { setLPTrustline, manualConvertXRP, manualBurnLP } from './adminRoutes';
 import { verifyWalletAuth, verifyWalletSignature, getAuthChallenge } from './authMiddleware';
 
 const router = express.Router();
@@ -105,6 +105,7 @@ router.get('/auth/challenge', getAuthChallenge);
 router.post('/auth/verify-wallet', verifyWalletSignature);
 
 // Admin Routes (WALLET-PROTECTED)
+router.post('/admin/set-lp-trustline', verifyWalletAuth, setLPTrustline);
 router.post('/admin/convert-xrp', verifyWalletAuth, manualConvertXRP);
 router.post('/admin/burn-lp', verifyWalletAuth, manualBurnLP);
 
