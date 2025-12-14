@@ -4,6 +4,7 @@
  */
 
 import { Client, Wallet } from 'xrpl';
+import cron from 'node-cron';
 import { getXRPBalance, getLPTokenBalance, depositXRPToAMM, disconnect } from './ammDepositService';
 import { logBurnTransaction } from './db';
 
@@ -185,8 +186,6 @@ export async function runAutoBurnCycle(): Promise<void> {
  * Start auto-burn service with cron schedule
  */
 export async function startAutoBurnService(): Promise<void> {
-  const cron = require('node-cron');
-
   // Get schedule from env or default to every 5 minutes
   const schedule = process.env.BURN_CRON_SCHEDULE || '*/5 * * * *';
 
