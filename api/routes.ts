@@ -5,7 +5,7 @@
 import express, { Request, Response } from 'express';
 import { getTokenMetadata, updateTokenMetadata, setCTOWallet } from './tokenMetadata';
 import { initiateKickOAuth, handleKickCallback, verifyKickChannel } from './kickOAuth';
-import { getRecentBurnTransactions, getBurnStatistics } from './burnRoutes';
+import { getRecentBurnTransactions, getBurnStatistics, getBurnServiceStatus } from './burnRoutes';
 import { manualConvertXRP, manualBurnLP } from './adminRoutes';
 import { verifyWalletAuth, verifyWalletSignature, getAuthChallenge } from './authMiddleware';
 
@@ -96,6 +96,7 @@ router.get('/kick/callback', handleKickCallback);
 router.post('/kick/verify', verifyKickChannel);
 
 // Burn Statistics Routes (Public - for transparency)
+router.get('/burn/status', getBurnServiceStatus);
 router.get('/burn/recent', getRecentBurnTransactions);
 router.get('/burn/stats', getBurnStatistics);
 
